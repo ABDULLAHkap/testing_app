@@ -1,0 +1,42 @@
+name: Build Windows App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-windows.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: mdcat_app
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Check API URL
+        shell: pwsh
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:API_BASE_URL)) {
+            throw "API_BASE_URL repository variable is required"
+          }
+      - run: flutter pub get
+      - name: Build Windows release
+        shell: pwsh
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: flutter build windows --release --dart-define=API_BASE_URL="$env:API_BASE_URL"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mdcat-windows-app
+          path: mdcat_app/build/windows/x64/runner/Release/
+          if-no-files-found: error
