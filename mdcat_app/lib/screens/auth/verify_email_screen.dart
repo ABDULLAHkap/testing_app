@@ -54,7 +54,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('6-digit code ${widget.email} par bheja gaya hai.'),
+            Text('A 6-digit verification code was sent to ${widget.email}.'),
             const SizedBox(height: 20),
             TextField(
               controller: _code,
