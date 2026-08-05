@@ -18,7 +18,7 @@ void main() {
       ),
     );
 
-    expect(find.text('MDCAT AI Preparation'), findsOneWidget);
+    expect(find.text('AI Exam Preparation'), findsOneWidget);
     expect(find.text('Login'), findsOneWidget);
     expect(find.text('Server settings'), findsOneWidget);
   });
