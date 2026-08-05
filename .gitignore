@@ -1,0 +1,43 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.jks
+key.properties
+
+# Databases and uploaded documents
+*.db
+*.sqlite
+*.sqlite3
+uploads/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+android/.gradle/
+android/local.properties
+ios/Flutter/ephemeral/
+linux/flutter/ephemeral/
+macos/Flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# IDE and operating-system files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+hs_err_pid*.log
+replay_pid*.log

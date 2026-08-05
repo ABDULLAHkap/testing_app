@@ -1,0 +1,29 @@
+databases:
+  - name: mdcat-database
+    databaseName: mdcat
+    user: mdcat
+    plan: free
+
+services:
+  - type: web
+    name: mdcat-backend
+    runtime: python
+    plan: free
+    rootDir: mdcat_backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mdcat-database
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"

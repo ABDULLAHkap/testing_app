@@ -1,0 +1,72 @@
+from datetime import datetime, timezone
+
+from sqlalchemy import (
+    Column, Integer, String, Text, Float, ForeignKey, DateTime, JSON
+)
+from sqlalchemy.orm import relationship
+
+from app.database import Base
+
+
+def now_utc():
+    return datetime.now(timezone.utc)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(120), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=now_utc)
+    exam_date = Column(DateTime, nullable=True)
+
+    quiz_sets = relationship("QuizSet", back_populates="owner", cascade="all, delete-orphan")
+    attempts = relationship("QuizAttempt", back_populates="user", cascade="all, delete-orphan")
+
+
+class QuizSet(Base):
+    """A generated batch of MCQs (one 'Generate MCQs' click)."""
+    __tablename__ = "quiz_sets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    subject = Column(String(50), nullable=False)
+    difficulty = Column(String(20), nullable=False)
+    quiz_minutes = Column(Integer, default=30)
+
+    source_filename = Column(String(255), nullable=True)
+    # Structured MCQs stored as JSON list of:
+    # {question, options: [a,b,c,d], correct_option: "A", explanation}
+    questions = Column(JSON, nullable=False)
+
+    created_at = Column(DateTime, default=now_utc)
+
+    owner = relationship("User", back_populates="quiz_sets")
+    attempts = relationship("QuizAttempt", back_populates="quiz_set", cascade="all, delete-orphan")
+
+
+class QuizAttempt(Base):
+    """A student's completed (or in-progress) attempt at a QuizSet."""
+    __tablename__ = "quiz_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    quiz_set_id = Column(Integer, ForeignKey("quiz_sets.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # answers: {"0": "A) ...", "1": "B) ..."} keyed by question index
+    answers = Column(JSON, default=dict)
+
+    correct = Column(Integer, default=0)
+    wrong = Column(Integer, default=0)
+    total = Column(Integer, default=0)
+    percentage = Column(Float, default=0.0)
+    grade = Column(String(5), default="")
+
+    started_at = Column(DateTime, default=now_utc)
+    finished_at = Column(DateTime, nullable=True)
+
+    quiz_set = relationship("QuizSet", back_populates="attempts")
+    user = relationship("User", back_populates="attempts")
