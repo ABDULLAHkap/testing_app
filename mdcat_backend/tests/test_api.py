@@ -3,6 +3,7 @@ import unittest
 
 os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
+os.environ.setdefault("EMAIL_OTP_DEBUG", "true")
 
 from fastapi.testclient import TestClient
 
@@ -24,9 +25,18 @@ class ApiTests(unittest.TestCase):
                 "username": "student_one",
                 "email": "student@example.com",
                 "password": "secure-password",
+                "gender": "Male",
+                "phone": "+923001234567",
+                "target_exam": "MDCAT",
             },
         )
         assert response.status_code == 201, response.text
+
+        with SessionLocal() as db:
+            from app.models.models import User
+            user = db.query(User).filter(User.username == "student_one").first()
+            user.email_verified = True
+            db.commit()
 
         response = cls.client.post(
             "/auth/login",

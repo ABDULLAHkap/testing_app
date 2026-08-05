@@ -64,3 +64,22 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+def require_test_access(current_user: User = Depends(get_current_user)) -> User:
+    now = datetime.now(timezone.utc)
+    expires = current_user.subscription_expires_at
+    if expires is not None and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if (expires and expires > now) or current_user.free_tests_remaining > 0 or current_user.is_admin:
+        return current_user
+    raise HTTPException(
+        status_code=status.HTTP_402_PAYMENT_REQUIRED,
+        detail="Your 3 free tests are complete. Please subscribe to continue.",
+    )
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user

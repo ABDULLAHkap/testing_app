@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/auth_provider.dart';
-import '../home/home_screen.dart';
+import 'verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,6 +16,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  String _gender = 'Male';
+  String _targetExam = 'MDCAT';
+  static const _exams = [
+    'MDCAT', 'ECAT', 'NUST NET', 'NTS', 'CSS', 'LAT', 'IELTS', 'PMS', 'SAT',
+    'General Knowledge',
+  ];
   bool _loading = false;
 
   @override
@@ -23,6 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -35,6 +43,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _usernameController.text.trim(),
       _emailController.text.trim(),
       _passwordController.text,
+      _gender,
+      _phoneController.text.trim(),
+      _targetExam,
     );
 
     if (!mounted) return;
@@ -42,7 +53,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (success) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => VerifyEmailScreen(
+            email: _emailController.text.trim(),
+          ),
+        ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -71,6 +86,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (v) => (v == null || v.length < 3)
                         ? "At least 3 characters"
                         : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _phoneController,
+                    decoration: const InputDecoration(labelText: "Phone number"),
+                    keyboardType: TextInputType.phone,
+                    validator: (v) => (v == null || v.trim().length < 7)
+                        ? "Enter a valid phone number"
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _gender,
+                    decoration: const InputDecoration(labelText: 'Gender'),
+                    items: const ['Male', 'Female', 'Other', 'Prefer not to say']
+                        .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+                        .toList(),
+                    onChanged: (value) => setState(() => _gender = value!),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _targetExam,
+                    decoration: const InputDecoration(labelText: 'Test category'),
+                    items: _exams
+                        .map((value) => DropdownMenuItem(value: value, child: Text(value)))
+                        .toList(),
+                    onChanged: (value) => setState(() => _targetExam = value!),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

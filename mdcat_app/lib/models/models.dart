@@ -3,12 +3,24 @@ class UserModel {
   final String username;
   final String email;
   final DateTime? examDate;
+  final String? gender;
+  final String? phone;
+  final String targetExam;
+  final bool emailVerified;
+  final bool isAdmin;
+  final int freeTestsRemaining;
 
   UserModel({
     required this.id,
     required this.username,
     required this.email,
     this.examDate,
+    this.gender,
+    this.phone,
+    this.targetExam = 'MDCAT',
+    this.emailVerified = false,
+    this.isAdmin = false,
+    this.freeTestsRemaining = 3,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -19,6 +31,12 @@ class UserModel {
       examDate: json['exam_date'] != null
           ? DateTime.parse(json['exam_date'])
           : null,
+      gender: json['gender'],
+      phone: json['phone'],
+      targetExam: json['target_exam'] ?? 'MDCAT',
+      emailVerified: json['email_verified'] ?? false,
+      isAdmin: json['is_admin'] ?? false,
+      freeTestsRemaining: json['free_tests_remaining'] ?? 3,
     );
   }
 }

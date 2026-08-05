@@ -82,8 +82,14 @@ class ApiClient {
 
   // ---------------- Auth ----------------
 
-  Future<UserModel> register(
-      String username, String email, String password) async {
+  Future<void> register(
+    String username,
+    String email,
+    String password,
+    String gender,
+    String phone,
+    String targetExam,
+  ) async {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
       Uri.parse("$baseUrl/auth/register"),
@@ -92,10 +98,32 @@ class ApiClient {
         "username": username,
         "email": email,
         "password": password,
+        "gender": gender,
+        "phone": phone,
+        "target_exam": targetExam,
       }),
     );
-    final data = _decodeOrThrow(resp);
-    return UserModel.fromJson(data);
+    _decodeOrThrow(resp);
+  }
+
+  Future<void> verifyEmail(String email, String code) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/verify-email"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email, "code": code}),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<void> resendOtp(String email) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/resend-otp"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email}),
+    );
+    _decodeOrThrow(resp);
   }
 
   Future<void> login(String username, String password) async {
@@ -346,5 +374,36 @@ class ApiClient {
     );
     final data = _decodeOrThrow(resp) as List;
     return data.map((e) => ProgressPoint.fromJson(e)).toList();
+  }
+
+  // ---------------- Admin ----------------
+
+  Future<Map<String, dynamic>> getAdminOverview() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/admin/overview"),
+      headers: await _authHeaders(),
+    );
+    return Map<String, dynamic>.from(_decodeOrThrow(resp));
+  }
+
+  Future<List<Map<String, dynamic>>> getAdminUsers() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/admin/users"),
+      headers: await _authHeaders(),
+    );
+    final data = _decodeOrThrow(resp) as List;
+    return data.map((item) => Map<String, dynamic>.from(item)).toList();
+  }
+
+  Future<void> grantSubscription(int userId, {int days = 30}) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/admin/users/$userId/subscription"),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({"days": days}),
+    );
+    _decodeOrThrow(resp);
   }
 }

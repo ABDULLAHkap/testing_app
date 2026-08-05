@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
       initialDate: DateTime.now().add(const Duration(days: 30)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-      helpText: "Select your MDCAT exam date",
+      helpText: "Select your exam date",
     );
     if (picked == null) return;
     try {
@@ -90,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   username: username,
                   examDate: _stats?.examDate,
                   onSetDate: _pickExamDate,
+                  examName: auth.currentUser?.targetExam ?? 'Exam',
                 ),
                 const SizedBox(height: 14),
                 _dailyChallengeCard(),
@@ -101,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   iconColor: const Color(0xFF378ADD),
                   iconBg: const Color(0xFF378ADD).withOpacity(0.18),
                   title: "Practice by Topic",
-                  subtitle: "Chapter-wise MCQs across the full MDCAT syllabus",
+                  subtitle: "MCQs for ${auth.currentUser?.targetExam ?? 'your exam'} subjects",
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const PracticeByTopicScreen()),
                   ),
@@ -112,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   iconColor: const Color(0xFFE0A429),
                   iconBg: const Color(0xFFE0A429).withOpacity(0.18),
                   title: "Full Mock Test",
-                  subtitle: "Full-length test mixing all subjects, MDCAT weightage",
+                  subtitle: "Full-length test mixing your selected exam subjects",
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const MockTestScreen()),
                   ),

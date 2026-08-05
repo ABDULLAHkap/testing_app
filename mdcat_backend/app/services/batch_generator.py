@@ -9,6 +9,7 @@ def generate_large_mcqs(
     difficulty: str,
     topic: str | None = None,
     text: str | None = None,
+    exam_type: str = "MDCAT",
 ) -> list[dict]:
     """
     Groq (like most LLM APIs) gets less reliable generating very large
@@ -32,6 +33,7 @@ def generate_large_mcqs(
             difficulty=difficulty,
             topic=topic,
             text=text,
+            exam_type=exam_type,
         )
         for question in result:
             normalized = " ".join(question["question"].lower().split())

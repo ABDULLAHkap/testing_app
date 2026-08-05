@@ -170,4 +170,4 @@ def download_result_pdf(
         "grade": attempt.grade,
     }
     path = create_result_pdf(result, quiz_set.subject, quiz_set.difficulty)
-    return FileResponse(path, media_type="application/pdf", filename="MDCAT_Result.pdf")
+    return FileResponse(path, media_type="application/pdf", filename="Exam_Result.pdf")

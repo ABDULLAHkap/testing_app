@@ -9,6 +9,9 @@ class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     email: EmailStr
     password: str = Field(min_length=6)
+    gender: str = Field(pattern=r"^(Male|Female|Other|Prefer not to say)$")
+    phone: str = Field(min_length=7, max_length=30)
+    target_exam: str = Field(min_length=2, max_length=30)
 
 
 class UserLogin(BaseModel):
@@ -22,6 +25,13 @@ class UserOut(BaseModel):
     email: str
     created_at: datetime
     exam_date: Optional[datetime] = None
+    gender: Optional[str] = None
+    phone: Optional[str] = None
+    target_exam: str = "MDCAT"
+    email_verified: bool = False
+    is_admin: bool = False
+    subscription_expires_at: Optional[datetime] = None
+    free_tests_remaining: int = 3
 
     class Config:
         from_attributes = True
@@ -30,6 +40,20 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+
+class RegistrationResponse(BaseModel):
+    message: str
+    email: str
 
 
 class ExamDateUpdate(BaseModel):
@@ -70,6 +94,7 @@ class GenerateMCQRequest(BaseModel):
     quiz_minutes: int = Field(default=30, ge=1, le=300)
     source_filename: Optional[str] = Field(default=None, max_length=255)
     mode: str = "topic"  # "topic" | "mock_test" | "daily_challenge"
+    exam_type: Optional[str] = Field(default=None, max_length=30)
 
 
 class MCQItem(BaseModel):

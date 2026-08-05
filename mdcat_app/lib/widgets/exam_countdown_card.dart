@@ -5,12 +5,14 @@ class ExamCountdownCard extends StatefulWidget {
   final String username;
   final DateTime? examDate;
   final VoidCallback onSetDate;
+  final String examName;
 
   const ExamCountdownCard({
     super.key,
     required this.username,
     required this.examDate,
     required this.onSetDate,
+    this.examName = 'Exam',
   });
 
   @override
@@ -61,9 +63,9 @@ class _ExamCountdownCardState extends State<ExamCountdownCard> {
           ),
           const SizedBox(height: 6),
           if (widget.examDate == null) ...[
-            const Text(
-              "Set your MDCAT exam date to start your countdown",
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+            Text(
+              "Set your ${widget.examName} date to start your countdown",
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 14),
@@ -76,9 +78,9 @@ class _ExamCountdownCardState extends State<ExamCountdownCard> {
               child: const Text("Set Exam Date"),
             ),
           ] else ...[
-            const Text(
-              "MDCAT starts in",
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+            Text(
+              "${widget.examName} starts in",
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
             Text(
               _formatDate(widget.examDate!),

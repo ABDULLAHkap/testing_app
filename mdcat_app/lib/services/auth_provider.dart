@@ -44,12 +44,42 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(String username, String email, String password) async {
+  Future<bool> register(
+    String username,
+    String email,
+    String password,
+    String gender,
+    String phone,
+    String targetExam,
+  ) async {
     lastError = null;
     try {
-      await _api.register(username, email, password);
-      // auto-login right after successful registration
-      return await login(username, password);
+      await _api.register(username, email, password, gender, phone, targetExam);
+      return true;
+    } catch (e) {
+      lastError = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> verifyEmail(String email, String code) async {
+    lastError = null;
+    try {
+      await _api.verifyEmail(email, code);
+      return true;
+    } catch (e) {
+      lastError = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> resendOtp(String email) async {
+    lastError = null;
+    try {
+      await _api.resendOtp(email);
+      return true;
     } catch (e) {
       lastError = e.toString();
       notifyListeners();

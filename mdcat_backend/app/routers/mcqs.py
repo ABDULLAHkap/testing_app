@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_test_access
+from app.exam_catalog import EXAM_CATALOG
 from app.database import get_db
 from app.models.models import User, QuizSet
 from app.schemas import (
@@ -171,7 +172,7 @@ PAST_PAPER_INSTRUCTIONS = [
 def generate_mcqs_endpoint(
     payload: GenerateMCQRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_test_access),
 ):
     # No upload required by default: if `text` is omitted, MCQs are generated
     # purely from the AI's own MDCAT subject knowledge (optionally focused
@@ -179,18 +180,23 @@ def generate_mcqs_endpoint(
     # used to ground the questions instead.
     text = payload.text.strip() if payload.text else None
 
+    exam_type = payload.exam_type or current_user.target_exam
+    if exam_type not in EXAM_CATALOG:
+        raise HTTPException(422, detail="Unsupported exam category")
     questions = generate_large_mcqs(
         total_questions=payload.number_of_questions,
         subject=payload.subject,
         difficulty=payload.difficulty,
         topic=payload.topic,
         text=text,
+        exam_type=exam_type,
     )
 
     _require_exact_questions(questions, payload.number_of_questions)
 
     quiz_set = QuizSet(
         user_id=current_user.id,
+        exam_type=exam_type,
         subject=payload.subject,
         difficulty=payload.difficulty,
         quiz_minutes=payload.quiz_minutes,
@@ -203,9 +209,22 @@ def generate_mcqs_endpoint(
     return quiz_set
 
 
+@router.get("/exam-catalog")
+def exam_catalog():
+    return [
+        {"exam": exam, "subjects": subjects}
+        for exam, subjects in EXAM_CATALOG.items()
+    ]
+
+
 @router.get("/subjects", response_model=List[TopicListItem])
-def list_subjects_and_topics():
-    """Static MDCAT subject/topic structure for the 'Practice by Topic' UI."""
+def list_subjects_and_topics(current_user: User = Depends(get_current_user)):
+    """Subjects for the exam category selected during signup."""
+    if current_user.target_exam != "MDCAT":
+        return [
+            TopicListItem(subject=subject, topics=[subject])
+            for subject in EXAM_CATALOG[current_user.target_exam]
+        ]
     return [
         TopicListItem(subject=subject, topics=topics)
         for subject, topics in MDCAT_SYLLABUS.items()
@@ -216,7 +235,7 @@ def list_subjects_and_topics():
 def generate_mock_test(
     payload: MockTestRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_test_access),
 ):
     """
     Generates one full-length mock test mixing all MDCAT subjects,
@@ -224,7 +243,14 @@ def generate_mock_test(
     """
     all_questions: list[dict] = []
 
-    counts = _allocate_mock_questions(payload.total_questions)
+    exam_type = current_user.target_exam
+    if exam_type == "MDCAT":
+        counts = _allocate_mock_questions(payload.total_questions)
+    else:
+        subjects = EXAM_CATALOG[exam_type]
+        counts = {subject: payload.total_questions // len(subjects) for subject in subjects}
+        for subject in subjects[:payload.total_questions % len(subjects)]:
+            counts[subject] += 1
 
     for subject, count in counts.items():
 
@@ -232,6 +258,7 @@ def generate_mock_test(
             total_questions=count,
             subject=subject,
             difficulty=payload.difficulty,
+            exam_type=exam_type,
         )
         _require_exact_questions(questions, count)
         all_questions.extend(questions)
@@ -240,6 +267,7 @@ def generate_mock_test(
 
     quiz_set = QuizSet(
         user_id=current_user.id,
+        exam_type=exam_type,
         subject="Mixed (Mock Test)",
         difficulty=payload.difficulty,
         quiz_minutes=payload.quiz_minutes,

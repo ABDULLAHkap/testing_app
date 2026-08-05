@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, ForeignKey, DateTime, JSON
+    Column, Integer, String, Text, Float, ForeignKey, DateTime, JSON, Boolean
 )
 from sqlalchemy.orm import relationship
 
@@ -21,9 +21,46 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=now_utc)
     exam_date = Column(DateTime, nullable=True)
+    gender = Column(String(20), nullable=True)
+    phone = Column(String(30), nullable=True)
+    target_exam = Column(String(30), default="MDCAT", nullable=False)
+    email_verified = Column(Boolean, default=False, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
+    subscription_expires_at = Column(DateTime, nullable=True)
 
     quiz_sets = relationship("QuizSet", back_populates="owner", cascade="all, delete-orphan")
     attempts = relationship("QuizAttempt", back_populates="user", cascade="all, delete-orphan")
+    verification_codes = relationship("EmailVerificationCode", cascade="all, delete-orphan")
+
+    @property
+    def free_tests_remaining(self):
+        completed = sum(1 for attempt in self.attempts if attempt.finished_at is not None)
+        return max(0, 3 - completed)
+
+
+class EmailVerificationCode(Base):
+    __tablename__ = "email_verification_codes"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    code_hash = Column(String(64), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=now_utc)
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    provider = Column(String(30), default="jazzcash", nullable=False)
+    transaction_ref = Column(String(80), unique=True, nullable=False, index=True)
+    amount_pkr = Column(Integer, nullable=False)
+    status = Column(String(20), default="pending", nullable=False)
+    provider_response = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=now_utc)
+    completed_at = Column(DateTime, nullable=True)
 
 
 class QuizSet(Base):
@@ -34,6 +71,7 @@ class QuizSet(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     subject = Column(String(50), nullable=False)
+    exam_type = Column(String(30), default="MDCAT", nullable=False)
     difficulty = Column(String(20), nullable=False)
     quiz_minutes = Column(Integer, default=30)
 

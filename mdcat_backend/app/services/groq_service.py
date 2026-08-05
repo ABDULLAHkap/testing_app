@@ -24,6 +24,7 @@ def generate_mcqs(
     difficulty: str = "Medium",
     topic: str | None = None,
     text: str | None = None,
+    exam_type: str = "MDCAT",
 ) -> list[dict]:
     """
     Ask Groq for MCQs and get back a clean Python list of dicts.
@@ -40,24 +41,23 @@ def generate_mcqs(
     """
 
     system_prompt = (
-        "You are an expert MDCAT (Medical & Dental College Admission Test) "
-        "question generator with deep knowledge of the official Pakistani "
-        "MDCAT syllabus (Biology, Chemistry, Physics, English, Logical "
-        "Reasoning). You always respond with valid JSON only, matching the "
+        f"You are an expert {exam_type} exam preparation question generator "
+        "with deep knowledge of that exam's current syllabus and style. "
+        "You always respond with valid JSON only, matching the "
         "exact schema you are given. No prose, no markdown fences, no "
         "commentary."
     )
 
     difficulty_guide = """Difficulty guide:
 - Easy: basic conceptual recall questions.
-- Medium: standard MDCAT exam-level questions.
+- Medium: standard exam-level questions.
 - Hard: application-based, analytical, multi-step reasoning questions."""
 
     base_rules = """Rules:
 - Each question must have exactly 4 options (A, B, C, D).
 - Exactly one correct option.
 - Include a short explanation for the correct answer.
-- Follow the official MDCAT style and syllabus scope.
+- Follow the official exam style and syllabus scope.
 - Do not include an introduction, conclusion, or any text outside the JSON."""
 
     schema_block = """Respond with ONLY a JSON object of this exact shape:
@@ -76,7 +76,7 @@ def generate_mcqs(
         # Grounded generation from uploaded material.
         topic_line = f' on the topic "{topic}"' if topic else ""
         user_prompt = f"""
-Generate {number} high-quality MDCAT MCQs for the subject "{subject}"{topic_line}
+Generate {number} high-quality {exam_type} MCQs for the subject "{subject}"{topic_line}
 at "{difficulty}" difficulty, based ONLY on the study material provided below.
 
 {difficulty_guide}
@@ -96,9 +96,9 @@ Study Material:
         # No-upload generation, purely from the model's own MDCAT knowledge.
         topic_line = f' focused specifically on the topic "{topic}"' if topic else ""
         user_prompt = f"""
-Generate {number} high-quality, original MDCAT MCQs for the subject
+Generate {number} high-quality, original {exam_type} MCQs for the subject
 "{subject}"{topic_line} at "{difficulty}" difficulty, drawing on the official
-MDCAT syllabus and your own subject-matter knowledge.
+{exam_type} syllabus and your own subject-matter knowledge.
 
 {difficulty_guide}
 
