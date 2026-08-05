@@ -31,6 +31,12 @@ services:
         value: choudrymnouman@gmail.com
       - key: ADMIN_PASSWORD
         sync: false
+      - key: ADMIN_2_EMAIL
+        sync: false
+      - key: ADMIN_2_PASSWORD
+        sync: false
+      - key: ADMIN_2_USERNAME
+        value: admin2
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
