@@ -246,6 +246,7 @@ class AttemptResult {
   final double percentage;
   final String grade;
   final DateTime? finishedAt;
+  final List<QuestionReview> review;
 
   AttemptResult({
     required this.id,
@@ -256,6 +257,7 @@ class AttemptResult {
     required this.percentage,
     required this.grade,
     this.finishedAt,
+    this.review = const [],
   });
 
   factory AttemptResult.fromJson(Map<String, dynamic> json) {
@@ -270,6 +272,44 @@ class AttemptResult {
       finishedAt: json['finished_at'] != null
           ? DateTime.parse(json['finished_at'])
           : null,
+      review: (json['review'] as List? ?? [])
+          .map((item) => QuestionReview.fromJson(item))
+          .toList(),
+    );
+  }
+}
+
+class QuestionReview {
+  final int index;
+  final String question;
+  final List<String> options;
+  final String? selectedOption;
+  final String correctOption;
+  final String correctAnswer;
+  final bool isCorrect;
+  final String? explanation;
+
+  QuestionReview({
+    required this.index,
+    required this.question,
+    required this.options,
+    required this.selectedOption,
+    required this.correctOption,
+    required this.correctAnswer,
+    required this.isCorrect,
+    this.explanation,
+  });
+
+  factory QuestionReview.fromJson(Map<String, dynamic> json) {
+    return QuestionReview(
+      index: json['index'],
+      question: json['question'],
+      options: List<String>.from(json['options']),
+      selectedOption: json['selected_option'],
+      correctOption: json['correct_option'],
+      correctAnswer: json['correct_answer'],
+      isCorrect: json['is_correct'],
+      explanation: json['explanation'],
     );
   }
 }

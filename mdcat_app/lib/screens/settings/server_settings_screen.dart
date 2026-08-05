@@ -20,9 +20,6 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
   final _usernameController = TextEditingController();
   bool _savingUsername = false;
 
-  // Server
-  final _urlController = TextEditingController();
-  bool _savingUrl = false;
   bool _loading = true;
 
   @override
@@ -33,11 +30,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
 
   Future<void> _load() async {
     final auth = context.read<AuthProvider>();
-    final currentUrl = await _api.getBaseUrl();
     if (!mounted) return;
     setState(() {
       _usernameController.text = auth.currentUser?.username ?? "";
-      _urlController.text = currentUrl;
       _loading = false;
     });
   }
@@ -63,25 +58,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     }
   }
 
-  Future<void> _saveServerUrl() async {
-    var url = _urlController.text.trim();
-    if (url.isEmpty) return;
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      url = "https://$url";
-    }
-
-    setState(() => _savingUrl = true);
-    await _api.setBaseUrl(url);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text("Server URL saved")));
-    setState(() => _savingUrl = false);
-  }
-
   @override
   void dispose() {
     _usernameController.dispose();
-    _urlController.dispose();
     super.dispose();
   }
 
@@ -167,41 +146,6 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
 
-                const SizedBox(height: 32),
-                _sectionHeader("Server"),
-                const SizedBox(height: 8),
-                const Text(
-                  "Change this without rebuilding the app — useful when "
-                  "testing locally and your computer's IP address changes, "
-                  "or when switching to your deployed HTTPS backend.",
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _urlController,
-                  decoration: const InputDecoration(
-                    labelText: "Server URL",
-                    hintText: "https://your-api.onrender.com",
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.url,
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: _savingUrl ? null : _saveServerUrl,
-                  child: _savingUrl
-                      ? const SizedBox(
-                          height: 18, width: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Text("Save Server URL"),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "Tip: after saving, logout/login again so all screens "
-                  "pick up the new URL.",
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
               ],
             ),
     );

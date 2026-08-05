@@ -98,6 +98,11 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["correct"], 1)
+        review = response.json()["review"]
+        self.assertEqual(len(review), 1)
+        self.assertTrue(review[0]["is_correct"])
+        self.assertEqual(review[0]["correct_option"], "B")
+        self.assertIn("Only the API", review[0]["explanation"])
 
         response = self.client.post(
             f"/quiz/attempts/{attempt_id}/submit",

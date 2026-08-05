@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../services/auth_provider.dart';
 import '../home/home_screen.dart';
-import '../settings/server_settings_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -111,17 +110,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
                     },
                     child: const Text("Don't have an account? Register"),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ServerSettingsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.dns_outlined, size: 18),
-                    label: const Text("Server settings"),
                   ),
                 ],
               ),

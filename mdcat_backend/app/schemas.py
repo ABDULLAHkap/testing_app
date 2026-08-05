@@ -146,6 +146,17 @@ class SubmitAnswersRequest(BaseModel):
         return answers
 
 
+class QuestionReview(BaseModel):
+    index: int
+    question: str
+    options: List[str]
+    selected_option: Optional[str] = None
+    correct_option: str
+    correct_answer: str
+    is_correct: bool
+    explanation: Optional[str] = None
+
+
 class AttemptResult(BaseModel):
     id: int
     quiz_set_id: int
@@ -155,6 +166,7 @@ class AttemptResult(BaseModel):
     percentage: float
     grade: str
     finished_at: Optional[datetime]
+    review: List[QuestionReview] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

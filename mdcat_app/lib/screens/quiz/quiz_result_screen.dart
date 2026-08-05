@@ -29,7 +29,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     setState(() => _downloading = true);
     try {
       final bytes = await _api.downloadResultPdf(widget.result.id);
-      await savePdf(bytes, "MDCAT_Result_${widget.result.id}.pdf");
+      await savePdf(bytes, "Exam_Result_${widget.result.id}.pdf");
       // On mobile, savePdf() opens the native Share sheet directly, so no
       // extra snackbar is needed there. On web it triggers a browser
       // download, where a confirmation is still useful.
@@ -124,6 +124,15 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            if (r.review.isNotEmpty) ...[
+              const Text(
+                "Answer Review",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              ...r.review.map(_reviewCard),
+              const SizedBox(height: 16),
+            ],
             ElevatedButton.icon(
               onPressed: _downloading ? null : _downloadPdf,
               icon: _downloading
@@ -166,6 +175,55 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           const SizedBox(height: 4),
           Text(label, style: const TextStyle(fontSize: 12)),
         ],
+      ),
+    );
+  }
+
+  Widget _reviewCard(QuestionReview item) {
+    final statusColor = item.isCorrect ? Colors.green : Colors.red;
+    final selected = item.selectedOption == null
+        ? "Not answered"
+        : item.options.firstWhere(
+            (option) => option.trim().startsWith('${item.selectedOption})'),
+            orElse: () => item.selectedOption!,
+          );
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  item.isCorrect ? Icons.check_circle : Icons.cancel,
+                  color: statusColor,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  item.isCorrect ? 'Correct' : 'Wrong',
+                  style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '${item.index + 1}. ${item.question}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text('Your answer: $selected'),
+            Text(
+              'Correct answer: ${item.correctAnswer}',
+              style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
+            ),
+            if (item.explanation != null && item.explanation!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text('Explanation: ${item.explanation}'),
+            ],
+          ],
+        ),
       ),
     );
   }

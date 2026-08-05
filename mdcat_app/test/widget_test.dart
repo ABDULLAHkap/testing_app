@@ -20,6 +20,6 @@ void main() {
 
     expect(find.text('AI Exam Preparation'), findsOneWidget);
     expect(find.text('Login'), findsOneWidget);
-    expect(find.text('Server settings'), findsOneWidget);
+    expect(find.text('Server settings'), findsNothing);
   });
 }

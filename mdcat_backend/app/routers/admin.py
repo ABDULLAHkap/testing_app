@@ -28,8 +28,14 @@ def overview(db: Session = Depends(get_db), _admin: User = Depends(require_admin
 @router.get("/users")
 def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
     users = db.query(User).order_by(User.created_at.desc()).limit(500).all()
-    return [
-        {
+    result = []
+    for user in users:
+        finished = [attempt for attempt in user.attempts if attempt.finished_at is not None]
+        tests_done = len(finished)
+        average = round(sum(attempt.percentage for attempt in finished) / tests_done, 1) if tests_done else 0.0
+        best = round(max((attempt.percentage for attempt in finished), default=0.0), 1)
+        last_test = max((attempt.finished_at for attempt in finished), default=None)
+        result.append({
             "id": user.id,
             "username": user.username,
             "email": user.email,
@@ -41,9 +47,13 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
             "free_tests_remaining": user.free_tests_remaining,
             "subscription_expires_at": user.subscription_expires_at,
             "created_at": user.created_at,
-        }
-        for user in users
-    ]
+            "exam_date": user.exam_date,
+            "tests_done": tests_done,
+            "average_score": average,
+            "best_score": best,
+            "last_test_at": last_test,
+        })
+    return result
 
 
 @router.post("/users/{user_id}/subscription")

@@ -13,6 +13,46 @@ from app.services.pdf_report import create_result_pdf
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
 
+def _review(quiz_set: QuizSet, answers: dict[str, str]) -> list[dict]:
+    items = []
+    for index, question in enumerate(quiz_set.questions):
+        selected = answers.get(str(index))
+        correct = question["correct_option"]
+        correct_answer = next(
+            (option for option in question["options"] if option.strip().startswith(f"{correct})")),
+            correct,
+        )
+        items.append({
+            "index": index,
+            "question": question["question"],
+            "options": question["options"],
+            "selected_option": selected,
+            "correct_option": correct,
+            "correct_answer": correct_answer,
+            "is_correct": selected == correct,
+            "explanation": question.get("explanation"),
+        })
+    return items
+
+
+def _result(attempt: QuizAttempt, quiz_set: QuizSet | None = None) -> dict:
+    return {
+        "id": attempt.id,
+        "quiz_set_id": attempt.quiz_set_id,
+        "correct": attempt.correct,
+        "wrong": attempt.wrong,
+        "total": attempt.total,
+        "percentage": attempt.percentage,
+        "grade": attempt.grade,
+        "finished_at": attempt.finished_at,
+        "review": (
+            _review(quiz_set, attempt.answers or {})
+            if quiz_set is not None and attempt.finished_at is not None
+            else []
+        ),
+    }
+
+
 def _grade(quiz_set: QuizSet, answers: dict[str, str]) -> dict:
     """
     Server-side grading — never trust a client to self-report its own
@@ -76,7 +116,7 @@ def start_attempt(
     db.add(attempt)
     db.commit()
     db.refresh(attempt)
-    return attempt
+    return _result(attempt)
 
 
 @router.post("/attempts/{attempt_id}/submit", response_model=AttemptResult)
@@ -127,7 +167,7 @@ def submit_attempt(
 
     db.commit()
     db.refresh(attempt)
-    return attempt
+    return _result(attempt, quiz_set)
 
 
 @router.get("/attempts/{attempt_id}", response_model=AttemptResult)
@@ -143,7 +183,10 @@ def get_attempt(
     )
     if not attempt:
         raise HTTPException(404, detail="Attempt not found")
-    return attempt
+    quiz_set = None
+    if attempt.finished_at is not None:
+        quiz_set = db.query(QuizSet).filter(QuizSet.id == attempt.quiz_set_id).first()
+    return _result(attempt, quiz_set)
 
 
 @router.get("/attempts/{attempt_id}/pdf")

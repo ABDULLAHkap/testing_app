@@ -59,20 +59,43 @@ class _AdminScreenState extends State<AdminScreen> {
                   const SizedBox(height: 20),
                   const Text('Users', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   ..._users.map((user) => Card(
-                        child: ListTile(
+                        child: ExpansionTile(
+                          leading: CircleAvatar(
+                            child: Text('${user['username']}'.substring(0, 1).toUpperCase()),
+                          ),
                           title: Text('${user['username']} • ${user['target_exam']}'),
-                          subtitle: Text('${user['email']}\nFree tests: ${user['free_tests_remaining']}'),
-                          isThreeLine: true,
+                          subtitle: Text('${user['email']}\n${user['phone'] ?? 'No phone'}'),
                           trailing: user['is_admin'] == true
                               ? const Chip(label: Text('Admin'))
-                              : IconButton(
-                                  tooltip: 'Give 30 days',
+                              : const Icon(Icons.expand_more),
+                          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          children: [
+                            _detail('Email', user['email']),
+                            _detail('Phone', user['phone']),
+                            _detail('Gender', user['gender']),
+                            _detail('Exam category', user['target_exam']),
+                            _detail('Email verified', user['email_verified'] == true ? 'Yes' : 'No'),
+                            _detail('Tests completed', user['tests_done']),
+                            _detail('Average score', '${user['average_score']}%'),
+                            _detail('Best score', '${user['best_score']}%'),
+                            _detail('Free tests remaining', user['free_tests_remaining']),
+                            _detail('Exam date', user['exam_date'] ?? 'Not set'),
+                            _detail('Registered', user['created_at']),
+                            _detail('Last test', user['last_test_at'] ?? 'No test yet'),
+                            _detail('Subscription expires', user['subscription_expires_at'] ?? 'Not subscribed'),
+                            if (user['is_admin'] != true)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: ElevatedButton.icon(
                                   icon: const Icon(Icons.workspace_premium),
+                                  label: const Text('Give 30 days'),
                                   onPressed: () async {
                                     await _api.grantSubscription(user['id']);
                                     await _load();
                                   },
                                 ),
+                              ),
+                          ],
                         ),
                       )),
                 ],
@@ -85,6 +108,20 @@ class _AdminScreenState extends State<AdminScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(children: [Text('$value', style: const TextStyle(fontSize: 24)), Text(label)]),
+        ),
+      );
+
+  Widget _detail(String label, dynamic value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 150,
+              child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            Expanded(child: Text('${value ?? '-'}')),
+          ],
         ),
       );
 }
