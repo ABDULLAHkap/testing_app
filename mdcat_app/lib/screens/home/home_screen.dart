@@ -167,12 +167,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _dailyChallengeCard() {
+    final exam = context.read<AuthProvider>().currentUser?.targetExam ?? "Exam";
     return _actionCard(
       icon: Icons.local_fire_department,
       iconColor: const Color(0xFFE0A429),
       iconBg: const Color(0xFFE0A429).withOpacity(0.18),
       title: "Daily Challenge",
-      subtitle: "10 MCQs • 15 min • All subjects",
+      subtitle: "10 $exam questions • 15 min • All subjects",
       trailing: const Icon(Icons.chevron_right, color: Colors.white38),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(

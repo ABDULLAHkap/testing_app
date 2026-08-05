@@ -222,7 +222,7 @@ class ApiClient {
   // ---------------- MCQ generation ----------------
 
   /// Generates MCQs. Leave `text` null for the default no-upload flow —
-  /// the AI generates questions purely from its own MDCAT knowledge for
+  /// the AI generates questions for the signed-in user's selected exam for
   /// the given subject/topic. Pass `text` only if grounding questions in
   /// uploaded material (legacy upload flow).
   Future<QuizSet> generateMcqs({

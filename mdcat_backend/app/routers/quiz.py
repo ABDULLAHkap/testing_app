@@ -212,5 +212,7 @@ def download_result_pdf(
         "percentage": attempt.percentage,
         "grade": attempt.grade,
     }
-    path = create_result_pdf(result, quiz_set.subject, quiz_set.difficulty)
+    path = create_result_pdf(
+        result, quiz_set.subject, quiz_set.difficulty, quiz_set.exam_type
+    )
     return FileResponse(path, media_type="application/pdf", filename="Exam_Result.pdf")

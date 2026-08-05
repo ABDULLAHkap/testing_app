@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
 import '../../services/api_client.dart';
+import '../../services/auth_provider.dart';
 import 'past_paper_detail_screen.dart';
 import '../practice/practice_by_topic_screen.dart';
 import '../practice/mock_test_screen.dart';
@@ -35,10 +37,11 @@ class _TestsScreenState extends State<TestsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final exam = context.watch<AuthProvider>().currentUser?.targetExam ?? "Exam";
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        title: const Text("Tests"),
+        title: Text("$exam Tests"),
         backgroundColor: _bg,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -71,6 +74,7 @@ class _OnlineQuizzesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final exam = context.watch<AuthProvider>().currentUser?.targetExam ?? "your exam";
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -86,7 +90,7 @@ class _OnlineQuizzesTab extends StatelessWidget {
           icon: Icons.menu_book_rounded,
           color: const Color(0xFF378ADD),
           title: "Practice by Topic",
-          subtitle: "Chapter-wise MCQs across the full MDCAT syllabus",
+          subtitle: "$exam topic-wise questions across the complete syllabus",
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const PracticeByTopicScreen()),
           ),
@@ -97,7 +101,7 @@ class _OnlineQuizzesTab extends StatelessWidget {
           icon: Icons.assignment_rounded,
           color: const Color(0xFFE0A429),
           title: "Full Mock Test",
-          subtitle: "Full-length test mixing all subjects, MDCAT weightage",
+          subtitle: "Full-length $exam test covering all selected subjects",
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const MockTestScreen()),
           ),
@@ -108,7 +112,7 @@ class _OnlineQuizzesTab extends StatelessWidget {
           icon: Icons.local_fire_department,
           color: const Color(0xFFE0A429),
           title: "Daily Challenge",
-          subtitle: "10 MCQs • 15 min • All subjects",
+          subtitle: "10 $exam questions • 15 min • All subjects",
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => const MockTestScreen(

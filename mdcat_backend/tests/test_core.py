@@ -6,7 +6,7 @@ from unittest.mock import patch
 os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 
-from app.routers.mcqs import _allocate_mock_questions
+from app.routers.mcqs import _allocate_mock_questions, _past_paper_patterns_for
 from app.schemas import QuizSetOut
 from app.services.batch_generator import generate_large_mcqs
 
@@ -21,6 +21,17 @@ def _question(text: str) -> dict:
 
 
 class CoreTests(unittest.TestCase):
+    def test_past_papers_match_selected_exam(self):
+        ielts_patterns = _past_paper_patterns_for("IELTS")
+        self.assertTrue(ielts_patterns)
+        for paper in ielts_patterns.values():
+            self.assertIn("IELTS", paper["title"])
+            self.assertNotIn("MDCAT", paper["title"])
+            self.assertEqual(
+                set(paper["subject_breakdown"]),
+                {"Listening", "Reading", "Writing", "Speaking"},
+            )
+
     def test_mock_allocation_is_exact_and_includes_every_subject(self):
         for total in (5, 10, 100, 200):
             allocation = _allocate_mock_questions(total)

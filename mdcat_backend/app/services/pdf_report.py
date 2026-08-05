@@ -3,13 +3,15 @@ import tempfile
 from fpdf import FPDF
 
 
-def create_result_pdf(result: dict, subject: str, difficulty: str) -> str:
+def create_result_pdf(
+    result: dict, subject: str, difficulty: str, exam_type: str
+) -> str:
     """Build a simple result PDF and return the file path."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=14)
 
-    pdf.cell(200, 10, "MDCAT AI Quiz Result", ln=True)
+    pdf.cell(200, 10, f"{exam_type} AI Quiz Result", ln=True)
     pdf.set_font("Arial", size=12)
     pdf.cell(200, 10, f"Subject: {subject}  |  Difficulty: {difficulty}", ln=True)
     pdf.ln(4)

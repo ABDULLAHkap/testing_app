@@ -200,7 +200,7 @@ def set_exam_date(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Sets/updates the student's MDCAT exam date, used for the dashboard countdown."""
+    """Sets or updates the student's selected exam date for the countdown."""
     current_user.exam_date = payload.exam_date
     db.commit()
     db.refresh(current_user)

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
 import '../../services/api_client.dart';
+import '../../services/auth_provider.dart';
 import '../quiz/quiz_screen.dart';
 
 const _bg = Color(0xFF0E1B26);
@@ -116,6 +118,7 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
 
   Widget _buildContent() {
     final d = _detail!;
+    final exam = context.read<AuthProvider>().currentUser?.targetExam ?? "Exam";
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -199,9 +202,9 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
           ),
           const SizedBox(height: 16),
 
-          // MDCAT Pattern card (matches the reference chart-style card)
+          // Pattern card for the exam category selected during signup.
           _sectionCard(
-            title: "📊 MDCAT Pattern",
+            title: "📊 $exam Pattern",
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

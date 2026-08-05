@@ -12,7 +12,7 @@ Future<String> savePdf(List<int> bytes, String filename) async {
 
   await Share.shareXFiles(
     [XFile(file.path, mimeType: 'application/pdf')],
-    text: 'Your MDCAT quiz result',
+    text: 'Your exam quiz result',
   );
 
   return file.path;

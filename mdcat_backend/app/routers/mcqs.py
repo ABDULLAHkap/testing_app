@@ -157,6 +157,60 @@ PAST_PAPER_PATTERNS: dict[str, dict] = {
     },
 }
 
+
+EXAM_PRACTICE_SETTINGS: dict[str, dict] = {
+    "IELTS": {"questions": 40, "minutes": 165, "marks": 1.0},
+    "SAT": {"questions": 98, "minutes": 134, "marks": 1.0},
+    "ECAT": {"questions": 100, "minutes": 100, "marks": 1.0},
+    "NUST NET": {"questions": 200, "minutes": 180, "marks": 1.0},
+    "NTS": {"questions": 100, "minutes": 120, "marks": 1.0},
+    "CSS": {"questions": 100, "minutes": 120, "marks": 1.0},
+    "LAT": {"questions": 75, "minutes": 100, "marks": 1.0},
+    "PMS": {"questions": 100, "minutes": 120, "marks": 1.0},
+    "General Knowledge": {"questions": 100, "minutes": 120, "marks": 1.0},
+}
+
+
+def _balanced_subject_breakdown(exam_type: str, total: int) -> dict[str, int]:
+    subjects = EXAM_CATALOG[exam_type]
+    counts = {subject: total // len(subjects) for subject in subjects}
+    for subject in subjects[:total % len(subjects)]:
+        counts[subject] += 1
+    return counts
+
+
+def _past_paper_patterns_for(exam_type: str) -> dict[str, dict]:
+    if exam_type == "MDCAT":
+        return PAST_PAPER_PATTERNS
+
+    settings = EXAM_PRACTICE_SETTINGS[exam_type]
+    slug = exam_type.lower().replace(" ", "-")
+    if exam_type == "IELTS":
+        names = [
+            "IELTS Academic Practice Pattern 2025",
+            "IELTS General Training Practice Pattern 2025",
+            "IELTS Academic Practice Pattern 2024",
+        ]
+    else:
+        names = [
+            f"{exam_type} Practice Pattern 2025",
+            f"{exam_type} Practice Pattern 2024",
+            f"{exam_type} Practice Pattern 2023",
+        ]
+    return {
+        f"{slug}-practice-{index + 1}": {
+            "title": title,
+            "total_questions": settings["questions"],
+            "quiz_minutes": settings["minutes"],
+            "marks_per_correct": settings["marks"],
+            "marks_penalty_per_wrong": 0.0,
+            "subject_breakdown": _balanced_subject_breakdown(
+                exam_type, settings["questions"]
+            ),
+        }
+        for index, title in enumerate(names)
+    }
+
 PAST_PAPER_INSTRUCTIONS = [
     "All questions are compulsory",
     "Each question carries the marks shown above",
@@ -307,7 +361,8 @@ def list_quiz_sets(
 # ---------- Past Papers (pattern-based, AI-generated) ----------
 
 @router.get("/past-papers", response_model=List[PastPaperSummary])
-def list_past_papers():
+def list_past_papers(current_user: User = Depends(get_current_user)):
+    patterns = _past_paper_patterns_for(current_user.target_exam)
     return [
         PastPaperSummary(
             id=paper_id,
@@ -315,13 +370,16 @@ def list_past_papers():
             total_questions=p["total_questions"],
             quiz_minutes=p["quiz_minutes"],
         )
-        for paper_id, p in PAST_PAPER_PATTERNS.items()
+        for paper_id, p in patterns.items()
     ]
 
 
 @router.get("/past-papers/{paper_id}", response_model=PastPaperDetail)
-def get_past_paper_detail(paper_id: str):
-    paper = PAST_PAPER_PATTERNS.get(paper_id)
+def get_past_paper_detail(
+    paper_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    paper = _past_paper_patterns_for(current_user.target_exam).get(paper_id)
     if not paper:
         raise HTTPException(404, detail="Past paper pattern not found")
 
@@ -358,7 +416,8 @@ def generate_from_past_paper(
     Generates a fresh AI practice test following the exact subject
     structure of a well-known past paper's official pattern.
     """
-    paper = PAST_PAPER_PATTERNS.get(paper_id)
+    exam_type = current_user.target_exam
+    paper = _past_paper_patterns_for(exam_type).get(paper_id)
     if not paper:
         raise HTTPException(404, detail="Past paper pattern not found")
 
@@ -370,6 +429,7 @@ def generate_from_past_paper(
             total_questions=count,
             subject=subject,
             difficulty="Medium",
+            exam_type=exam_type,
         )
         _require_exact_questions(questions, count)
         all_questions.extend(questions)
@@ -378,6 +438,7 @@ def generate_from_past_paper(
 
     quiz_set = QuizSet(
         user_id=current_user.id,
+        exam_type=exam_type,
         subject=f"Past Paper Pattern: {paper['title']}",
         difficulty="Medium",
         quiz_minutes=paper["quiz_minutes"],

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../services/api_client.dart';
+import '../../services/auth_provider.dart';
+import '../../utils/exam_content.dart';
 import '../quiz/quiz_screen.dart';
 
 class MockTestScreen extends StatefulWidget {
@@ -61,19 +64,15 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final exam = context.watch<AuthProvider>().currentUser?.targetExam ?? "Exam";
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(title: Text("$exam ${widget.title}")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              "Mixes Biology, Chemistry, Physics, English, and Logical "
-              "Reasoning proportioned by official MDCAT subject weightage — "
-              "no material upload needed.",
-              style: TextStyle(fontSize: 13),
-            ),
+            Text(mockTestDescription(exam), style: const TextStyle(fontSize: 13)),
             const SizedBox(height: 24),
             if (!_isPreset) ...[
               Text("Total Questions: $_totalQuestions",
