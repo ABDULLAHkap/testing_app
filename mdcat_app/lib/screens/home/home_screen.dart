@@ -6,6 +6,7 @@ import '../../services/api_client.dart';
 import '../../models/models.dart';
 import '../../widgets/exam_countdown_card.dart';
 import '../auth/login_screen.dart';
+import '../admin/admin_screen.dart';
 import '../practice/practice_by_topic_screen.dart';
 import '../practice/mock_test_screen.dart';
 import '../settings/server_settings_screen.dart';
@@ -289,6 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _bottomNav() {
+    final isAdmin = context.watch<AuthProvider>().currentUser?.isAdmin ?? false;
     return Container(
       decoration: const BoxDecoration(
         color: _cardBg,
@@ -299,10 +301,16 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _navItem(Icons.home, "Home", active: true, onTap: () {}),
-          _navItem(Icons.query_stats, "Progress",
-              onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProgressScreen()),
-                  )),
+          if (isAdmin)
+            _navItem(Icons.admin_panel_settings, "Admin",
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AdminScreen()),
+                    ))
+          else
+            _navItem(Icons.query_stats, "Progress",
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ProgressScreen()),
+                    )),
           _navItem(Icons.description_outlined, "Tests",
               onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const TestsScreen()),

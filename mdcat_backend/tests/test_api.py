@@ -1,5 +1,6 @@
 import os
 import unittest
+from unittest.mock import patch
 
 os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
@@ -56,6 +57,45 @@ class ApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["username"], "student_updated")
+
+    def test_forgot_password_code_resets_password_once(self):
+        with patch("app.routers.auth.secrets.randbelow", return_value=123456), patch(
+            "app.routers.auth.send_verification_email"
+        ) as send_email:
+            response = self.client.post(
+                "/auth/forgot-password",
+                json={"email": "student@example.com"},
+            )
+            self.assertEqual(response.status_code, 200)
+            send_email.assert_called_once_with(
+                "student@example.com", "123456", purpose="password reset"
+            )
+
+        response = self.client.post(
+            "/auth/reset-password",
+            json={
+                "email": "student@example.com",
+                "code": "123456",
+                "new_password": "new-secure-password",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            "/auth/login",
+            data={"username": "student_one", "password": "new-secure-password"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            "/auth/reset-password",
+            json={
+                "email": "student@example.com",
+                "code": "123456",
+                "new_password": "another-password",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_quiz_answers_are_private_and_attempt_is_single_use(self):
         with SessionLocal() as db:

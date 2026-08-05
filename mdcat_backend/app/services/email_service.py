@@ -5,7 +5,24 @@ from email.message import EmailMessage
 import httpx
 
 
-def _send_with_brevo(email: str, code: str, api_key: str, sender: str) -> None:
+def _email_content(code: str, purpose: str) -> tuple[str, str]:
+    if purpose == "password reset":
+        return (
+            "Your password reset code",
+            f"Your password reset code is {code}. It expires in 10 minutes. "
+            "Do not share this code with anyone.",
+        )
+    return (
+        "Your verification code",
+        f"Your verification code is {code}. It expires in 10 minutes. "
+        "Do not share this code with anyone.",
+    )
+
+
+def _send_with_brevo(
+    email: str, code: str, api_key: str, sender: str, purpose: str
+) -> None:
+    subject, content = _email_content(code, purpose)
     response = httpx.post(
         "https://api.brevo.com/v3/smtp/email",
         headers={
@@ -19,18 +36,17 @@ def _send_with_brevo(email: str, code: str, api_key: str, sender: str) -> None:
                 "email": sender,
             },
             "to": [{"email": email}],
-            "subject": "Your verification code",
-            "textContent": (
-                f"Your verification code is {code}. It expires in 10 minutes. "
-                "Do not share this code with anyone."
-            ),
+            "subject": subject,
+            "textContent": content,
         },
         timeout=20,
     )
     response.raise_for_status()
 
 
-def send_verification_email(email: str, code: str) -> None:
+def send_verification_email(
+    email: str, code: str, purpose: str = "verification"
+) -> None:
     host = os.getenv("SMTP_HOST")
     username = os.getenv("SMTP_USERNAME")
     password = os.getenv("SMTP_PASSWORD")
@@ -41,23 +57,21 @@ def send_verification_email(email: str, code: str) -> None:
     # HTTPS email APIs work on Render Free, where outbound SMTP ports are
     # blocked. SMTP remains available for local development or paid hosting.
     if brevo_api_key and sender:
-        _send_with_brevo(email, code, brevo_api_key, sender)
+        _send_with_brevo(email, code, brevo_api_key, sender, purpose)
         return
 
     if not all((host, username, password, sender)):
         if os.getenv("EMAIL_OTP_DEBUG") == "true":
-            print(f"Email OTP for {email}: {code}")
+            print(f"Email OTP for {email} ({purpose}): {code}")
             return
         raise RuntimeError("Brevo email API is not configured")
 
     message = EmailMessage()
-    message["Subject"] = "Your preparation app verification code"
+    subject, content = _email_content(code, purpose)
+    message["Subject"] = subject
     message["From"] = sender
     message["To"] = email
-    message.set_content(
-        f"Your verification code is {code}. It expires in 10 minutes. "
-        "Do not share this code with anyone."
-    )
+    message.set_content(content)
 
     with smtplib.SMTP(host, port, timeout=20) as server:
         server.starttls()

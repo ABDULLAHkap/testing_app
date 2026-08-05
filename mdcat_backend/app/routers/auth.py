@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.auth import create_access_token, hash_password, verify_password, get_current_user
 from app.database import get_db
-from app.models.models import User, EmailVerificationCode
+from app.models.models import User, EmailVerificationCode, PasswordResetCode
 from app.schemas import (
     UserCreate, UserOut, Token, ExamDateUpdate, UsernameUpdate,
     RegistrationResponse, VerifyEmailRequest, ResendOtpRequest,
+    ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
 )
 from app.exam_catalog import ensure_exam
 from app.services.email_service import send_verification_email
@@ -36,6 +37,21 @@ def _issue_otp(user: User, db: Session) -> None:
     ))
     db.commit()
     send_verification_email(user.email, code)
+
+
+def _issue_password_reset_otp(user: User, db: Session) -> None:
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    db.query(PasswordResetCode).filter(
+        PasswordResetCode.user_id == user.id,
+        PasswordResetCode.used_at.is_(None),
+    ).delete()
+    db.add(PasswordResetCode(
+        user_id=user.id,
+        code_hash=_otp_hash(code),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+    ))
+    db.commit()
+    send_verification_email(user.email, code, purpose="password reset")
 
 
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
@@ -127,6 +143,50 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     token = create_access_token(data={"sub": str(user.id)})
     return Token(access_token=token)
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user:
+        try:
+            _issue_password_reset_otp(user, db)
+        except Exception:
+            # Keep the response identical so this endpoint does not reveal
+            # whether an email address has an account.
+            pass
+    return MessageResponse(
+        message="If an account exists for this email, a reset code has been sent."
+    )
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    record = None
+    if user:
+        record = (
+            db.query(PasswordResetCode)
+            .filter(
+                PasswordResetCode.user_id == user.id,
+                PasswordResetCode.used_at.is_(None),
+            )
+            .order_by(PasswordResetCode.created_at.desc())
+            .first()
+        )
+
+    now = datetime.now(timezone.utc)
+    expired = not record or record.expires_at.replace(tzinfo=timezone.utc) < now
+    incorrect = not record or not secrets.compare_digest(
+        record.code_hash, _otp_hash(payload.code)
+    )
+    if not user or expired or incorrect:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code")
+
+    user.hashed_password = hash_password(payload.new_password)
+    record.used_at = now
+    db.commit()
+    return MessageResponse(message="Password reset successfully")
 
 
 @router.get("/me", response_model=UserOut)

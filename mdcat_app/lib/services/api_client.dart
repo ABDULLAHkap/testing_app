@@ -126,6 +126,34 @@ class ApiClient {
     _decodeOrThrow(resp);
   }
 
+  Future<void> requestPasswordReset(String email) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/forgot-password"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email}),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<void> resetPassword(
+    String email,
+    String code,
+    String newPassword,
+  ) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/reset-password"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "email": email,
+        "code": code,
+        "new_password": newPassword,
+      }),
+    );
+    _decodeOrThrow(resp);
+  }
+
   Future<void> login(String username, String password) async {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(

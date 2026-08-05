@@ -31,6 +31,7 @@ class User(Base):
     quiz_sets = relationship("QuizSet", back_populates="owner", cascade="all, delete-orphan")
     attempts = relationship("QuizAttempt", back_populates="user", cascade="all, delete-orphan")
     verification_codes = relationship("EmailVerificationCode", cascade="all, delete-orphan")
+    password_reset_codes = relationship("PasswordResetCode", cascade="all, delete-orphan")
 
     @property
     def free_tests_remaining(self):
@@ -40,6 +41,17 @@ class User(Base):
 
 class EmailVerificationCode(Base):
     __tablename__ = "email_verification_codes"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    code_hash = Column(String(64), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=now_utc)
+
+
+class PasswordResetCode(Base):
+    __tablename__ = "password_reset_codes"
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)

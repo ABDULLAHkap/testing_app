@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../services/theme_provider.dart';
-import '../admin/admin_screen.dart';
 
 class ServerSettingsScreen extends StatefulWidget {
   const ServerSettingsScreen({super.key});
@@ -68,7 +67,6 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final signedIn = context.watch<AuthProvider>().currentUser != null;
-    final isAdmin = context.watch<AuthProvider>().currentUser?.isAdmin ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
@@ -102,18 +100,6 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                         : const Text("Save Username"),
                   ),
                   const SizedBox(height: 32),
-                ],
-                if (isAdmin) ...[
-                  _sectionHeader("Administration"),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.admin_panel_settings),
-                    title: const Text("Open admin dashboard"),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AdminScreen()),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                 ],
                 _sectionHeader("Appearance"),
                 const SizedBox(height: 8),
