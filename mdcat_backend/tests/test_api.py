@@ -149,6 +149,99 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+    def test_whatsapp_signup_and_phone_verification(self):
+        with patch("app.routers.auth.secrets.randbelow", return_value=112233), patch(
+            "app.routers.auth.send_whatsapp_otp"
+        ) as send_whatsapp:
+            response = self.client.post(
+                "/auth/register",
+                json={
+                    "username": "whatsapp_student",
+                    "email": "whatsapp@example.com",
+                    "password": "secure-password",
+                    "gender": "Female",
+                    "phone": "+923001112233",
+                    "target_exam": "IELTS",
+                    "verification_method": "whatsapp",
+                },
+            )
+            self.assertEqual(response.status_code, 201, response.text)
+            send_whatsapp.assert_called_once_with("+923001112233", "112233")
+
+        response = self.client.post(
+            "/auth/verify-phone",
+            json={"email": "whatsapp@example.com", "code": "112233"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["phone_verified"])
+
+        response = self.client.post(
+            "/auth/login",
+            data={"username": "whatsapp@example.com", "password": "secure-password"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_broadcast_and_student_support_chat(self):
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            admin = db.query(User).filter(User.email == "student@example.com").first()
+            admin.is_admin = True
+            student = User(
+                username="chat_student",
+                email="chat@example.com",
+                hashed_password=hash_password("secure-password"),
+                email_verified=True,
+                target_exam="ECAT",
+            )
+            db.add(student)
+            db.commit()
+            db.refresh(student)
+            student_id = student.id
+
+        response = self.client.post(
+            "/communications/admin/announcements",
+            json={"title": "Schedule update", "message": "The new test is available."},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        login = self.client.post(
+            "/auth/login",
+            data={"username": "chat_student", "password": "secure-password"},
+        )
+        student_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        announcements = self.client.get(
+            "/communications/announcements", headers=student_headers
+        )
+        self.assertEqual(announcements.status_code, 200)
+        self.assertEqual(announcements.json()[0]["title"], "Schedule update")
+
+        response = self.client.post(
+            "/communications/support/messages",
+            json={"message": "I need help with my test."},
+            headers=student_headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(
+            "/communications/support/messages",
+            json={"student_id": student_id, "message": "How can we help?"},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        messages = self.client.get(
+            f"/communications/support/messages?student_id={student_id}",
+            headers=self.headers,
+        )
+        self.assertEqual(len(messages.json()), 2)
+
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            admin = db.query(User).filter(User.email == "student@example.com").first()
+            admin.is_admin = False
+            db.commit()
+
     def test_admin_can_add_and_remove_subscription(self):
         with SessionLocal() as db:
             from app.models.models import User

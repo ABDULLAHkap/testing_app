@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, ForeignKey, DateTime, JSON, Boolean
+    Column, Integer, String, Text, Float, ForeignKey, DateTime, JSON, Boolean,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -25,6 +26,8 @@ class User(Base):
     phone = Column(String(30), nullable=True)
     target_exam = Column(String(30), default="MDCAT", nullable=False)
     email_verified = Column(Boolean, default=False, nullable=False)
+    phone_verified = Column(Boolean, default=False, nullable=False)
+    verification_method = Column(String(20), default="email", nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
     subscription_expires_at = Column(DateTime, nullable=True)
 
@@ -33,6 +36,7 @@ class User(Base):
     verification_codes = relationship("EmailVerificationCode", cascade="all, delete-orphan")
     password_reset_codes = relationship("PasswordResetCode", cascade="all, delete-orphan")
     email_change_codes = relationship("EmailChangeCode", cascade="all, delete-orphan")
+    phone_verification_codes = relationship("PhoneVerificationCode", cascade="all, delete-orphan")
 
     @property
     def free_tests_remaining(self):
@@ -72,6 +76,47 @@ class EmailChangeCode(Base):
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=now_utc)
+
+
+class PhoneVerificationCode(Base):
+    __tablename__ = "phone_verification_codes"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    code_hash = Column(String(64), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=now_utc)
+
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id = Column(Integer, primary_key=True)
+    admin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(120), nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=now_utc, index=True)
+
+
+class AnnouncementRead(Base):
+    __tablename__ = "announcement_reads"
+    __table_args__ = (UniqueConstraint("user_id", "announcement_id"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    announcement_id = Column(Integer, ForeignKey("announcements.id"), nullable=False)
+    read_at = Column(DateTime, default=now_utc)
+
+
+class SupportMessage(Base):
+    __tablename__ = "support_messages"
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=now_utc, index=True)
 
 
 class Payment(Base):

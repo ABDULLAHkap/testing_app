@@ -7,6 +7,8 @@ class UserModel {
   final String? phone;
   final String targetExam;
   final bool emailVerified;
+  final bool phoneVerified;
+  final String verificationMethod;
   final bool isAdmin;
   final int freeTestsRemaining;
 
@@ -19,6 +21,8 @@ class UserModel {
     this.phone,
     this.targetExam = 'MDCAT',
     this.emailVerified = false,
+    this.phoneVerified = false,
+    this.verificationMethod = 'email',
     this.isAdmin = false,
     this.freeTestsRemaining = 3,
   });
@@ -35,6 +39,8 @@ class UserModel {
       phone: json['phone'],
       targetExam: json['target_exam'] ?? 'MDCAT',
       emailVerified: json['email_verified'] ?? false,
+      phoneVerified: json['phone_verified'] ?? false,
+      verificationMethod: json['verification_method'] ?? 'email',
       isAdmin: json['is_admin'] ?? false,
       freeTestsRemaining: json['free_tests_remaining'] ?? 3,
     );

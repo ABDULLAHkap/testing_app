@@ -19,6 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   String _gender = 'Male';
   String _targetExam = 'MDCAT';
+  String _verificationMethod = 'email';
   static const _exams = [
     'MDCAT', 'ECAT', 'NUST NET', 'NTS', 'CSS', 'LAT', 'IELTS', 'PMS', 'SAT',
     'General Knowledge',
@@ -46,6 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _gender,
       _phoneController.text.trim(),
       _targetExam,
+      _verificationMethod,
     );
 
     if (!mounted) return;
@@ -56,6 +58,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         MaterialPageRoute(
           builder: (_) => VerifyEmailScreen(
             email: _emailController.text.trim(),
+            phone: _phoneController.text.trim(),
+            method: _verificationMethod,
           ),
         ),
       );
@@ -86,6 +90,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (v) => (v == null || v.length < 3)
                         ? "At least 3 characters"
                         : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _verificationMethod,
+                    decoration: const InputDecoration(
+                      labelText: "Verify account using",
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: "email", child: Text("Email OTP")),
+                      DropdownMenuItem(
+                        value: "whatsapp",
+                        child: Text("WhatsApp OTP"),
+                      ),
+                    ],
+                    onChanged: (value) => setState(
+                      () => _verificationMethod = value ?? "email",
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _verificationMethod == "whatsapp"
+                        ? "Use a WhatsApp number with country code, for example +923001234567."
+                        : "The verification code will be sent to your email.",
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

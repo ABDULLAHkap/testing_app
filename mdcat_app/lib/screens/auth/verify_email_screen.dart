@@ -6,7 +6,14 @@ import 'login_screen.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   final String email;
-  const VerifyEmailScreen({super.key, required this.email});
+  final String phone;
+  final String method;
+  const VerifyEmailScreen({
+    super.key,
+    required this.email,
+    this.phone = "",
+    this.method = "email",
+  });
 
   @override
   State<VerifyEmailScreen> createState() => _VerifyEmailScreenState();
@@ -26,12 +33,19 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     if (_code.text.trim().length != 6) return;
     setState(() => _loading = true);
     final auth = context.read<AuthProvider>();
-    final ok = await auth.verifyEmail(widget.email, _code.text.trim());
+    final isWhatsApp = widget.method == "whatsapp";
+    final ok = isWhatsApp
+        ? await auth.verifyPhone(widget.email, _code.text.trim())
+        : await auth.verifyEmail(widget.email, _code.text.trim());
     if (!mounted) return;
     setState(() => _loading = false);
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email verified. Please login.')),
+        SnackBar(
+          content: Text(
+            '${isWhatsApp ? "Phone number" : "Email"} verified. Please login.',
+          ),
+        ),
       );
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -47,14 +61,19 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify email')),
+      appBar: AppBar(
+        title: Text(widget.method == "whatsapp" ? 'Verify WhatsApp' : 'Verify email'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('A 6-digit verification code was sent to ${widget.email}.'),
+            Text(
+              'A 6-digit verification code was sent to '
+              '${widget.method == "whatsapp" ? widget.phone : widget.email}.',
+            ),
             const SizedBox(height: 20),
             TextField(
               controller: _code,
@@ -66,12 +85,14 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
               onPressed: _loading ? null : _verify,
               child: _loading
                   ? const CircularProgressIndicator()
-                  : const Text('Verify email'),
+                  : Text(widget.method == "whatsapp" ? 'Verify phone' : 'Verify email'),
             ),
             TextButton(
               onPressed: () async {
                 final auth = context.read<AuthProvider>();
-                final ok = await auth.resendOtp(widget.email);
+                final ok = widget.method == "whatsapp"
+                    ? await auth.resendPhoneOtp(widget.email)
+                    : await auth.resendOtp(widget.email);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(ok ? 'New code sent' : auth.lastError ?? 'Failed')),

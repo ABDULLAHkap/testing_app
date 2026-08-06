@@ -89,6 +89,7 @@ class ApiClient {
     String gender,
     String phone,
     String targetExam,
+    String verificationMethod,
   ) async {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
@@ -101,6 +102,7 @@ class ApiClient {
         "gender": gender,
         "phone": phone,
         "target_exam": targetExam,
+        "verification_method": verificationMethod,
       }),
     );
     _decodeOrThrow(resp);
@@ -120,6 +122,26 @@ class ApiClient {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
       Uri.parse("$baseUrl/auth/resend-otp"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email}),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<void> verifyPhone(String email, String code) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/verify-phone"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email, "code": code}),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<void> resendPhoneOtp(String email) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/resend-phone-otp"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email}),
     );
@@ -463,5 +485,75 @@ class ApiClient {
       headers: await _authHeaders(),
     );
     _decodeOrThrow(resp);
+  }
+
+  // ---------------- Announcements and support ----------------
+
+  Future<List<Map<String, dynamic>>> getAnnouncements() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/communications/announcements"),
+      headers: await _authHeaders(),
+    );
+    final data = _decodeOrThrow(resp) as List;
+    return data.map((item) => Map<String, dynamic>.from(item)).toList();
+  }
+
+  Future<int> getUnreadAnnouncementCount() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/communications/announcements/unread-count"),
+      headers: await _authHeaders(),
+    );
+    return _decodeOrThrow(resp)["unread_count"] as int;
+  }
+
+  Future<void> markAnnouncementsRead() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/communications/announcements/read-all"),
+      headers: await _authHeaders(),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<void> sendAnnouncement(String title, String message) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/communications/admin/announcements"),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({"title": title, "message": message}),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<List<Map<String, dynamic>>> getSupportMessages({int? studentId}) async {
+    final baseUrl = await getBaseUrl();
+    final uri = Uri.parse("$baseUrl/communications/support/messages").replace(
+      queryParameters: studentId == null ? null : {"student_id": "$studentId"},
+    );
+    final resp = await http.get(uri, headers: await _authHeaders());
+    final data = _decodeOrThrow(resp) as List;
+    return data.map((item) => Map<String, dynamic>.from(item)).toList();
+  }
+
+  Future<void> sendSupportMessage(String message, {int? studentId}) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/communications/support/messages"),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({"message": message, if (studentId != null) "student_id": studentId}),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<List<Map<String, dynamic>>> getSupportConversations() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/communications/admin/support/conversations"),
+      headers: await _authHeaders(),
+    );
+    final data = _decodeOrThrow(resp) as List;
+    return data.map((item) => Map<String, dynamic>.from(item)).toList();
   }
 }

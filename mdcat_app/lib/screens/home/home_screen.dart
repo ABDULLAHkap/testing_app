@@ -7,6 +7,8 @@ import '../../models/models.dart';
 import '../../widgets/exam_countdown_card.dart';
 import '../auth/login_screen.dart';
 import '../admin/admin_screen.dart';
+import '../admin/communications_screen.dart';
+import '../communications/announcements_screen.dart';
 import '../practice/practice_by_topic_screen.dart';
 import '../practice/mock_test_screen.dart';
 import '../settings/server_settings_screen.dart';
@@ -27,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ApiClient _api = ApiClient();
   DashboardStats? _stats;
   bool _loading = true;
+  int _unreadAnnouncements = 0;
 
   @override
   void initState() {
@@ -38,7 +41,11 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _loading = true);
     try {
       final stats = await _api.getDashboard();
-      setState(() => _stats = stats);
+      final unread = await _api.getUnreadAnnouncementCount();
+      setState(() {
+        _stats = stats;
+        _unreadAnnouncements = unread;
+      });
       if (stats.examDate == null && mounted) {
         // First-time student: prompt to set their exam date.
         WidgetsBinding.instance.addPostFrameCallback((_) => _pickExamDate());
@@ -146,8 +153,17 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.notifications_none, color: Colors.white70),
-              onPressed: () {},
+              icon: Badge(
+                isLabelVisible: _unreadAnnouncements > 0,
+                label: Text('$_unreadAnnouncements'),
+                child: const Icon(Icons.notifications_none, color: Colors.white70),
+              ),
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
+                );
+                if (mounted) _load();
+              },
             ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.white70),
@@ -312,10 +328,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const ProgressScreen()),
                     )),
-          _navItem(Icons.description_outlined, "Tests",
-              onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const TestsScreen()),
-                  )),
+          if (isAdmin)
+            _navItem(Icons.campaign_outlined, "Communicate",
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AdminCommunicationsScreen(),
+                      ),
+                    ))
+          else
+            _navItem(Icons.description_outlined, "Tests",
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const TestsScreen()),
+                    )),
           _navItem(Icons.settings_outlined, "Settings",
               onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const ServerSettingsScreen()),

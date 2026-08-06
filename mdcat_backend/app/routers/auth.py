@@ -11,15 +11,18 @@ from app.auth import create_access_token, hash_password, verify_password, get_cu
 from app.database import get_db
 from app.models.models import (
     User, EmailVerificationCode, PasswordResetCode, EmailChangeCode,
+    PhoneVerificationCode,
 )
 from app.schemas import (
     UserCreate, UserOut, Token, ExamDateUpdate, UsernameUpdate,
     RegistrationResponse, VerifyEmailRequest, ResendOtpRequest,
     ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
     EmailChangeRequest, EmailChangeConfirm,
+    VerifyPhoneRequest,
 )
 from app.exam_catalog import ensure_exam
 from app.services.email_service import send_verification_email
+from app.services.whatsapp_service import send_whatsapp_otp
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -80,6 +83,27 @@ def _issue_email_change_otp(user: User, new_email: str, db: Session) -> None:
         raise
 
 
+def _issue_phone_otp(user: User, db: Session) -> None:
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    db.query(PhoneVerificationCode).filter(
+        PhoneVerificationCode.user_id == user.id,
+        PhoneVerificationCode.used_at.is_(None),
+    ).delete()
+    record = PhoneVerificationCode(
+        user_id=user.id,
+        code_hash=_otp_hash(code),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+    )
+    db.add(record)
+    db.commit()
+    try:
+        send_whatsapp_otp(user.phone, code)
+    except Exception:
+        db.delete(record)
+        db.commit()
+        raise
+
+
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(
@@ -100,17 +124,21 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         gender=payload.gender,
         phone=payload.phone,
         target_exam=target_exam,
+        verification_method=payload.verification_method,
         email_verified=False,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     try:
-        _issue_otp(user, db)
+        if payload.verification_method == "whatsapp":
+            _issue_phone_otp(user, db)
+        else:
+            _issue_otp(user, db)
     except Exception as exc:
         db.delete(user)
         db.commit()
-        raise HTTPException(503, detail="Verification email could not be sent") from exc
+        raise HTTPException(503, detail="Verification code could not be sent") from exc
     return RegistrationResponse(message="Verification code sent", email=user.email)
 
 
@@ -151,6 +179,45 @@ def resend_otp(payload: ResendOtpRequest, db: Session = Depends(get_db)):
     return RegistrationResponse(message="Verification code sent", email=user.email)
 
 
+@router.post("/verify-phone", response_model=UserOut)
+def verify_phone(payload: VerifyPhoneRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(404, detail="Account not found")
+    record = (
+        db.query(PhoneVerificationCode)
+        .filter(
+            PhoneVerificationCode.user_id == user.id,
+            PhoneVerificationCode.used_at.is_(None),
+        )
+        .order_by(PhoneVerificationCode.created_at.desc())
+        .first()
+    )
+    now = datetime.now(timezone.utc)
+    if (
+        not record
+        or record.expires_at.replace(tzinfo=timezone.utc) < now
+        or not secrets.compare_digest(record.code_hash, _otp_hash(payload.code))
+    ):
+        raise HTTPException(400, detail="Invalid or expired WhatsApp code")
+    record.used_at = now
+    user.phone_verified = True
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/resend-phone-otp", response_model=RegistrationResponse)
+def resend_phone_otp(payload: ResendOtpRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(404, detail="Account not found")
+    if user.phone_verified:
+        raise HTTPException(409, detail="Phone number is already verified")
+    _issue_phone_otp(user, db)
+    return RegistrationResponse(message="WhatsApp code sent", email=user.email)
+
+
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(
@@ -164,8 +231,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.email_verified:
-        raise HTTPException(status_code=403, detail="Verify your email before login")
+    if not (user.email_verified or user.phone_verified):
+        raise HTTPException(status_code=403, detail="Verify your email or phone before login")
 
     token = create_access_token(data={"sub": str(user.id)})
     return Token(access_token=token)

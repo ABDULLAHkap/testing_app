@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../services/theme_provider.dart';
+import '../communications/support_chat_screen.dart';
 
 class ServerSettingsScreen extends StatefulWidget {
   const ServerSettingsScreen({super.key});
@@ -268,6 +269,21 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                 _sectionHeader("Help & Support"),
                 const SizedBox(height: 8),
                 const Text("For help or to report a problem, contact:"),
+                if (signedIn && !isAdmin)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.chat_bubble_outline),
+                    title: const Text("Chat with admins"),
+                    subtitle: const Text(
+                      "Discuss app problems or test-related questions",
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SupportChatScreen(),
+                      ),
+                    ),
+                  ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.email_outlined),
