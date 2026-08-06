@@ -28,6 +28,7 @@ class User(Base):
     email_verified = Column(Boolean, default=False, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
     subscription_expires_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True, index=True)
 
     quiz_sets = relationship("QuizSet", back_populates="owner", cascade="all, delete-orphan")
     attempts = relationship("QuizAttempt", back_populates="user", cascade="all, delete-orphan")

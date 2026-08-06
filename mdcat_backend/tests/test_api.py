@@ -275,6 +275,54 @@ class ApiTests(unittest.TestCase):
             admin.is_admin = False
             db.commit()
 
+    def test_admin_sees_online_student_and_can_delete_profile(self):
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            admin = db.query(User).filter(User.email == "student@example.com").first()
+            admin.is_admin = True
+            target = User(
+                username="online_delete_target",
+                email="online-delete@example.com",
+                hashed_password=hash_password("secure-password"),
+                email_verified=True,
+                phone="03001112222",
+                target_exam="LAT",
+            )
+            db.add(target)
+            db.commit()
+            db.refresh(target)
+            target_id = target.id
+
+        login = self.client.post(
+            "/auth/login",
+            data={"username": "online_delete_target", "password": "secure-password"},
+        )
+        student_headers = {
+            "Authorization": f"Bearer {login.json()['access_token']}"
+        }
+        response = self.client.post("/auth/heartbeat", headers=student_headers)
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.get("/admin/users", headers=self.headers)
+        self.assertEqual(response.status_code, 200)
+        listed = next(item for item in response.json() if item["id"] == target_id)
+        self.assertTrue(listed["is_online"])
+        self.assertIsNotNone(listed["last_seen_at"])
+
+        response = self.client.delete(
+            f"/admin/users/{target_id}", headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            self.assertIsNone(db.query(User).filter(User.id == target_id).first())
+            admin = db.query(User).filter(User.email == "student@example.com").first()
+            admin.is_admin = False
+            db.commit()
+
     def test_quiz_answers_are_private_and_attempt_is_single_use(self):
         with SessionLocal() as db:
             user_id = self.client.get("/auth/me", headers=self.headers).json()["id"]

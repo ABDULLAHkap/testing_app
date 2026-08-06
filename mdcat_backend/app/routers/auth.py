@@ -216,8 +216,25 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 
 
 @router.get("/me", response_model=UserOut)
-def me(current_user: User = Depends(get_current_user)):
+def me(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    current_user.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(current_user)
     return current_user
+
+
+@router.post("/heartbeat", response_model=MessageResponse)
+def heartbeat(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Records activity so administrators can see who is currently online."""
+    current_user.last_seen_at = datetime.now(timezone.utc)
+    db.commit()
+    return MessageResponse(message="Activity recorded")
 
 
 @router.put("/exam-date", response_model=UserOut)

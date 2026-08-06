@@ -6,7 +6,18 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_admin
 from app.database import get_db
-from app.models.models import User, QuizAttempt, Payment
+from app.models.models import (
+    Announcement,
+    AnnouncementRead,
+    EmailChangeCode,
+    EmailVerificationCode,
+    PasswordResetCode,
+    Payment,
+    QuizAttempt,
+    QuizSet,
+    SupportMessage,
+    User,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -17,16 +28,21 @@ class SubscriptionGrant(BaseModel):
 
 @router.get("/overview")
 def overview(db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
+    online_since = datetime.now(timezone.utc) - timedelta(minutes=2)
     return {
         "users": db.query(User).count(),
         "verified_users": db.query(User).filter(User.email_verified.is_(True)).count(),
         "completed_tests": db.query(QuizAttempt).filter(QuizAttempt.finished_at.isnot(None)).count(),
         "successful_payments": db.query(Payment).filter(Payment.status == "paid").count(),
+        "online_users": db.query(User).filter(
+            User.is_admin.is_(False), User.last_seen_at >= online_since
+        ).count(),
     }
 
 
 @router.get("/users")
 def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
+    online_since = datetime.now(timezone.utc) - timedelta(minutes=2)
     users = db.query(User).order_by(User.created_at.desc()).limit(500).all()
     result = []
     for user in users:
@@ -52,8 +68,55 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
             "average_score": average,
             "best_score": best,
             "last_test_at": last_test,
+            "last_seen_at": user.last_seen_at,
+            "is_online": bool(
+                user.last_seen_at and user.last_seen_at.replace(tzinfo=timezone.utc) >= online_since
+            ),
         })
     return result
+
+
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, detail="User not found")
+    if user.id == admin.id:
+        raise HTTPException(400, detail="You cannot delete your own administrator account")
+    if user.is_admin:
+        raise HTTPException(400, detail="Administrator accounts cannot be deleted here")
+
+    authored_announcement_ids = [
+        row[0]
+        for row in db.query(Announcement.id).filter(Announcement.admin_id == user.id).all()
+    ]
+    reads = db.query(AnnouncementRead).filter(AnnouncementRead.user_id == user.id)
+    if authored_announcement_ids:
+        reads = db.query(AnnouncementRead).filter(
+            (AnnouncementRead.user_id == user.id)
+            | (AnnouncementRead.announcement_id.in_(authored_announcement_ids))
+        )
+    reads.delete(synchronize_session=False)
+    db.query(SupportMessage).filter(
+        (SupportMessage.student_id == user.id) | (SupportMessage.sender_id == user.id)
+    ).delete(synchronize_session=False)
+    db.query(Payment).filter(Payment.user_id == user.id).delete(synchronize_session=False)
+    db.query(EmailChangeCode).filter(EmailChangeCode.user_id == user.id).delete(synchronize_session=False)
+    db.query(PasswordResetCode).filter(PasswordResetCode.user_id == user.id).delete(synchronize_session=False)
+    db.query(EmailVerificationCode).filter(EmailVerificationCode.user_id == user.id).delete(synchronize_session=False)
+    db.query(QuizAttempt).filter(QuizAttempt.user_id == user.id).delete(synchronize_session=False)
+    db.query(QuizSet).filter(QuizSet.user_id == user.id).delete(synchronize_session=False)
+    if authored_announcement_ids:
+        db.query(Announcement).filter(Announcement.id.in_(authored_announcement_ids)).delete(
+            synchronize_session=False
+        )
+    db.delete(user)
+    db.commit()
+    return {"message": "Student profile deleted"}
 
 
 @router.post("/users/{user_id}/subscription")

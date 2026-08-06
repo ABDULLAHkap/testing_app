@@ -21,6 +21,7 @@ def apply_compatibility_migrations() -> None:
         "email_verified": "BOOLEAN NOT NULL DEFAULT TRUE",
         "is_admin": "BOOLEAN NOT NULL DEFAULT FALSE",
         "subscription_expires_at": "TIMESTAMP WITH TIME ZONE",
+        "last_seen_at": "TIMESTAMP WITH TIME ZONE",
     }
     for name, definition in additions.items():
         if name not in user_columns:

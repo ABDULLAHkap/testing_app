@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
@@ -15,15 +17,26 @@ class _AdminScreenState extends State<AdminScreen> {
   List<Map<String, dynamic>> _users = [];
   bool _loading = true;
   int? _updatingUserId;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _load(silent: true),
+    );
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
     try {
       final results = await Future.wait([
         _api.getAdminOverview(),
@@ -34,6 +47,60 @@ class _AdminScreenState extends State<AdminScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _confirmDeleteStudent(Map<String, dynamic> user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete student profile?'),
+        content: Text(
+          "This will permanently delete ${user['username']}'s account, tests, "
+          "results, subscription, and support messages. This cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete permanently'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _updatingUserId = user['id'] as int);
+    try {
+      await _api.deleteStudent(user['id']);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Student profile deleted')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete student: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingUserId = null);
+    }
+  }
+
+  String _lastActive(Map<String, dynamic> user) {
+    if (user['is_online'] == true) return 'Online now';
+    final value = user['last_seen_at'];
+    if (value == null) return 'Never active';
+    final seen = DateTime.tryParse(value.toString())?.toLocal();
+    if (seen == null) return value.toString();
+    final difference = DateTime.now().difference(seen);
+    if (difference.inMinutes < 60) return '${difference.inMinutes} minutes ago';
+    if (difference.inHours < 24) return '${difference.inHours} hours ago';
+    return '${seen.day}/${seen.month}/${seen.year} ${seen.hour.toString().padLeft(2, '0')}:${seen.minute.toString().padLeft(2, '0')}';
   }
 
   bool _hasActiveSubscription(Map<String, dynamic> user) {
@@ -122,6 +189,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       _stat('Verified', _overview?['verified_users']),
                       _stat('Tests', _overview?['completed_tests']),
                       _stat('Payments', _overview?['successful_payments']),
+                      _stat('Online', _overview?['online_users']),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -132,7 +200,12 @@ class _AdminScreenState extends State<AdminScreen> {
                             child: Text('${user['username']}'.substring(0, 1).toUpperCase()),
                           ),
                           title: Text('${user['username']} • ${user['target_exam']}'),
-                          subtitle: Text('${user['email']}\n${user['phone'] ?? 'No phone'}'),
+                          subtitle: Text(
+                            '${user['email']}\n${user['phone'] ?? 'No phone'}\n${_lastActive(user)}',
+                            style: TextStyle(
+                              color: user['is_online'] == true ? Colors.green : null,
+                            ),
+                          ),
                           trailing: user['is_admin'] == true
                               ? const Chip(label: Text('Admin'))
                               : const Icon(Icons.expand_more),
@@ -150,6 +223,7 @@ class _AdminScreenState extends State<AdminScreen> {
                             _detail('Exam date', user['exam_date'] ?? 'Not set'),
                             _detail('Registered', user['created_at']),
                             _detail('Last test', user['last_test_at'] ?? 'No test yet'),
+                            _detail('Activity status', _lastActive(user)),
                             _detail('Subscription expires', user['subscription_expires_at'] ?? 'Not subscribed'),
                             if (user['is_admin'] != true)
                               Align(
@@ -173,6 +247,14 @@ class _AdminScreenState extends State<AdminScreen> {
                                       onPressed: _updatingUserId == user['id']
                                           ? null
                                           : () => _addSubscription(user),
+                                    ),
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                                      icon: const Icon(Icons.delete_forever),
+                                      label: const Text('Delete student'),
+                                      onPressed: _updatingUserId == user['id']
+                                          ? null
+                                          : () => _confirmDeleteStudent(user),
                                     ),
                                   ],
                                 ),

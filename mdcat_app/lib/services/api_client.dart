@@ -175,6 +175,15 @@ class ApiClient {
     return UserModel.fromJson(data);
   }
 
+  Future<void> sendHeartbeat() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/heartbeat"),
+      headers: await _authHeaders(),
+    );
+    _decodeOrThrow(resp);
+  }
+
   Future<void> logout() async {
     await clearToken();
   }
@@ -460,6 +469,15 @@ class ApiClient {
     final baseUrl = await getBaseUrl();
     final resp = await http.delete(
       Uri.parse("$baseUrl/admin/users/$userId/subscription"),
+      headers: await _authHeaders(),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<void> deleteStudent(int userId) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.delete(
+      Uri.parse("$baseUrl/admin/users/$userId"),
       headers: await _authHeaders(),
     );
     _decodeOrThrow(resp);
