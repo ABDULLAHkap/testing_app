@@ -143,8 +143,6 @@ class _AdminScreenState extends State<AdminScreen> {
                             _detail('Gender', user['gender']),
                             _detail('Exam category', user['target_exam']),
                             _detail('Email verified', user['email_verified'] == true ? 'Yes' : 'No'),
-                            _detail('Phone verified', user['phone_verified'] == true ? 'Yes' : 'No'),
-                            _detail('Verification method', user['verification_method']),
                             _detail('Tests completed', user['tests_done']),
                             _detail('Average score', '${user['average_score']}%'),
                             _detail('Best score', '${user['best_score']}%'),

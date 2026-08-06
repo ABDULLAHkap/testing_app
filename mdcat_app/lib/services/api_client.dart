@@ -89,7 +89,6 @@ class ApiClient {
     String gender,
     String phone,
     String targetExam,
-    String verificationMethod,
   ) async {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
@@ -102,7 +101,6 @@ class ApiClient {
         "gender": gender,
         "phone": phone,
         "target_exam": targetExam,
-        "verification_method": verificationMethod,
       }),
     );
     _decodeOrThrow(resp);
@@ -122,26 +120,6 @@ class ApiClient {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
       Uri.parse("$baseUrl/auth/resend-otp"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"email": email}),
-    );
-    _decodeOrThrow(resp);
-  }
-
-  Future<void> verifyPhone(String email, String code) async {
-    final baseUrl = await getBaseUrl();
-    final resp = await http.post(
-      Uri.parse("$baseUrl/auth/verify-phone"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"email": email, "code": code}),
-    );
-    _decodeOrThrow(resp);
-  }
-
-  Future<void> resendPhoneOtp(String email) async {
-    final baseUrl = await getBaseUrl();
-    final resp = await http.post(
-      Uri.parse("$baseUrl/auth/resend-phone-otp"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email}),
     );

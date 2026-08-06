@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/auth_provider.dart';
@@ -19,7 +20,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   String _gender = 'Male';
   String _targetExam = 'MDCAT';
-  String _verificationMethod = 'email';
   static const _exams = [
     'MDCAT', 'ECAT', 'NUST NET', 'NTS', 'CSS', 'LAT', 'IELTS', 'PMS', 'SAT',
     'General Knowledge',
@@ -47,7 +47,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _gender,
       _phoneController.text.trim(),
       _targetExam,
-      _verificationMethod,
     );
 
     if (!mounted) return;
@@ -58,8 +57,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         MaterialPageRoute(
           builder: (_) => VerifyEmailScreen(
             email: _emailController.text.trim(),
-            phone: _phoneController.text.trim(),
-            method: _verificationMethod,
           ),
         ),
       );
@@ -92,36 +89,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         : null,
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _verificationMethod,
-                    decoration: const InputDecoration(
-                      labelText: "Verify account using",
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: "email", child: Text("Email OTP")),
-                      DropdownMenuItem(
-                        value: "whatsapp",
-                        child: Text("WhatsApp OTP"),
-                      ),
-                    ],
-                    onChanged: (value) => setState(
-                      () => _verificationMethod = value ?? "email",
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _verificationMethod == "whatsapp"
-                        ? "Use a WhatsApp number with country code, for example +923001234567."
-                        : "The verification code will be sent to your email.",
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(labelText: "Phone number"),
+                    decoration: const InputDecoration(
+                      labelText: "Phone number",
+                      hintText: "03XXXXXXXXX",
+                      helperText: "Enter exactly 11 digits",
+                    ),
                     keyboardType: TextInputType.phone,
-                    validator: (v) => (v == null || v.trim().length < 7)
-                        ? "Enter a valid phone number"
+                    maxLength: 11,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (v) => (v == null || !RegExp(r'^\d{11}$').hasMatch(v))
+                        ? "Phone number must contain exactly 11 digits"
                         : null,
                   ),
                   const SizedBox(height: 16),
@@ -150,6 +129,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (v) => (v == null || !v.contains("@"))
                         ? "Enter a valid email"
                         : null,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "A verification code will be sent to your email address.",
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

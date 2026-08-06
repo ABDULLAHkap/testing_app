@@ -26,8 +26,6 @@ class User(Base):
     phone = Column(String(30), nullable=True)
     target_exam = Column(String(30), default="MDCAT", nullable=False)
     email_verified = Column(Boolean, default=False, nullable=False)
-    phone_verified = Column(Boolean, default=False, nullable=False)
-    verification_method = Column(String(20), default="email", nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
     subscription_expires_at = Column(DateTime, nullable=True)
 
@@ -36,7 +34,6 @@ class User(Base):
     verification_codes = relationship("EmailVerificationCode", cascade="all, delete-orphan")
     password_reset_codes = relationship("PasswordResetCode", cascade="all, delete-orphan")
     email_change_codes = relationship("EmailChangeCode", cascade="all, delete-orphan")
-    phone_verification_codes = relationship("PhoneVerificationCode", cascade="all, delete-orphan")
 
     @property
     def free_tests_remaining(self):
@@ -72,17 +69,6 @@ class EmailChangeCode(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     new_email = Column(String(120), nullable=False)
-    code_hash = Column(String(64), nullable=False)
-    expires_at = Column(DateTime, nullable=False)
-    used_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=now_utc)
-
-
-class PhoneVerificationCode(Base):
-    __tablename__ = "phone_verification_codes"
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     code_hash = Column(String(64), nullable=False)
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)

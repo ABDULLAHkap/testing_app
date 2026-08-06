@@ -10,9 +10,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     gender: str = Field(pattern=r"^(Male|Female|Other|Prefer not to say)$")
-    phone: str = Field(min_length=7, max_length=30)
+    phone: str = Field(pattern=r"^\d{11}$")
     target_exam: str = Field(min_length=2, max_length=30)
-    verification_method: str = Field(default="email", pattern=r"^(email|whatsapp)$")
 
 
 class UserLogin(BaseModel):
@@ -30,8 +29,6 @@ class UserOut(BaseModel):
     phone: Optional[str] = None
     target_exam: str = "MDCAT"
     email_verified: bool = False
-    phone_verified: bool = False
-    verification_method: str = "email"
     is_admin: bool = False
     subscription_expires_at: Optional[datetime] = None
     free_tests_remaining: int = 3
@@ -46,11 +43,6 @@ class Token(BaseModel):
 
 
 class VerifyEmailRequest(BaseModel):
-    email: EmailStr
-    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
-
-
-class VerifyPhoneRequest(BaseModel):
     email: EmailStr
     code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
 

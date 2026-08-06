@@ -43,8 +43,6 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
             "gender": user.gender,
             "target_exam": user.target_exam,
             "email_verified": user.email_verified,
-            "phone_verified": user.phone_verified,
-            "verification_method": user.verification_method,
             "is_admin": user.is_admin,
             "free_tests_remaining": user.free_tests_remaining,
             "subscription_expires_at": user.subscription_expires_at,

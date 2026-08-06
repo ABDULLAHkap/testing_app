@@ -28,7 +28,7 @@ class ApiTests(unittest.TestCase):
                 "email": "student@example.com",
                 "password": "secure-password",
                 "gender": "Male",
-                "phone": "+923001234567",
+                "phone": "03001234567",
                 "target_exam": "MDCAT",
             },
         )
@@ -149,37 +149,29 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-    def test_whatsapp_signup_and_phone_verification(self):
-        with patch("app.routers.auth.secrets.randbelow", return_value=112233), patch(
-            "app.routers.auth.send_whatsapp_otp"
-        ) as send_whatsapp:
-            response = self.client.post(
-                "/auth/register",
-                json={
-                    "username": "whatsapp_student",
-                    "email": "whatsapp@example.com",
-                    "password": "secure-password",
-                    "gender": "Female",
-                    "phone": "+923001112233",
-                    "target_exam": "IELTS",
-                    "verification_method": "whatsapp",
-                },
-            )
-            self.assertEqual(response.status_code, 201, response.text)
-            send_whatsapp.assert_called_once_with("+923001112233", "112233")
+    def test_registration_requires_exactly_eleven_phone_digits(self):
+        invalid_numbers = [
+            "0300123456",
+            "030012345678",
+            "+923001234567",
+            "0300 1234567",
+            "03001234abc",
+        ]
 
-        response = self.client.post(
-            "/auth/verify-phone",
-            json={"email": "whatsapp@example.com", "code": "112233"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()["phone_verified"])
-
-        response = self.client.post(
-            "/auth/login",
-            data={"username": "whatsapp@example.com", "password": "secure-password"},
-        )
-        self.assertEqual(response.status_code, 200)
+        for index, phone in enumerate(invalid_numbers):
+            with self.subTest(phone=phone):
+                response = self.client.post(
+                    "/auth/register",
+                    json={
+                        "username": f"invalid_phone_{index}",
+                        "email": f"invalid-phone-{index}@example.com",
+                        "password": "secure-password",
+                        "gender": "Female",
+                        "phone": phone,
+                        "target_exam": "IELTS",
+                    },
+                )
+                self.assertEqual(response.status_code, 422, response.text)
 
     def test_admin_broadcast_and_student_support_chat(self):
         with SessionLocal() as db:

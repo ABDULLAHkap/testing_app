@@ -19,8 +19,6 @@ def apply_compatibility_migrations() -> None:
         "phone": "VARCHAR(30)",
         "target_exam": "VARCHAR(30) NOT NULL DEFAULT 'MDCAT'",
         "email_verified": "BOOLEAN NOT NULL DEFAULT TRUE",
-        "phone_verified": "BOOLEAN NOT NULL DEFAULT FALSE",
-        "verification_method": "VARCHAR(20) NOT NULL DEFAULT 'email'",
         "is_admin": "BOOLEAN NOT NULL DEFAULT FALSE",
         "subscription_expires_at": "TIMESTAMP WITH TIME ZONE",
     }

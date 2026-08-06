@@ -51,13 +51,10 @@ class AuthProvider extends ChangeNotifier {
     String gender,
     String phone,
     String targetExam,
-    String verificationMethod,
   ) async {
     lastError = null;
     try {
-      await _api.register(
-        username, email, password, gender, phone, targetExam, verificationMethod,
-      );
+      await _api.register(username, email, password, gender, phone, targetExam);
       return true;
     } catch (e) {
       lastError = e.toString();
@@ -82,30 +79,6 @@ class AuthProvider extends ChangeNotifier {
     lastError = null;
     try {
       await _api.resendOtp(email);
-      return true;
-    } catch (e) {
-      lastError = e.toString();
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> verifyPhone(String email, String code) async {
-    lastError = null;
-    try {
-      await _api.verifyPhone(email, code);
-      return true;
-    } catch (e) {
-      lastError = e.toString();
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> resendPhoneOtp(String email) async {
-    lastError = null;
-    try {
-      await _api.resendPhoneOtp(email);
       return true;
     } catch (e) {
       lastError = e.toString();
