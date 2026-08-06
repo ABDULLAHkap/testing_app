@@ -5,6 +5,7 @@ import '../../services/auth_provider.dart';
 import '../../services/api_client.dart';
 import '../../models/models.dart';
 import '../../widgets/exam_countdown_card.dart';
+import '../../widgets/animated_hero_image.dart';
 import '../auth/login_screen.dart';
 import '../admin/admin_screen.dart';
 import '../admin/communications_screen.dart';
@@ -93,6 +94,13 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _topBar(),
+                const SizedBox(height: 12),
+                AnimatedHeroImage(
+                  asset: 'assets/images/dashboard_knowledge.webp',
+                  height: 145,
+                  fit: BoxFit.cover,
+                  borderRadius: BorderRadius.circular(18),
+                ),
                 const SizedBox(height: 16),
                 ExamCountdownCard(
                   username: username,

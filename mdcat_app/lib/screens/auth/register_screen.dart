@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/auth_provider.dart';
+import '../../widgets/animated_hero_image.dart';
 import 'verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -81,6 +82,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const AnimatedHeroImage(
+                    asset: 'assets/images/signup_knowledge.webp',
+                    height: 180,
+                  ),
+                  const Text(
+                    'Start your preparation',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                  const SizedBox(height: 20),
                   TextFormField(
                     controller: _usernameController,
                     decoration: const InputDecoration(labelText: "Username"),
@@ -156,7 +167,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text("Register"),
+                        : const Text("Create Account"),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Already registered? Sign In'),
                   ),
                 ],
               ),

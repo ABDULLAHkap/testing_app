@@ -161,7 +161,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
       scheme: "mailto",
       path: email,
       queryParameters: {
-        "subject": "AI Exam Preparation - Help or Problem Report",
+        "subject": "Exam Preparation - Help or Problem Report",
       },
     );
     if (!await launchUrl(uri)) {

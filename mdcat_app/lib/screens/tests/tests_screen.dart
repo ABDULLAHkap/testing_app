@@ -81,7 +81,7 @@ class _OnlineQuizzesTab extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.only(bottom: 12),
           child: Text(
-            "Generate fresh AI quizzes — needs an internet connection.",
+            "Generate fresh quizzes — needs an internet connection.",
             style: TextStyle(color: Colors.white54, fontSize: 13),
           ),
         ),

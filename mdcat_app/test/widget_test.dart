@@ -18,8 +18,10 @@ void main() {
       ),
     );
 
-    expect(find.text('AI Exam Preparation'), findsOneWidget);
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.text('Forgot password?'), findsOneWidget);
+    expect(find.text('New here? Create Account'), findsOneWidget);
     expect(find.text('Server settings'), findsNothing);
   });
 }

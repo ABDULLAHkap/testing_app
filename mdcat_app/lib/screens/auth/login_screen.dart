@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/auth_provider.dart';
+import '../../widgets/animated_hero_image.dart';
 import '../home/home_screen.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
@@ -18,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -63,29 +65,47 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const AnimatedHeroImage(
+                    asset: 'assets/images/login_knowledge.webp',
+                    height: 220,
+                  ),
                   const Text(
-                    "🧬",
-                    style: TextStyle(fontSize: 56),
+                    "Welcome Back",
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                   const Text(
-                    "AI Exam Preparation",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    "Continue your preparation",
+                    style: TextStyle(color: Colors.white54),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   TextFormField(
                     controller: _usernameController,
-                    decoration: const InputDecoration(labelText: "Username"),
+                    decoration: const InputDecoration(
+                      labelText: "Email or username",
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
                     validator: (v) =>
                         (v == null || v.isEmpty) ? "Enter your username" : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(labelText: "Password"),
-                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
+                    ),
+                    obscureText: _obscurePassword,
                     validator: (v) =>
                         (v == null || v.isEmpty) ? "Enter your password" : null,
                   ),
@@ -101,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text("Login"),
+                        : const Text("Sign In"),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
@@ -114,14 +134,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text("Forgot password?"),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const Divider(height: 24),
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const RegisterScreen()),
                       );
                     },
-                    child: const Text("Don't have an account? Register"),
+                    child: const Text("New here? Create Account"),
                   ),
                 ],
               ),

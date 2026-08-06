@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../services/file_saver.dart';
+import '../../widgets/animated_hero_image.dart';
 import '../home/home_screen.dart';
 
 class QuizResultScreen extends StatefulWidget {
@@ -71,6 +72,13 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            AnimatedHeroImage(
+              asset: 'assets/images/results_trophy.webp',
+              height: 190,
+              fit: BoxFit.cover,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            const SizedBox(height: 18),
             Center(
               child: Column(
                 children: [
