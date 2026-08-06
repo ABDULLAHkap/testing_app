@@ -26,6 +26,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'General Knowledge',
   ];
   bool _loading = false;
+  bool _obscurePassword = true;
+
+  static const _bg = Color(0xFF061320);
+  static const _surface = Color(0xFF101F32);
+  static const _cyan = Color(0xFF20D5C5);
 
   @override
   void dispose() {
@@ -71,11 +76,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Create Account")),
+      backgroundColor: _bg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
             child: Form(
               key: _formKey,
               child: Column(
@@ -84,29 +89,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   const AnimatedHeroImage(
                     asset: 'assets/images/signup_knowledge.webp',
-                    height: 180,
+                    height: 245,
                   ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Create Account',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   const Text(
                     'Start your preparation',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white54),
+                    style: TextStyle(color: Color(0xFF9AA7B8), fontSize: 17),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   TextFormField(
                     controller: _usernameController,
-                    decoration: const InputDecoration(labelText: "Username"),
+                    decoration: _fieldDecoration('Username', Icons.person_outline),
                     validator: (v) => (v == null || v.length < 3)
                         ? "At least 3 characters"
                         : null,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   TextFormField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: "Phone number",
-                      hintText: "03XXXXXXXXX",
-                      helperText: "Enter exactly 11 digits",
-                    ),
+                    decoration: _fieldDecoration('Phone number', Icons.phone_android_outlined)
+                        .copyWith(counterText: ''),
                     keyboardType: TextInputType.phone,
                     maxLength: 11,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -114,50 +125,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ? "Phone number must contain exactly 11 digits"
                         : null,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: _gender,
-                    decoration: const InputDecoration(labelText: 'Gender'),
+                    dropdownColor: _surface,
+                    decoration: _fieldDecoration('Gender', Icons.people_outline),
                     items: const ['Male', 'Female', 'Other', 'Prefer not to say']
                         .map((value) => DropdownMenuItem(value: value, child: Text(value)))
                         .toList(),
                     onChanged: (value) => setState(() => _gender = value!),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     initialValue: _targetExam,
-                    decoration: const InputDecoration(labelText: 'Test category'),
+                    dropdownColor: _surface,
+                    decoration: _fieldDecoration('Test category', Icons.grid_view_rounded),
                     items: _exams
                         .map((value) => DropdownMenuItem(value: value, child: Text(value)))
                         .toList(),
                     onChanged: (value) => setState(() => _targetExam = value!),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(labelText: "Email"),
+                    decoration: _fieldDecoration('Email', Icons.mail_outline),
                     keyboardType: TextInputType.emailAddress,
                     validator: (v) => (v == null || !v.contains("@"))
                         ? "Enter a valid email"
                         : null,
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    "A verification code will be sent to your email address.",
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(labelText: "Password"),
-                    obscureText: true,
+                    decoration: _fieldDecoration('Password', Icons.lock_outline).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: const Color(0xFF9AA7B8),
+                        ),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                    ),
+                    obscureText: _obscurePassword,
                     validator: (v) => (v == null || v.length < 6)
                         ? "At least 6 characters"
                         : null,
                   ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    height: 58,
+                    child: ElevatedButton(
                     onPressed: _loading ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _cyan,
+                      foregroundColor: const Color(0xFF031018),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
                     child: _loading
                         ? const SizedBox(
                             height: 20,
@@ -167,18 +190,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text("Create Account"),
+                        : const Text("Create Account", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Already registered? Sign In'),
+                    child: const Text.rich(
+                      TextSpan(
+                        style: TextStyle(color: Color(0xFF9AA7B8), fontSize: 15),
+                        children: [
+                          TextSpan(text: 'Already registered? '),
+                          TextSpan(text: 'Sign In', style: TextStyle(color: _cyan, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF9AA7B8)),
+      prefixIcon: Icon(icon, color: _cyan),
+      filled: true,
+      fillColor: _surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 19),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFF2A3B51)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: _cyan, width: 1.4),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.redAccent),
       ),
     );
   }

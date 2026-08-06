@@ -6,7 +6,6 @@ import '../../services/api_client.dart';
 import '../../models/models.dart';
 import '../../widgets/exam_countdown_card.dart';
 import '../../widgets/animated_hero_image.dart';
-import '../auth/login_screen.dart';
 import '../admin/admin_screen.dart';
 import '../admin/communications_screen.dart';
 import '../communications/announcements_screen.dart';
@@ -16,8 +15,9 @@ import '../settings/server_settings_screen.dart';
 import '../progress/progress_screen.dart';
 import '../tests/tests_screen.dart';
 
-const _bg = Color(0xFF0E1B26);
-const _cardBg = Color(0xFF16232F);
+const _bg = Color(0xFF061320);
+const _cardBg = Color(0xFF101F32);
+const _cyan = Color(0xFF20D5C5);
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -93,14 +93,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _topBar(),
-                const SizedBox(height: 12),
-                AnimatedHeroImage(
-                  asset: 'assets/images/dashboard_knowledge.webp',
-                  height: 145,
-                  fit: BoxFit.cover,
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                _welcomeHeader(username),
+                const SizedBox(height: 16),
+                _categoryCard(auth.currentUser?.targetExam ?? 'Exam'),
+                const SizedBox(height: 16),
+                _heroBanner(),
                 const SizedBox(height: 16),
                 ExamCountdownCard(
                   username: username,
@@ -109,31 +106,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   examName: auth.currentUser?.targetExam ?? 'Exam',
                 ),
                 const SizedBox(height: 14),
-                _dailyChallengeCard(),
-                const SizedBox(height: 14),
-                _statsRow(),
-                const SizedBox(height: 14),
-                _actionCard(
-                  icon: Icons.menu_book_rounded,
-                  iconColor: const Color(0xFF378ADD),
-                  iconBg: const Color(0xFF378ADD).withOpacity(0.18),
-                  title: "Practice by Topic",
-                  subtitle: "MCQs for ${auth.currentUser?.targetExam ?? 'your exam'} subjects",
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const PracticeByTopicScreen()),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _actionCard(
-                  icon: Icons.assignment_rounded,
-                  iconColor: const Color(0xFFE0A429),
-                  iconBg: const Color(0xFFE0A429).withOpacity(0.18),
-                  title: "Full Mock Test",
-                  subtitle: "Full-length test mixing your selected exam subjects",
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const MockTestScreen()),
-                  ),
-                ),
+                _featureCards(),
+                const SizedBox(height: 16),
+                _performanceCard(),
                 const SizedBox(height: 24),
               ],
             ),
@@ -144,22 +119,38 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _topBar() {
+  Widget _welcomeHeader(String username) {
     final streak = _stats?.streakDays ?? 0;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Icon(Icons.local_fire_department,
-                color: Color(0xFFE0A429), size: 20),
-            const SizedBox(width: 6),
-            Text("$streak day${streak == 1 ? '' : 's'}",
-                style: const TextStyle(color: Colors.white, fontSize: 14)),
-          ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(username.isEmpty ? 'Welcome back' : 'Welcome back, $username',
+                  style: const TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 3),
+              const Text('Your exam journey', style: TextStyle(color: Colors.white54, fontSize: 15)),
+            ],
+          ),
         ),
         Row(
           children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0A429).withOpacity(.09),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFE0A429).withOpacity(.35)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.local_fire_department, color: Color(0xFFE0A429), size: 19),
+                const SizedBox(width: 5),
+                Text('$streak Day Streak', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ]),
+            ),
+            const SizedBox(width: 4),
             IconButton(
               icon: Badge(
                 isLabelVisible: _unreadAnnouncements > 0,
@@ -173,22 +164,76 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (mounted) _load();
               },
             ),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white70),
-              onPressed: () async {
-                await context.read<AuthProvider>().logout();
-                if (context.mounted) {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                }
-              },
-            ),
           ],
         ),
       ],
     );
   }
+
+  Widget _categoryCard(String exam) => Container(
+    width: 220,
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: _cardBg,
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: _cyan.withOpacity(.35)),
+    ),
+    child: Row(children: [
+      Container(padding: const EdgeInsets.all(9), decoration: BoxDecoration(color: _cyan.withOpacity(.12), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.school_outlined, color: _cyan)),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Selected Category', style: TextStyle(color: Colors.white54, fontSize: 11)),
+        Text(exam, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+      ])),
+    ]),
+  );
+
+  Widget _heroBanner() => Stack(
+    children: [
+      AnimatedHeroImage(asset: 'assets/images/dashboard_knowledge.webp', height: 190, fit: BoxFit.cover, borderRadius: BorderRadius.circular(22)),
+      Positioned.fill(child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), gradient: const LinearGradient(colors: [Color(0xE8061320), Color(0x22061320), Colors.transparent])))),
+      const Positioned(left: 22, top: 58, child: Text('Stay Consistent,\nAchieve Excellence', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w700, height: 1.15))),
+    ],
+  );
+
+  Widget _featureCards() => Row(children: [
+    Expanded(child: _featureCard(Icons.track_changes_rounded, _cyan, 'Daily Challenge', 'Curated questions daily', _dailyChallenge)),
+    const SizedBox(width: 10),
+    Expanded(child: _featureCard(Icons.menu_book_rounded, const Color(0xFF45A8FF), 'Practice by Topic', 'Strengthen your concepts', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PracticeByTopicScreen())))),
+    const SizedBox(width: 10),
+    Expanded(child: _featureCard(Icons.assignment_turned_in_outlined, const Color(0xFFE0A429), 'Full Mock Test', 'Real exam experience', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MockTestScreen())))),
+  ]);
+
+  void _dailyChallenge() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MockTestScreen(presetTotalQuestions: 10, presetMinutes: 15, title: 'Daily Challenge')));
+
+  Widget _featureCard(IconData icon, Color color, String title, String subtitle, VoidCallback onTap) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(18),
+    child: Container(
+      height: 210,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(18), border: Border.all(color: color.withOpacity(.22))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(.13), shape: BoxShape.circle), child: Icon(icon, color: color, size: 30)),
+        const Spacer(),
+        Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+        const SizedBox(height: 6),
+        Text(subtitle, maxLines: 2, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+        const SizedBox(height: 12),
+        Icon(Icons.arrow_forward_rounded, color: color),
+      ]),
+    ),
+  );
+
+  Widget _performanceCard() => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.white10)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Performance Overview', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 14),
+      _statsRow(),
+    ]),
+  );
 
   Widget _dailyChallengeCard() {
     final exam = context.read<AuthProvider>().currentUser?.targetExam ?? "Exam";
@@ -215,11 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _statsRow() {
     final stats = _stats;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: _cardBg,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: _loading
           ? const Center(
               child: Padding(
@@ -359,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _navItem(IconData icon, String label,
       {bool active = false, required VoidCallback onTap}) {
-    final color = active ? const Color(0xFF1D9E75) : Colors.white38;
+    final color = active ? _cyan : Colors.white38;
     return InkWell(
       onTap: onTap,
       child: Column(
