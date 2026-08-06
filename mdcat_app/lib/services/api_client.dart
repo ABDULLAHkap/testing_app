@@ -434,4 +434,13 @@ class ApiClient {
     );
     _decodeOrThrow(resp);
   }
+
+  Future<void> removeSubscription(int userId) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.delete(
+      Uri.parse("$baseUrl/admin/users/$userId/subscription"),
+      headers: await _authHeaders(),
+    );
+    _decodeOrThrow(resp);
+  }
 }

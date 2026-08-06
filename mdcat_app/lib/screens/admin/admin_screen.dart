@@ -14,6 +14,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Map<String, dynamic>? _overview;
   List<Map<String, dynamic>> _users = [];
   bool _loading = true;
+  int? _updatingUserId;
 
   @override
   void initState() {
@@ -32,6 +33,73 @@ class _AdminScreenState extends State<AdminScreen> {
       _users = results[1] as List<Map<String, dynamic>>;
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  bool _hasActiveSubscription(Map<String, dynamic> user) {
+    final value = user['subscription_expires_at'];
+    if (value == null) return false;
+    final expiry = DateTime.tryParse(value.toString());
+    return expiry != null && expiry.isAfter(DateTime.now());
+  }
+
+  Future<void> _addSubscription(Map<String, dynamic> user) async {
+    setState(() => _updatingUserId = user['id'] as int);
+    try {
+      await _api.grantSubscription(user['id']);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('30 days added successfully')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not add subscription: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingUserId = null);
+    }
+  }
+
+  Future<void> _confirmRemoveSubscription(Map<String, dynamic> user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove subscription?'),
+        content: Text(
+          "Premium access for ${user['username']} will end immediately. "
+          "The normal three-free-tests restriction will apply.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _updatingUserId = user['id'] as int);
+    try {
+      await _api.removeSubscription(user['id']);
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Subscription removed')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not remove subscription: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingUserId = null);
     }
   }
 
@@ -86,13 +154,27 @@ class _AdminScreenState extends State<AdminScreen> {
                             if (user['is_admin'] != true)
                               Align(
                                 alignment: Alignment.centerRight,
-                                child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.workspace_premium),
-                                  label: const Text('Give 30 days'),
-                                  onPressed: () async {
-                                    await _api.grantSubscription(user['id']);
-                                    await _load();
-                                  },
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  alignment: WrapAlignment.end,
+                                  children: [
+                                    if (_hasActiveSubscription(user))
+                                      OutlinedButton.icon(
+                                        icon: const Icon(Icons.cancel_outlined),
+                                        label: const Text('Remove subscription'),
+                                        onPressed: _updatingUserId == user['id']
+                                            ? null
+                                            : () => _confirmRemoveSubscription(user),
+                                      ),
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.workspace_premium),
+                                      label: const Text('Add 30 days'),
+                                      onPressed: _updatingUserId == user['id']
+                                          ? null
+                                          : () => _addSubscription(user),
+                                    ),
+                                  ],
                                 ),
                               ),
                           ],

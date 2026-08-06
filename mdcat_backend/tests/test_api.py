@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app.database import Base, SessionLocal, engine
 from app.main import app
 from app.models.models import QuizSet
+from app.auth import hash_password
 
 
 class ApiTests(unittest.TestCase):
@@ -96,6 +97,47 @@ class ApiTests(unittest.TestCase):
             },
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_admin_can_add_and_remove_subscription(self):
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            admin = db.query(User).filter(User.email == "student@example.com").first()
+            admin.is_admin = True
+            target = User(
+                username="subscription_target",
+                email="subscription@example.com",
+                hashed_password=hash_password("secure-password"),
+                email_verified=True,
+                target_exam="IELTS",
+            )
+            db.add(target)
+            db.commit()
+            db.refresh(target)
+            target_id = target.id
+
+        response = self.client.post(
+            f"/admin/users/{target_id}/subscription",
+            json={"days": 30},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(response.json()["expires_at"])
+
+        response = self.client.delete(
+            f"/admin/users/{target_id}/subscription",
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            target = db.query(User).filter(User.id == target_id).first()
+            self.assertIsNone(target.subscription_expires_at)
+            admin = db.query(User).filter(User.email == "student@example.com").first()
+            admin.is_admin = False
+            db.commit()
 
     def test_quiz_answers_are_private_and_attempt_is_single_use(self):
         with SessionLocal() as db:

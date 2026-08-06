@@ -75,3 +75,23 @@ def grant_subscription(
     user.subscription_expires_at = start + timedelta(days=payload.days)
     db.commit()
     return {"message": "Subscription activated", "expires_at": user.subscription_expires_at}
+
+
+@router.delete("/users/{user_id}/subscription")
+def remove_subscription(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, detail="User not found")
+    if user.is_admin:
+        raise HTTPException(400, detail="An administrator's access cannot be removed")
+
+    user.subscription_expires_at = None
+    db.commit()
+    return {
+        "message": "Subscription removed",
+        "free_tests_remaining": user.free_tests_remaining,
+    }
