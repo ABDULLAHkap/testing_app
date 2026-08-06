@@ -2,6 +2,12 @@ name: Deploy Web App
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "mdcat_app/**"
+      - ".github/workflows/deploy-web.yml"
 
 permissions:
   contents: read
@@ -9,8 +15,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
