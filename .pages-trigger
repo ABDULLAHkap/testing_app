@@ -1,1 +1,2 @@
-Publish gh-pages after branch source selection.
+Publish the updated gh-pages build after clearing the stale deployment.
+Trigger: 2026-08-06-final
