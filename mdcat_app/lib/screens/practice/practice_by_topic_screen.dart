@@ -5,7 +5,9 @@ import '../../models/models.dart';
 import '../quiz/quiz_screen.dart';
 
 class PracticeByTopicScreen extends StatefulWidget {
-  const PracticeByTopicScreen({super.key});
+  final String? examType;
+
+  const PracticeByTopicScreen({super.key, this.examType});
 
   @override
   State<PracticeByTopicScreen> createState() => _PracticeByTopicScreenState();
@@ -35,7 +37,7 @@ class _PracticeByTopicScreenState extends State<PracticeByTopicScreen> {
 
   Future<void> _loadSyllabus() async {
     try {
-      final subjects = await _api.getSubjects();
+      final subjects = await _api.getSubjects(examType: widget.examType);
       setState(() {
         _syllabus = subjects;
         _loadingSyllabus = false;
@@ -68,6 +70,7 @@ class _PracticeByTopicScreenState extends State<PracticeByTopicScreen> {
         topic: _selectedTopic,
         difficulty: _difficulty,
         quizMinutes: _quizMinutes,
+        examType: widget.examType,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(

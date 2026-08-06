@@ -281,6 +281,7 @@ class ApiClient {
     String? topic,
     String? text,
     String? sourceFilename,
+    String? examType,
   }) async {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
@@ -297,16 +298,20 @@ class ApiClient {
         "difficulty": difficulty,
         "quiz_minutes": quizMinutes,
         "source_filename": sourceFilename,
+        if (examType != null) "exam_type": examType,
       }),
     );
     final data = _decodeOrThrow(resp);
     return QuizSet.fromJson(data);
   }
 
-  Future<List<TopicListItem>> getSubjects() async {
+  Future<List<TopicListItem>> getSubjects({String? examType}) async {
     final baseUrl = await getBaseUrl();
+    final uri = Uri.parse("$baseUrl/mcqs/subjects").replace(
+      queryParameters: examType == null ? null : {"exam_type": examType},
+    );
     final resp = await http.get(
-      Uri.parse("$baseUrl/mcqs/subjects"),
+      uri,
       headers: await _authHeaders(),
     );
     final data = _decodeOrThrow(resp) as List;
@@ -317,6 +322,7 @@ class ApiClient {
     required int totalQuestions,
     required String difficulty,
     required int quizMinutes,
+    String? examType,
   }) async {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
@@ -329,6 +335,7 @@ class ApiClient {
         "total_questions": totalQuestions,
         "difficulty": difficulty,
         "quiz_minutes": quizMinutes,
+        if (examType != null) "exam_type": examType,
       }),
     );
     final data = _decodeOrThrow(resp);

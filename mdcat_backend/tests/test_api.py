@@ -440,6 +440,85 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 409)
 
+    def test_only_admin_can_change_test_category_and_admin_access_is_unlimited(self):
+        # A student cannot use the new override to escape their signup category.
+        response = self.client.get(
+            "/mcqs/subjects?exam_type=IELTS", headers=self.headers
+        )
+        self.assertEqual(response.status_code, 403)
+
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            admin = db.query(User).filter(User.email == "student@example.com").first()
+            admin.is_admin = True
+            # More than three completed attempts makes free_tests_remaining zero.
+            for index in range(4):
+                quiz = QuizSet(
+                    user_id=admin.id,
+                    exam_type="MDCAT",
+                    subject=f"Completed {index}",
+                    difficulty="Medium",
+                    quiz_minutes=5,
+                    questions=[],
+                )
+                db.add(quiz)
+                db.flush()
+                from app.models.models import QuizAttempt
+                from datetime import datetime
+                db.add(QuizAttempt(
+                    quiz_set_id=quiz.id,
+                    user_id=admin.id,
+                    answers={},
+                    correct=0,
+                    wrong=0,
+                    total=0,
+                    percentage=0,
+                    finished_at=datetime.utcnow(),
+                ))
+            db.commit()
+
+        response = self.client.get(
+            "/mcqs/subjects?exam_type=IELTS", headers=self.headers
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item["subject"] for item in response.json()],
+            ["Listening", "Reading", "Writing", "Speaking"],
+        )
+
+        generated = [
+            {
+                "question": f"Question {index}",
+                "options": ["A", "B", "C", "D"],
+                "correct_option": "A",
+                "explanation": "Test explanation",
+            }
+            for index in range(5)
+        ]
+        with patch("app.routers.mcqs.generate_large_mcqs", return_value=generated):
+            response = self.client.post(
+                "/mcqs/mock-test",
+                headers=self.headers,
+                json={
+                    "total_questions": 20,
+                    "quiz_minutes": 20,
+                    "difficulty": "Medium",
+                    "exam_type": "IELTS",
+                },
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+
+        with SessionLocal() as db:
+            from app.models.models import User
+            generated_quiz = db.query(QuizSet).filter(
+                QuizSet.id == response.json()["id"]
+            ).first()
+            self.assertEqual(generated_quiz.exam_type, "IELTS")
+            admin = db.query(User).filter(User.email == "student@example.com").first()
+            admin.is_admin = False
+            db.commit()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,12 +10,14 @@ class MockTestScreen extends StatefulWidget {
   final int? presetTotalQuestions;
   final int? presetMinutes;
   final String title;
+  final String? examType;
 
   const MockTestScreen({
     super.key,
     this.presetTotalQuestions,
     this.presetMinutes,
     this.title = "Full Mock Test",
+    this.examType,
   });
 
   @override
@@ -48,6 +50,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
         totalQuestions: _totalQuestions,
         difficulty: _difficulty,
         quizMinutes: _quizMinutes,
+        examType: widget.examType,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -64,7 +67,8 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final exam = context.watch<AuthProvider>().currentUser?.targetExam ?? "Exam";
+    final exam = widget.examType ??
+        context.watch<AuthProvider>().currentUser?.targetExam ?? "Exam";
     return Scaffold(
       appBar: AppBar(title: Text("$exam ${widget.title}")),
       body: Padding(

@@ -1,7 +1,7 @@
 import math
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -99,6 +99,18 @@ class MockTestRequest(BaseModel):
     total_questions: int = Field(default=100, ge=5, le=200)
     difficulty: str = "Medium"
     quiz_minutes: int = 150
+    exam_type: str | None = None
+
+
+def _exam_for_request(current_user: User, requested_exam: str | None) -> str:
+    """Admins may test any catalog category; students stay in their category."""
+    if not requested_exam:
+        return current_user.target_exam
+    if requested_exam not in EXAM_CATALOG:
+        raise HTTPException(422, detail="Unsupported exam category")
+    if not current_user.is_admin and requested_exam != current_user.target_exam:
+        raise HTTPException(403, detail="Only administrators can change test category")
+    return requested_exam
 
 
 # Metadata describing the STRUCTURE of well-known MDCAT past papers
@@ -234,9 +246,7 @@ def generate_mcqs_endpoint(
     # used to ground the questions instead.
     text = payload.text.strip() if payload.text else None
 
-    exam_type = payload.exam_type or current_user.target_exam
-    if exam_type not in EXAM_CATALOG:
-        raise HTTPException(422, detail="Unsupported exam category")
+    exam_type = _exam_for_request(current_user, payload.exam_type)
     questions = generate_large_mcqs(
         total_questions=payload.number_of_questions,
         subject=payload.subject,
@@ -272,12 +282,16 @@ def exam_catalog():
 
 
 @router.get("/subjects", response_model=List[TopicListItem])
-def list_subjects_and_topics(current_user: User = Depends(get_current_user)):
+def list_subjects_and_topics(
+    exam_type: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+):
     """Subjects for the exam category selected during signup."""
-    if current_user.target_exam != "MDCAT":
+    selected_exam = _exam_for_request(current_user, exam_type)
+    if selected_exam != "MDCAT":
         return [
             TopicListItem(subject=subject, topics=[subject])
-            for subject in EXAM_CATALOG[current_user.target_exam]
+            for subject in EXAM_CATALOG[selected_exam]
         ]
     return [
         TopicListItem(subject=subject, topics=topics)
@@ -297,7 +311,7 @@ def generate_mock_test(
     """
     all_questions: list[dict] = []
 
-    exam_type = current_user.target_exam
+    exam_type = _exam_for_request(current_user, payload.exam_type)
     if exam_type == "MDCAT":
         counts = _allocate_mock_questions(payload.total_questions)
     else:
