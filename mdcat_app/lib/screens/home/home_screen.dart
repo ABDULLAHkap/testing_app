@@ -5,7 +5,7 @@ import '../../services/auth_provider.dart';
 import '../../services/api_client.dart';
 import '../../models/models.dart';
 import '../../widgets/exam_countdown_card.dart';
-import '../../widgets/animated_hero_image.dart';
+import '../auth/login_screen.dart';
 import '../admin/admin_screen.dart';
 import '../admin/communications_screen.dart';
 import '../communications/announcements_screen.dart';
@@ -164,6 +164,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (mounted) _load();
               },
             ),
+            IconButton(
+              tooltip: 'Logout',
+              icon: const Icon(Icons.logout_rounded, color: Colors.white70),
+              onPressed: () async {
+                await context.read<AuthProvider>().logout();
+                if (!context.mounted) return;
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+            ),
           ],
         ),
       ],
@@ -190,8 +202,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _heroBanner() => Stack(
     children: [
-      AnimatedHeroImage(asset: 'assets/images/dashboard_knowledge.webp', height: 190, fit: BoxFit.cover, borderRadius: BorderRadius.circular(22)),
-      Positioned.fill(child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), gradient: const LinearGradient(colors: [Color(0xE8061320), Color(0x22061320), Colors.transparent])))),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Image.asset(
+          'assets/images/dashboard_knowledge.webp',
+          height: 190,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          alignment: Alignment.centerRight,
+          filterQuality: FilterQuality.high,
+        ),
+      ),
+      Positioned.fill(child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), gradient: const LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, stops: [0, .48, 1], colors: [Color(0xF2061320), Color(0x99061320), Color(0x11061320)])))),
       const Positioned(left: 22, top: 58, child: Text('Stay Consistent,\nAchieve Excellence', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w700, height: 1.15))),
     ],
   );

@@ -45,64 +45,80 @@ class _ExamCountdownCardState extends State<ExamCountdownCard> {
 
   @override
   Widget build(BuildContext context) {
-    const teal = Color(0xFF1D9E75);
+    const cyan = Color(0xFF20D5C5);
+    const surface = Color(0xFF101F32);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
       decoration: BoxDecoration(
-        color: teal,
+        color: surface,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF2A3B51)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 8)),
+        ],
       ),
       child: Column(
         children: [
-          Text(
-            "Hello, ${widget.username}!",
-            style: const TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 6),
           if (widget.examDate == null) ...[
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: const BoxDecoration(
+                color: Color(0x1820D5C5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.hourglass_bottom_rounded, color: cyan, size: 34),
+            ),
+            const SizedBox(height: 10),
             Text(
               "Set your ${widget.examName} date to start your countdown",
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 14),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white),
-              ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: cyan),
               onPressed: widget.onSetDate,
-              child: const Text("Set Exam Date"),
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: const Text("Set exam date"),
             ),
           ] else ...[
-            Text(
-              "${widget.examName} starts in",
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                children: [
+                  Container(
+                    width: 62,
+                    height: 62,
+                    decoration: const BoxDecoration(
+                      color: Color(0x1820D5C5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.hourglass_bottom_rounded, color: cyan, size: 34),
+                  ),
+                  const SizedBox(width: 14),
+                  const Text(
+                    "Exam starts in",
+                    style: TextStyle(color: Colors.white70, fontSize: 18, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 16),
+                  _timeBox(_remaining.inDays, "Days"),
+                  _separator(),
+                  _timeBox(_remaining.inHours % 24, "Hours"),
+                  _separator(),
+                  _timeBox(_remaining.inMinutes % 60, "Mins"),
+                  _separator(),
+                  _timeBox(_remaining.inSeconds % 60, "Secs"),
+                ],
+              ),
             ),
-            Text(
-              _formatDate(widget.examDate!),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _timeBox(_remaining.inDays, "days"),
-                const SizedBox(width: 8),
-                _timeBox(_remaining.inHours % 24, "hrs"),
-                const SizedBox(width: 8),
-                _timeBox(_remaining.inMinutes % 60, "min"),
-                const SizedBox(width: 8),
-                _timeBox(_remaining.inSeconds % 60, "sec"),
-              ],
-            ),
-            TextButton(
+            const SizedBox(height: 5),
+            TextButton.icon(
               onPressed: widget.onSetDate,
-              child: const Text("Change date",
-                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+              icon: const Icon(Icons.edit_calendar_outlined, size: 17),
+              label: Text("Change date • ${_formatDate(widget.examDate!)}"),
+              style: TextButton.styleFrom(foregroundColor: cyan),
             ),
           ],
         ],
@@ -111,25 +127,33 @@ class _ExamCountdownCardState extends State<ExamCountdownCard> {
   }
 
   Widget _timeBox(int value, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
+        width: 68,
+        height: 76,
+        padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
+          color: const Color(0xFF0C192A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF2A3B51)),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(value.toString().padLeft(2, '0'),
                 style: const TextStyle(
-                    color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    color: Color(0xFF20D5C5), fontSize: 25, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 3),
             Text(label,
-                style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                style: const TextStyle(color: Colors.white70, fontSize: 11)),
           ],
         ),
-      ),
     );
   }
+
+  Widget _separator() => const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 5),
+    child: Text(':', style: TextStyle(color: Colors.white30, fontSize: 20)),
+  );
 
   String _formatDate(DateTime d) {
     const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
