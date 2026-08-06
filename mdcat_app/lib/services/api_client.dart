@@ -207,6 +207,27 @@ class ApiClient {
     return UserModel.fromJson(data);
   }
 
+  Future<void> requestEmailChange(String newEmail) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/email-change/request"),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({"new_email": newEmail}),
+    );
+    _decodeOrThrow(resp);
+  }
+
+  Future<UserModel> confirmEmailChange(String newEmail, String code) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/auth/email-change/confirm"),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({"new_email": newEmail, "code": code}),
+    );
+    final data = _decodeOrThrow(resp);
+    return UserModel.fromJson(data);
+  }
+
   // ---------------- Dashboard ----------------
 
   Future<DashboardStats> getDashboard() async {

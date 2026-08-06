@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
@@ -18,6 +19,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
   // Account
   final _usernameController = TextEditingController();
   bool _savingUsername = false;
+  bool _changingEmail = false;
 
   bool _loading = true;
 
@@ -57,6 +59,118 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     }
   }
 
+  Future<void> _changeEmail() async {
+    final currentEmail = context.read<AuthProvider>().currentUser?.email ?? "";
+    final newEmailController = TextEditingController();
+    final newEmail = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Change email address"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("The confirmation code will be sent to your current email: $currentEmail"),
+            const SizedBox(height: 16),
+            TextField(
+              controller: newEmailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: "New email address"),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              newEmailController.text.trim(),
+            ),
+            child: const Text("Send code"),
+          ),
+        ],
+      ),
+    );
+    newEmailController.dispose();
+    if (newEmail == null || !newEmail.contains("@") || !mounted) return;
+
+    setState(() => _changingEmail = true);
+    try {
+      await _api.requestEmailChange(newEmail);
+      if (!mounted) return;
+      final codeController = TextEditingController();
+      final code = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text("Verify current email"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Enter the 6-digit code sent to $currentEmail."),
+              const SizedBox(height: 16),
+              TextField(
+                controller: codeController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(labelText: "Verification code"),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Cancel"),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                dialogContext,
+                codeController.text.trim(),
+              ),
+              child: const Text("Verify and change"),
+            ),
+          ],
+        ),
+      );
+      codeController.dispose();
+      if (code == null || code.length != 6) return;
+      await _api.confirmEmailChange(newEmail, code);
+      if (!mounted) return;
+      await context.read<AuthProvider>().refreshUser();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Email address changed successfully")),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Could not change email: $error")),
+      );
+    } finally {
+      if (mounted) setState(() => _changingEmail = false);
+    }
+  }
+
+  Future<void> _contactSupport(String email) async {
+    final uri = Uri(
+      scheme: "mailto",
+      path: email,
+      queryParameters: {
+        "subject": "AI Exam Preparation - Help or Problem Report",
+      },
+    );
+    if (!await launchUrl(uri)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please email $email")),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -67,6 +181,8 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     final signedIn = context.watch<AuthProvider>().currentUser != null;
+    final isAdmin = context.watch<AuthProvider>().currentUser?.isAdmin ?? false;
+    final currentEmail = context.watch<AuthProvider>().currentUser?.email ?? "";
 
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
@@ -99,6 +215,23 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                           )
                         : const Text("Save Username"),
                   ),
+                  if (!isAdmin) ...[
+                    const SizedBox(height: 20),
+                    Text("Email: $currentEmail"),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _changingEmail ? null : _changeEmail,
+                      icon: const Icon(Icons.alternate_email),
+                      label: Text(
+                        _changingEmail ? "Changing email..." : "Change Email Address",
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      "For security, the verification code is sent to your current email address.",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
                   const SizedBox(height: 32),
                 ],
                 _sectionHeader("Appearance"),
@@ -131,7 +264,24 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                   "use their own fixed dark styling either way.",
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
-
+                const SizedBox(height: 32),
+                _sectionHeader("Help & Support"),
+                const SizedBox(height: 8),
+                const Text("For help or to report a problem, contact:"),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.email_outlined),
+                  title: const Text("m.abdullah.aac@gmail.com"),
+                  subtitle: const Text("Tap to send an email"),
+                  onTap: () => _contactSupport("m.abdullah.aac@gmail.com"),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.email_outlined),
+                  title: const Text("choudrymnouman@gmail.com"),
+                  subtitle: const Text("Tap to send an email"),
+                  onTap: () => _contactSupport("choudrymnouman@gmail.com"),
+                ),
               ],
             ),
     );

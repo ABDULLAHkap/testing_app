@@ -4,15 +4,19 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth import create_access_token, hash_password, verify_password, get_current_user
 from app.database import get_db
-from app.models.models import User, EmailVerificationCode, PasswordResetCode
+from app.models.models import (
+    User, EmailVerificationCode, PasswordResetCode, EmailChangeCode,
+)
 from app.schemas import (
     UserCreate, UserOut, Token, ExamDateUpdate, UsernameUpdate,
     RegistrationResponse, VerifyEmailRequest, ResendOtpRequest,
     ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
+    EmailChangeRequest, EmailChangeConfirm,
 )
 from app.exam_catalog import ensure_exam
 from app.services.email_service import send_verification_email
@@ -52,6 +56,28 @@ def _issue_password_reset_otp(user: User, db: Session) -> None:
     ))
     db.commit()
     send_verification_email(user.email, code, purpose="password reset")
+
+
+def _issue_email_change_otp(user: User, new_email: str, db: Session) -> None:
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    db.query(EmailChangeCode).filter(
+        EmailChangeCode.user_id == user.id,
+        EmailChangeCode.used_at.is_(None),
+    ).delete()
+    record = EmailChangeCode(
+        user_id=user.id,
+        new_email=new_email,
+        code_hash=_otp_hash(code),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+    )
+    db.add(record)
+    db.commit()
+    try:
+        send_verification_email(user.email, code, purpose="email change")
+    except Exception:
+        db.delete(record)
+        db.commit()
+        raise
 
 
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
@@ -224,6 +250,68 @@ def update_username(
         raise HTTPException(status_code=409, detail="Username is already taken")
 
     current_user.username = username
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@router.post("/email-change/request", response_model=MessageResponse)
+def request_email_change(
+    payload: EmailChangeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.is_admin:
+        raise HTTPException(403, detail="This option is available to student accounts")
+    new_email = str(payload.new_email).strip().lower()
+    if new_email == current_user.email.lower():
+        raise HTTPException(400, detail="Enter a different email address")
+    existing = db.query(User).filter(func.lower(User.email) == new_email).first()
+    if existing:
+        raise HTTPException(409, detail="This email address is already registered")
+    try:
+        _issue_email_change_otp(current_user, new_email, db)
+    except Exception as exc:
+        raise HTTPException(503, detail="Email change code could not be sent") from exc
+    return MessageResponse(message="Confirmation code sent to your current email")
+
+
+@router.post("/email-change/confirm", response_model=UserOut)
+def confirm_email_change(
+    payload: EmailChangeConfirm,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.is_admin:
+        raise HTTPException(403, detail="This option is available to student accounts")
+    new_email = str(payload.new_email).strip().lower()
+    record = (
+        db.query(EmailChangeCode)
+        .filter(
+            EmailChangeCode.user_id == current_user.id,
+            EmailChangeCode.new_email == new_email,
+            EmailChangeCode.used_at.is_(None),
+        )
+        .order_by(EmailChangeCode.created_at.desc())
+        .first()
+    )
+    now = datetime.now(timezone.utc)
+    if (
+        not record
+        or record.expires_at.replace(tzinfo=timezone.utc) < now
+        or not secrets.compare_digest(record.code_hash, _otp_hash(payload.code))
+    ):
+        raise HTTPException(400, detail="Invalid or expired confirmation code")
+    existing = db.query(User).filter(
+        func.lower(User.email) == new_email,
+        User.id != current_user.id,
+    ).first()
+    if existing:
+        raise HTTPException(409, detail="This email address is already registered")
+
+    current_user.email = new_email
+    current_user.email_verified = True
+    record.used_at = now
     db.commit()
     db.refresh(current_user)
     return current_user

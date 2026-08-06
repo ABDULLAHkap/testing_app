@@ -98,6 +98,57 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_student_changes_email_after_old_email_otp(self):
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            user = User(
+                username="email_change_student",
+                email="old-email@example.com",
+                hashed_password=hash_password("secure-password"),
+                email_verified=True,
+                target_exam="IELTS",
+            )
+            db.add(user)
+            db.commit()
+
+        login = self.client.post(
+            "/auth/login",
+            data={
+                "username": "email_change_student",
+                "password": "secure-password",
+            },
+        )
+        self.assertEqual(login.status_code, 200)
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+        with patch("app.routers.auth.secrets.randbelow", return_value=654321), patch(
+            "app.routers.auth.send_verification_email"
+        ) as send_email:
+            response = self.client.post(
+                "/auth/email-change/request",
+                json={"new_email": "new-email@example.com"},
+                headers=headers,
+            )
+            self.assertEqual(response.status_code, 200)
+            send_email.assert_called_once_with(
+                "old-email@example.com", "654321", purpose="email change"
+            )
+
+        response = self.client.post(
+            "/auth/email-change/confirm",
+            json={"new_email": "new-email@example.com", "code": "654321"},
+            headers=headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["email"], "new-email@example.com")
+
+        response = self.client.post(
+            "/auth/login",
+            data={"username": "new-email@example.com", "password": "secure-password"},
+        )
+        self.assertEqual(response.status_code, 200)
+
     def test_admin_can_add_and_remove_subscription(self):
         with SessionLocal() as db:
             from app.models.models import User

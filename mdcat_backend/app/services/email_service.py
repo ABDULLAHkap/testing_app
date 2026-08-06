@@ -12,6 +12,13 @@ def _email_content(code: str, purpose: str) -> tuple[str, str]:
             f"Your password reset code is {code}. It expires in 10 minutes. "
             "Do not share this code with anyone.",
         )
+    if purpose == "email change":
+        return (
+            "Confirm your email address change",
+            f"Your email change confirmation code is {code}. It expires in "
+            "10 minutes. Do not share this code with anyone. If you did not "
+            "request this change, you can safely ignore this email.",
+        )
     return (
         "Your verification code",
         f"Your verification code is {code}. It expires in 10 minutes. "
