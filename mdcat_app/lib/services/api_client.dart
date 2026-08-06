@@ -249,6 +249,24 @@ class ApiClient {
     return DashboardStats.fromJson(data);
   }
 
+  // ---------------- Exam tutor ----------------
+
+  Future<Map<String, dynamic>> askTutor(
+    String message,
+    List<Map<String, String>> history,
+  ) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/tutor/chat"),
+      headers: {
+        "Content-Type": "application/json",
+        ...await _authHeaders(),
+      },
+      body: jsonEncode({"message": message, "history": history}),
+    );
+    return Map<String, dynamic>.from(_decodeOrThrow(resp));
+  }
+
   // ---------------- MCQ generation ----------------
 
   /// Generates MCQs. Leave `text` null for the default no-upload flow —

@@ -14,6 +14,7 @@ import '../practice/mock_test_screen.dart';
 import '../settings/server_settings_screen.dart';
 import '../progress/progress_screen.dart';
 import '../tests/tests_screen.dart';
+import '../tutor/tutor_chat_screen.dart';
 
 const _bg = Color(0xFF061320);
 const _cardBg = Color(0xFF101F32);
@@ -410,6 +411,13 @@ class _HomeScreenState extends State<HomeScreen> {
             _navItem(Icons.description_outlined, "Tests",
                 onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const TestsScreen()),
+                    )),
+          if (!isAdmin)
+            _navItem(Icons.school_outlined, "Tutor",
+                onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const TutorChatScreen(),
+                      ),
                     )),
           _navItem(Icons.settings_outlined, "Settings",
               onTap: () => Navigator.of(context).push(

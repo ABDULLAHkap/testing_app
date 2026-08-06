@@ -173,6 +173,44 @@ class ApiTests(unittest.TestCase):
                 )
                 self.assertEqual(response.status_code, 422, response.text)
 
+    def test_tutor_uses_authenticated_students_selected_exam(self):
+        with patch(
+            "app.routers.tutor.generate_tutor_reply",
+            return_value="Start with Biology concepts, then take a topic test.",
+        ) as tutor_reply:
+            response = self.client.post(
+                "/tutor/chat",
+                json={
+                    "message": "How should I begin?",
+                    "history": [
+                        {"role": "user", "content": "I need a plan"},
+                        {"role": "assistant", "content": "Let us build one."},
+                    ],
+                },
+                headers=self.headers,
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["exam_type"], "MDCAT")
+        self.assertIn("Biology", response.json()["reply"])
+        tutor_reply.assert_called_once()
+        self.assertEqual(tutor_reply.call_args.kwargs["exam_type"], "MDCAT")
+        self.assertEqual(tutor_reply.call_args.kwargs["message"], "How should I begin?")
+
+    def test_tutor_requires_login_and_valid_message(self):
+        response = self.client.post(
+            "/tutor/chat",
+            json={"message": "Help me study", "history": []},
+        )
+        self.assertEqual(response.status_code, 401)
+
+        response = self.client.post(
+            "/tutor/chat",
+            json={"message": "", "history": []},
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 422)
+
     def test_admin_broadcast_and_student_support_chat(self):
         with SessionLocal() as db:
             from app.models.models import User

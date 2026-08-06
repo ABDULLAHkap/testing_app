@@ -87,6 +87,23 @@ class UsernameUpdate(BaseModel):
     username: str = Field(min_length=3, max_length=50, pattern=r"^[A-Za-z0-9_.-]+$")
 
 
+# ---------- Exam tutor ----------
+
+class TutorHistoryMessage(BaseModel):
+    role: str = Field(pattern=r"^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=1500)
+
+
+class TutorChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=1500)
+    history: List[TutorHistoryMessage] = Field(default_factory=list, max_length=12)
+
+
+class TutorChatResponse(BaseModel):
+    reply: str
+    exam_type: str
+
+
 # ---------- Upload ----------
 
 class TextStats(BaseModel):
