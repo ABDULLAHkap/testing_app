@@ -57,7 +57,11 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
         .skip(1)
         .map((item) => {
               'role': item.isUser ? 'user' : 'assistant',
-              'content': item.text,
+              // Keep detailed plans in context while ensuring an unexpectedly
+              // long response can never break the next request.
+              'content': item.text.length > 5500
+                  ? item.text.substring(0, 5500)
+                  : item.text,
             })
         .toList();
 

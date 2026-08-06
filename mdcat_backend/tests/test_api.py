@@ -211,6 +211,31 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 422)
 
+    def test_tutor_accepts_detailed_previous_reply(self):
+        detailed_plan = "LAT preparation step. " * 150
+        self.assertGreater(len(detailed_plan), 1500)
+
+        with patch(
+            "app.routers.tutor.generate_tutor_reply",
+            return_value="Yes. Continue with consistent LAT practice.",
+        ) as tutor_reply:
+            response = self.client.post(
+                "/tutor/chat",
+                json={
+                    "message": "Can I pass LAT through this app?",
+                    "history": [
+                        {"role": "assistant", "content": detailed_plan},
+                    ],
+                },
+                headers=self.headers,
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            tutor_reply.call_args.kwargs["history"][0]["content"],
+            detailed_plan,
+        )
+
     def test_admin_broadcast_and_student_support_chat(self):
         with SessionLocal() as db:
             from app.models.models import User

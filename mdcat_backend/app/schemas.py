@@ -91,11 +91,13 @@ class UsernameUpdate(BaseModel):
 
 class TutorHistoryMessage(BaseModel):
     role: str = Field(pattern=r"^(user|assistant)$")
-    content: str = Field(min_length=1, max_length=1500)
+    # Tutor explanations and study plans can be detailed. Keep a generous but
+    # bounded history size so the API never rejects its own previous reply.
+    content: str = Field(min_length=1, max_length=6000)
 
 
 class TutorChatRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=1500)
+    message: str = Field(min_length=1, max_length=2000)
     history: List[TutorHistoryMessage] = Field(default_factory=list, max_length=12)
 
 
