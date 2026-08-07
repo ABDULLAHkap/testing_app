@@ -1,10 +1,13 @@
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("EMAIL_OTP_DEBUG", "true")
+os.environ.setdefault("SAFEPAY_PUBLIC_KEY", "sec_test_public")
+os.environ.setdefault("SAFEPAY_SECRET_KEY", "test-secret-key")
+os.environ.setdefault("SAFEPAY_ENVIRONMENT", "sandbox")
 
 from fastapi.testclient import TestClient
 
@@ -518,6 +521,71 @@ class ApiTests(unittest.TestCase):
             admin = db.query(User).filter(User.email == "student@example.com").first()
             admin.is_admin = False
             db.commit()
+
+    def test_safepay_checkout_is_server_priced_and_signed_return_is_idempotent(self):
+        safepay_response = Mock()
+        safepay_response.raise_for_status.return_value = None
+        safepay_response.json.return_value = {
+            "data": {"token": "tracker_secure_test_123"}
+        }
+        with patch("app.routers.subscriptions.httpx.post", return_value=safepay_response) as request:
+            response = self.client.post(
+                "/subscriptions/checkout/monthly", headers=self.headers
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        checkout = response.json()
+        self.assertEqual(checkout["amount_pkr"], 2000)
+        self.assertEqual(checkout["days"], 30)
+        self.assertIn("sandbox.api.getsafepay.com/checkout/pay", checkout["checkout_url"])
+        sent = request.call_args.kwargs["json"]
+        self.assertEqual(sent["amount"], 2000)
+        self.assertEqual(sent["currency"], "PKR")
+
+        # A forged confirmation cannot activate the subscription.
+        response = self.client.get(
+            "/subscriptions/safepay/return",
+            params={
+                "payment_id": checkout["payment_id"],
+                "tracker": "tracker_secure_test_123",
+                "sig": "forged",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 400)
+
+        import hashlib
+        import hmac
+        signature = hmac.new(
+            b"test-secret-key", b"tracker_secure_test_123", hashlib.sha256
+        ).hexdigest()
+        params = {
+            "payment_id": checkout["payment_id"],
+            "tracker": "tracker_secure_test_123",
+            "sig": signature,
+        }
+        response = self.client.get(
+            "/subscriptions/safepay/return", params=params, follow_redirects=False
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("payment=success", response.headers["location"])
+
+        with SessionLocal() as db:
+            from app.models.models import Payment, User
+            payment = db.query(Payment).filter(Payment.id == checkout["payment_id"]).first()
+            student = db.query(User).filter(User.email == "student@example.com").first()
+            first_expiry = student.subscription_expires_at
+            self.assertEqual(payment.status, "paid")
+            self.assertIsNotNone(first_expiry)
+
+        # Replaying the same valid return must not add another 30 days.
+        response = self.client.get(
+            "/subscriptions/safepay/return", params=params, follow_redirects=False
+        )
+        self.assertEqual(response.status_code, 303)
+        with SessionLocal() as db:
+            from app.models.models import User
+            student = db.query(User).filter(User.email == "student@example.com").first()
+            self.assertEqual(student.subscription_expires_at, first_expiry)
 
 
 if __name__ == "__main__":

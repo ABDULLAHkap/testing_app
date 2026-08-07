@@ -508,6 +508,26 @@ class ApiClient {
     _decodeOrThrow(resp);
   }
 
+  // ---------------- Subscription checkout ----------------
+
+  Future<Map<String, dynamic>> getSubscriptionStatus() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/subscriptions/status"),
+      headers: await _authHeaders(),
+    );
+    return Map<String, dynamic>.from(_decodeOrThrow(resp));
+  }
+
+  Future<Map<String, dynamic>> createSubscriptionCheckout(String planId) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/subscriptions/checkout/$planId"),
+      headers: await _authHeaders(),
+    );
+    return Map<String, dynamic>.from(_decodeOrThrow(resp));
+  }
+
   // ---------------- Announcements and support ----------------
 
   Future<List<Map<String, dynamic>>> getAnnouncements() async {
