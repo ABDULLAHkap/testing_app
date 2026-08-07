@@ -3,9 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_client.dart';
+import '../../theme/app_theme.dart';
 
-const _bg = Color(0xFF061320);
-const _card = Color(0xFF101F32);
 const _cyan = Color(0xFF20D5C5);
 
 class SubscriptionScreen extends StatefulWidget {
@@ -21,6 +20,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _loading = true;
   bool _openingCheckout = false;
 
+  Color get _bg => context.pageBackground;
+  Color get _card => context.panelColor;
+  Color get _text => context.primaryTextColor;
+  Color get _muted => context.secondaryTextColor;
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +36,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final status = await _api.getSubscriptionStatus();
       if (mounted) setState(() => _status = status);
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not load subscription: $error')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load subscription: $error')),
+        );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -47,7 +54,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         throw Exception('Could not open Safepay checkout');
       }
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Checkout could not start: $error')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Checkout could not start: $error')),
+        );
     } finally {
       if (mounted) setState(() => _openingCheckout = false);
     }
@@ -75,16 +85,38 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(22), border: Border.all(color: _cyan.withOpacity(.35))),
+                    decoration: BoxDecoration(
+                      color: _card,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: _cyan.withOpacity(.35)),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.workspace_premium, color: _cyan, size: 42),
+                        const Icon(
+                          Icons.workspace_premium,
+                          color: _cyan,
+                          size: 42,
+                        ),
                         const SizedBox(height: 16),
-                        Text(plan['name']?.toString() ?? '30-Day Unlimited Access', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                        Text(
+                          plan['name']?.toString() ?? '30-Day Unlimited Access',
+                          style: TextStyle(
+                            color: _text,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 8),
-                        const Text('PKR 2,000', style: TextStyle(color: _cyan, fontSize: 30, fontWeight: FontWeight.w800)),
-                        const Text('for 30 days', style: TextStyle(color: Colors.white54)),
+                        const Text(
+                          'PKR 2,000',
+                          style: TextStyle(
+                            color: _cyan,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text('for 30 days', style: TextStyle(color: _muted)),
                         const SizedBox(height: 22),
                         const _Benefit('Unlimited practice tests'),
                         const _Benefit('Unlimited full mock tests'),
@@ -94,9 +126,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: configured && !_openingCheckout ? _subscribe : null,
+                            onPressed: configured && !_openingCheckout
+                                ? _subscribe
+                                : null,
                             icon: const Icon(Icons.lock_outline),
-                            label: Text(_openingCheckout ? 'Opening Safepay...' : 'Pay PKR 2,000'),
+                            label: Text(
+                              _openingCheckout
+                                  ? 'Opening Safepay...'
+                                  : 'Pay PKR 2,000',
+                            ),
                           ),
                         ),
                       ],
@@ -105,14 +143,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   const SizedBox(height: 18),
                   ListTile(
                     tileColor: _card,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     leading: const Icon(Icons.verified_outlined, color: _cyan),
-                    title: Text(_expiryText(), style: const TextStyle(color: Colors.white)),
-                    subtitle: Text('${_status?['free_tests_remaining'] ?? 0} free tests remaining', style: const TextStyle(color: Colors.white54)),
-                    trailing: IconButton(tooltip: 'Refresh payment status', onPressed: _load, icon: const Icon(Icons.refresh, color: Colors.white70)),
+                    title: Text(_expiryText(), style: TextStyle(color: _text)),
+                    subtitle: Text(
+                      '${_status?['free_tests_remaining'] ?? 0} free tests remaining',
+                      style: TextStyle(color: _muted),
+                    ),
+                    trailing: IconButton(
+                      tooltip: 'Refresh payment status',
+                      onPressed: _load,
+                      icon: Icon(Icons.refresh, color: _muted),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  const Text('Sandbox mode uses test payments only. Access is activated only after Safepay sends a valid signed confirmation.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  Text(
+                    'Sandbox mode uses test payments only. Access is activated only after Safepay sends a valid signed confirmation.',
+                    style: TextStyle(color: _muted, fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -127,10 +177,17 @@ class _Benefit extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
-    child: Row(children: [
-      const Icon(Icons.check_circle, color: _cyan, size: 19),
-      const SizedBox(width: 10),
-      Expanded(child: Text(text, style: const TextStyle(color: Colors.white70))),
-    ]),
+    child: Row(
+      children: [
+        const Icon(Icons.check_circle, color: _cyan, size: 19),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(color: context.secondaryTextColor),
+          ),
+        ),
+      ],
+    ),
   );
 }

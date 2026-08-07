@@ -6,6 +6,7 @@ import '../../services/api_client.dart';
 import '../../models/models.dart';
 import '../../widgets/exam_countdown_card.dart';
 import '../../utils/exam_content.dart';
+import '../../theme/app_theme.dart';
 import '../auth/login_screen.dart';
 import '../admin/admin_screen.dart';
 import '../admin/communications_screen.dart';
@@ -17,8 +18,6 @@ import '../progress/progress_screen.dart';
 import '../tests/tests_screen.dart';
 import '../tutor/tutor_chat_screen.dart';
 
-const _bg = Color(0xFF061320);
-const _cardBg = Color(0xFF101F32);
 const _cyan = Color(0xFF20D5C5);
 
 class HomeScreen extends StatefulWidget {
@@ -34,6 +33,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   int _unreadAnnouncements = 0;
   String? _adminExamCategory;
+
+  Color get _bg => context.pageBackground;
+  Color get _cardBg => context.panelColor;
+  Color get _text => context.primaryTextColor;
+  Color get _muted => context.secondaryTextColor;
 
   @override
   void initState() {
@@ -75,8 +79,9 @@ class _HomeScreenState extends State<HomeScreen> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Couldn't save date: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Couldn't save date: $e")));
     }
   }
 
@@ -134,10 +139,19 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(username.isEmpty ? 'Welcome back' : 'Welcome back, $username',
-                  style: const TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.w700)),
+              Text(
+                username.isEmpty ? 'Welcome back' : 'Welcome back, $username',
+                style: TextStyle(
+                  color: _text,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 3),
-              const Text('Your exam journey', style: TextStyle(color: Colors.white54, fontSize: 15)),
+              Text(
+                'Your exam journey',
+                style: TextStyle(color: _muted, fontSize: 15),
+              ),
             ],
           ),
         ),
@@ -148,31 +162,44 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFE0A429).withOpacity(.09),
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFE0A429).withOpacity(.35)),
+                border: Border.all(
+                  color: const Color(0xFFE0A429).withOpacity(.35),
+                ),
               ),
-              child: Row(children: [
-                const Icon(Icons.local_fire_department, color: Color(0xFFE0A429), size: 19),
-                const SizedBox(width: 5),
-                Text('$streak Day Streak', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-              ]),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.local_fire_department,
+                    color: Color(0xFFE0A429),
+                    size: 19,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '$streak Day Streak',
+                    style: TextStyle(color: _muted, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(width: 4),
             IconButton(
               icon: Badge(
                 isLabelVisible: _unreadAnnouncements > 0,
                 label: Text('$_unreadAnnouncements'),
-                child: const Icon(Icons.notifications_none, color: Colors.white70),
+                child: Icon(Icons.notifications_none, color: _muted),
               ),
               onPressed: () async {
                 await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const AnnouncementsScreen(),
+                  ),
                 );
                 if (mounted) _load();
               },
             ),
             IconButton(
               tooltip: 'Logout',
-              icon: const Icon(Icons.logout_rounded, color: Colors.white70),
+              icon: Icon(Icons.logout_rounded, color: _muted),
               onPressed: () async {
                 await context.read<AuthProvider>().logout();
                 if (!context.mounted) return;
@@ -199,15 +226,35 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: _cyan.withOpacity(.35)),
       ),
-      child: Row(children: [
-        Container(padding: const EdgeInsets.all(9), decoration: BoxDecoration(color: _cyan.withOpacity(.12), borderRadius: BorderRadius.circular(10)), child: const Icon(Icons.school_outlined, color: _cyan)),
-        const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(isAdmin ? 'Admin Test Category' : 'Selected Category', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-          Text(exam, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-        ])),
-        if (isAdmin) const Icon(Icons.expand_more, color: _cyan),
-      ]),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: _cyan.withOpacity(.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.school_outlined, color: _cyan),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isAdmin ? 'Admin Test Category' : 'Selected Category',
+                  style: TextStyle(color: _muted, fontSize: 11),
+                ),
+                Text(
+                  exam,
+                  style: TextStyle(color: _text, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          if (isAdmin) const Icon(Icons.expand_more, color: _cyan),
+        ],
+      ),
     ),
   );
 
@@ -220,18 +267,23 @@ class _HomeScreenState extends State<HomeScreen> {
           shrinkWrap: true,
           children: [
             const ListTile(
-              title: Text('Choose test category',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              subtitle: Text('Admin testing is unlimited and requires no subscription.',
-                  style: TextStyle(color: Colors.white54)),
+              title: Text(
+                'Choose test category',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Admin testing is unlimited and requires no subscription.',
+              ),
             ),
-            ...examSubjects.keys.map((exam) => ListTile(
-              title: Text(exam, style: const TextStyle(color: Colors.white)),
-              trailing: exam == current
-                  ? const Icon(Icons.check_circle, color: _cyan)
-                  : null,
-              onTap: () => Navigator.pop(context, exam),
-            )),
+            ...examSubjects.keys.map(
+              (exam) => ListTile(
+                title: Text(exam),
+                trailing: exam == current
+                    ? const Icon(Icons.check_circle, color: _cyan)
+                    : null,
+                onTap: () => Navigator.pop(context, exam),
+              ),
+            ),
           ],
         ),
       ),
@@ -254,48 +306,158 @@ class _HomeScreenState extends State<HomeScreen> {
           filterQuality: FilterQuality.high,
         ),
       ),
-      Positioned.fill(child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(22), gradient: const LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, stops: [0, .48, 1], colors: [Color(0xF2061320), Color(0x99061320), Color(0x11061320)])))),
-      const Positioned(left: 22, top: 58, child: Text('Stay Consistent,\nAchieve Excellence', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w700, height: 1.15))),
+      Positioned.fill(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: const LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              stops: [0, .48, 1],
+              colors: [Color(0xF2061320), Color(0x99061320), Color(0x11061320)],
+            ),
+          ),
+        ),
+      ),
+      const Positioned(
+        left: 22,
+        top: 58,
+        child: Text(
+          'Stay Consistent,\nAchieve Excellence',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 23,
+            fontWeight: FontWeight.w700,
+            height: 1.15,
+          ),
+        ),
+      ),
     ],
   );
 
-  Widget _featureCards(String exam) => Row(children: [
-    Expanded(child: _featureCard(Icons.track_changes_rounded, _cyan, 'Daily Challenge', 'Curated $exam questions', () => _dailyChallenge(exam))),
-    const SizedBox(width: 10),
-    Expanded(child: _featureCard(Icons.menu_book_rounded, const Color(0xFF45A8FF), 'Practice by Topic', 'Strengthen your concepts', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PracticeByTopicScreen(examType: exam))))),
-    const SizedBox(width: 10),
-    Expanded(child: _featureCard(Icons.assignment_turned_in_outlined, const Color(0xFFE0A429), 'Full Mock Test', 'Real $exam experience', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestScreen(examType: exam))))),
-  ]);
+  Widget _featureCards(String exam) => Row(
+    children: [
+      Expanded(
+        child: _featureCard(
+          Icons.track_changes_rounded,
+          _cyan,
+          'Daily Challenge',
+          'Curated $exam questions',
+          () => _dailyChallenge(exam),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: _featureCard(
+          Icons.menu_book_rounded,
+          const Color(0xFF45A8FF),
+          'Practice by Topic',
+          'Strengthen your concepts',
+          () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PracticeByTopicScreen(examType: exam),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: _featureCard(
+          Icons.assignment_turned_in_outlined,
+          const Color(0xFFE0A429),
+          'Full Mock Test',
+          'Real $exam experience',
+          () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => MockTestScreen(examType: exam)),
+          ),
+        ),
+      ),
+    ],
+  );
 
-  void _dailyChallenge(String exam) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MockTestScreen(presetTotalQuestions: 10, presetMinutes: 15, title: 'Daily Challenge', examType: exam)));
+  void _dailyChallenge(String exam) => Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => MockTestScreen(
+        presetTotalQuestions: 10,
+        presetMinutes: 15,
+        title: 'Daily Challenge',
+        examType: exam,
+      ),
+    ),
+  );
 
-  Widget _featureCard(IconData icon, Color color, String title, String subtitle, VoidCallback onTap) => InkWell(
+  Widget _featureCard(
+    IconData icon,
+    Color color,
+    String title,
+    String subtitle,
+    VoidCallback onTap,
+  ) => InkWell(
     onTap: onTap,
     borderRadius: BorderRadius.circular(18),
     child: Container(
       height: 210,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(18), border: Border.all(color: color.withOpacity(.22))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(.13), shape: BoxShape.circle), child: Icon(icon, color: color, size: 30)),
-        const Spacer(),
-        Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-        const SizedBox(height: 6),
-        Text(subtitle, maxLines: 2, style: const TextStyle(color: Colors.white54, fontSize: 11)),
-        const SizedBox(height: 12),
-        Icon(Icons.arrow_forward_rounded, color: color),
-      ]),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withOpacity(.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(.13),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 30),
+          ),
+          const Spacer(),
+          Text(
+            title,
+            style: TextStyle(
+              color: _text,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            maxLines: 2,
+            style: TextStyle(color: _muted, fontSize: 11),
+          ),
+          const SizedBox(height: 12),
+          Icon(Icons.arrow_forward_rounded, color: color),
+        ],
+      ),
     ),
   );
 
   Widget _performanceCard() => Container(
     padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: _cardBg, borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.white10)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Performance Overview', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
-      const SizedBox(height: 14),
-      _statsRow(),
-    ]),
+    decoration: BoxDecoration(
+      color: _cardBg,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: context.subtleBorderColor),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Performance Overview',
+          style: TextStyle(
+            color: _text,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 14),
+        _statsRow(),
+      ],
+    ),
   );
 
   Widget _dailyChallengeCard() {
@@ -306,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
       iconBg: const Color(0xFFE0A429).withOpacity(0.18),
       title: "Daily Challenge",
       subtitle: "10 $exam questions • 15 min • All subjects",
-      trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+      trailing: Icon(Icons.chevron_right, color: context.inactiveColor),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => const MockTestScreen(
@@ -333,20 +495,33 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : Row(
               children: [
-                _statItem(Icons.check_circle, const Color(0xFF1D9E75),
-                    "${stats?.testsDone ?? 0}", "Tests Done"),
+                _statItem(
+                  Icons.check_circle,
+                  const Color(0xFF1D9E75),
+                  "${stats?.testsDone ?? 0}",
+                  "Tests Done",
+                ),
                 _divider(),
-                _statItem(Icons.trending_up, const Color(0xFFE0A429),
-                    "${stats?.avgScore.toStringAsFixed(0) ?? 0}%", "Avg Score"),
+                _statItem(
+                  Icons.trending_up,
+                  const Color(0xFFE0A429),
+                  "${stats?.avgScore.toStringAsFixed(0) ?? 0}%",
+                  "Avg Score",
+                ),
                 _divider(),
-                _statItem(Icons.emoji_events, const Color(0xFF1D9E75),
-                    "${stats?.bestScore.toStringAsFixed(0) ?? 0}%", "Best Score"),
+                _statItem(
+                  Icons.emoji_events,
+                  const Color(0xFF1D9E75),
+                  "${stats?.bestScore.toStringAsFixed(0) ?? 0}%",
+                  "Best Score",
+                ),
               ],
             ),
     );
   }
 
-  Widget _divider() => Container(width: 0.5, height: 40, color: Colors.white12);
+  Widget _divider() =>
+      Container(width: 0.5, height: 40, color: context.subtleBorderColor);
 
   Widget _statItem(IconData icon, Color color, String value, String label) {
     return Expanded(
@@ -354,11 +529,16 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(height: 6),
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(
+            value,
+            style: TextStyle(
+              color: _text,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+          Text(label, style: TextStyle(color: _muted, fontSize: 11)),
         ],
       ),
     );
@@ -400,18 +580,25 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: _text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                  Text(subtitle, style: TextStyle(color: _muted, fontSize: 12)),
                 ],
               ),
             ),
-            trailing ?? const Icon(Icons.arrow_forward, color: Colors.white38, size: 18),
+            trailing ??
+                Icon(
+                  Icons.arrow_forward,
+                  color: context.inactiveColor,
+                  size: 18,
+                ),
           ],
         ),
       ),
@@ -421,9 +608,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _bottomNav() {
     final isAdmin = context.watch<AuthProvider>().currentUser?.isAdmin ?? false;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _cardBg,
-        border: Border(top: BorderSide(color: Colors.white12, width: 0.5)),
+        border: Border(
+          top: BorderSide(color: context.subtleBorderColor, width: 0.5),
+        ),
       ),
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -431,46 +620,66 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _navItem(Icons.home, "Home", active: true, onTap: () {}),
           if (isAdmin)
-            _navItem(Icons.admin_panel_settings, "Admin",
-                onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AdminScreen()),
-                    ))
+            _navItem(
+              Icons.admin_panel_settings,
+              "Admin",
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const AdminScreen())),
+            )
           else
-            _navItem(Icons.query_stats, "Progress",
-                onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ProgressScreen()),
-                    )),
+            _navItem(
+              Icons.query_stats,
+              "Progress",
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ProgressScreen())),
+            ),
           if (isAdmin)
-            _navItem(Icons.campaign_outlined, "Communicate",
-                onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AdminCommunicationsScreen(),
-                      ),
-                    ))
-          else
-            _navItem(Icons.description_outlined, "Tests",
-                onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const TestsScreen()),
-                    )),
-          if (!isAdmin)
-            _navItem(Icons.school_outlined, "Tutor",
-                onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const TutorChatScreen(),
-                      ),
-                    )),
-          _navItem(Icons.settings_outlined, "Settings",
+            _navItem(
+              Icons.campaign_outlined,
+              "Communicate",
               onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ServerSettingsScreen()),
-                  )),
+                MaterialPageRoute(
+                  builder: (_) => const AdminCommunicationsScreen(),
+                ),
+              ),
+            )
+          else
+            _navItem(
+              Icons.description_outlined,
+              "Tests",
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const TestsScreen())),
+            ),
+          if (!isAdmin)
+            _navItem(
+              Icons.school_outlined,
+              "Tutor",
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TutorChatScreen()),
+              ),
+            ),
+          _navItem(
+            Icons.settings_outlined,
+            "Settings",
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ServerSettingsScreen()),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _navItem(IconData icon, String label,
-      {bool active = false, required VoidCallback onTap}) {
-    final color = active ? _cyan : Colors.white38;
+  Widget _navItem(
+    IconData icon,
+    String label, {
+    bool active = false,
+    required VoidCallback onTap,
+  }) {
+    final color = active ? _cyan : context.inactiveColor;
     return InkWell(
       onTap: onTap,
       child: Column(

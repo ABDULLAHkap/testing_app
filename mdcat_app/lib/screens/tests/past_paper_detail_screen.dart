@@ -4,10 +4,8 @@ import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
+import '../../theme/app_theme.dart';
 import '../quiz/quiz_screen.dart';
-
-const _bg = Color(0xFF0E1B26);
-const _cardBg = Color(0xFF16232F);
 
 const _subjectColors = {
   "Biology": Color(0xFF1D9E75),
@@ -63,8 +61,9 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Couldn't generate test: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Couldn't generate test: $e")));
       setState(() => _generating = false);
     }
   }
@@ -80,20 +79,23 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: context.pageBackground,
       appBar: AppBar(
         title: const Text("Test Details"),
-        backgroundColor: _bg,
-        foregroundColor: Colors.white,
+        backgroundColor: context.pageBackground,
+        foregroundColor: context.primaryTextColor,
         elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Text("Couldn't load: $_error",
-                      style: const TextStyle(color: Colors.white70)))
-              : _buildContent(),
+          ? Center(
+              child: Text(
+                "Couldn't load: $_error",
+                style: TextStyle(color: context.secondaryTextColor),
+              ),
+            )
+          : _buildContent(),
       bottomNavigationBar: _detail == null
           ? null
           : SafeArea(
@@ -106,9 +108,13 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                   onPressed: _generating ? null : _startTest,
                   child: _generating
                       ? const SizedBox(
-                          height: 20, width: 20,
+                          height: 20,
+                          width: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Text("Start Test"),
                 ),
               ),
@@ -135,17 +141,26 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(d.title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold)),
+                Text(
+                  d.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    _bannerStat(Icons.help_outline, "${d.totalQuestions} Questions"),
+                    _bannerStat(
+                      Icons.help_outline,
+                      "${d.totalQuestions} Questions",
+                    ),
                     const SizedBox(width: 16),
-                    _bannerStat(Icons.timer_outlined, _fmtMinutes(d.quizMinutes)),
+                    _bannerStat(
+                      Icons.timer_outlined,
+                      _fmtMinutes(d.quizMinutes),
+                    ),
                     const SizedBox(width: 16),
                     _bannerStat(Icons.star_outline, "${d.totalMarks} marks"),
                   ],
@@ -161,11 +176,16 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _markingRow(Colors.green, "+${d.marksPerCorrect.toStringAsFixed(d.marksPerCorrect % 1 == 0 ? 0 : 2)} for correct"),
-                _markingRow(Colors.redAccent,
-                    d.marksPenaltyPerWrong > 0
-                        ? "-${d.marksPenaltyPerWrong.toStringAsFixed(d.marksPenaltyPerWrong % 1 == 0 ? 0 : 2)} for incorrect"
-                        : "0 for incorrect"),
+                _markingRow(
+                  Colors.green,
+                  "+${d.marksPerCorrect.toStringAsFixed(d.marksPerCorrect % 1 == 0 ? 0 : 2)} for correct",
+                ),
+                _markingRow(
+                  Colors.redAccent,
+                  d.marksPenaltyPerWrong > 0
+                      ? "-${d.marksPenaltyPerWrong.toStringAsFixed(d.marksPenaltyPerWrong % 1 == 0 ? 0 : 2)} for incorrect"
+                      : "0 for incorrect",
+                ),
                 _markingRow(Colors.grey, "0 for unanswered"),
               ],
             ),
@@ -177,23 +197,37 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
             title: "Subject Breakdown",
             child: Column(
               children: d.subjectBreakdown.map((s) {
-                final color = _subjectColors[s.subject] ?? Colors.white54;
+                final color =
+                    _subjectColors[s.subject] ?? context.inactiveColor;
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(
                     children: [
                       Container(
-                        width: 12, height: 12,
+                        width: 12,
+                        height: 12,
                         decoration: BoxDecoration(
-                            color: color, borderRadius: BorderRadius.circular(3)),
+                          color: color,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(s.subject,
-                            style: const TextStyle(color: Colors.white, fontSize: 14)),
+                        child: Text(
+                          s.subject,
+                          style: TextStyle(
+                            color: context.primaryTextColor,
+                            fontSize: 14,
+                          ),
+                        ),
                       ),
-                      Text("${s.mcqCount} MCQs",
-                          style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                      Text(
+                        "${s.mcqCount} MCQs",
+                        style: TextStyle(
+                          color: context.secondaryTextColor,
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -209,36 +243,68 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: context.subtleBorderColor.withOpacity(0.35),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      const Text("Time Allotted",
-                          style: TextStyle(color: Colors.white54, fontSize: 12)),
+                      Text(
+                        "Time Allotted",
+                        style: TextStyle(
+                          color: context.secondaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Text(_hms(d.quizMinutes),
-                          style: const TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold)),
+                      Text(
+                        _hms(d.quizMinutes),
+                        style: TextStyle(
+                          color: context.primaryTextColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      Container(width: 4, height: 4,
-                          decoration: const BoxDecoration(
-                              color: Colors.white38, shape: BoxShape.circle)),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: context.inactiveColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      const Text("Total MCQs",
-                          style: TextStyle(color: Colors.white54, fontSize: 12)),
+                      Text(
+                        "Total MCQs",
+                        style: TextStyle(
+                          color: context.secondaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text("${d.totalQuestions}",
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                Text(
+                  "${d.totalQuestions}",
+                  style: TextStyle(
+                    color: context.primaryTextColor,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                const Text("Subject Weightage",
-                    style: TextStyle(color: Colors.white54, fontSize: 12)),
+                Text(
+                  "Subject Weightage",
+                  style: TextStyle(
+                    color: context.secondaryTextColor,
+                    fontSize: 12,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
@@ -248,7 +314,9 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                         flex: (s.weightPercent * 10).round().clamp(1, 1000),
                         child: Container(
                           height: 8,
-                          color: _subjectColors[s.subject] ?? Colors.white24,
+                          color:
+                              _subjectColors[s.subject] ??
+                              context.subtleBorderColor,
                         ),
                       );
                     }).toList(),
@@ -262,40 +330,76 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                     2: FlexColumnWidth(1),
                   },
                   children: [
-                    const TableRow(children: [
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 6),
-                        child: Text("Subject",
-                            style: TextStyle(color: Colors.white54, fontSize: 12)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 6),
-                        child: Text("Weight",
-                            style: TextStyle(color: Colors.white54, fontSize: 12)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(vertical: 6),
-                        child: Text("MCQs",
-                            style: TextStyle(color: Colors.white54, fontSize: 12)),
-                      ),
-                    ]),
-                    ...d.subjectBreakdown.map((s) => TableRow(children: [
+                    TableRow(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          child: Text(
+                            "Subject",
+                            style: TextStyle(
+                              color: context.secondaryTextColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          child: Text(
+                            "Weight",
+                            style: TextStyle(
+                              color: context.secondaryTextColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          child: Text(
+                            "MCQs",
+                            style: TextStyle(
+                              color: context.secondaryTextColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ...d.subjectBreakdown.map(
+                      (s) => TableRow(
+                        children: [
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Text(s.subject,
-                                style: const TextStyle(color: Colors.white, fontSize: 13)),
+                            child: Text(
+                              s.subject,
+                              style: TextStyle(
+                                color: context.primaryTextColor,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Text("${s.weightPercent.toStringAsFixed(0)}%",
-                                style: const TextStyle(color: Colors.white, fontSize: 13)),
+                            child: Text(
+                              "${s.weightPercent.toStringAsFixed(0)}%",
+                              style: TextStyle(
+                                color: context.primaryTextColor,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Text("${s.mcqCount}",
-                                style: const TextStyle(color: Colors.white, fontSize: 13)),
+                            child: Text(
+                              "${s.mcqCount}",
+                              style: TextStyle(
+                                color: context.primaryTextColor,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
-                        ])),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -309,11 +413,18 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: d.instructions
-                  .map((line) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text("• $line",
-                            style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                      ))
+                  .map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        "• $line",
+                        style: TextStyle(
+                          color: context.secondaryTextColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -345,11 +456,15 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
       child: Row(
         children: [
           Container(
-            width: 10, height: 10,
+            width: 10,
+            height: 10,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 10),
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 14)),
+          Text(
+            text,
+            style: TextStyle(color: context.primaryTextColor, fontSize: 14),
+          ),
         ],
       ),
     );
@@ -360,17 +475,20 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: context.panelColor,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: TextStyle(
+              color: context.primaryTextColor,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           child,
         ],
