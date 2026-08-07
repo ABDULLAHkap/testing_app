@@ -50,12 +50,14 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
       if (!mounted) return;
       await context.read<AuthProvider>().refreshUser();
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Username updated")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Username updated")));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Couldn't update username: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Couldn't update username: $e")));
     } finally {
       if (mounted) setState(() => _savingUsername = false);
     }
@@ -72,7 +74,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("The confirmation code will be sent to your current email: $currentEmail"),
+            Text(
+              "The confirmation code will be sent to your current email: $currentEmail",
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: newEmailController,
@@ -87,10 +91,8 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
             child: const Text("Cancel"),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(
-              dialogContext,
-              newEmailController.text.trim(),
-            ),
+            onPressed: () =>
+                Navigator.pop(dialogContext, newEmailController.text.trim()),
             child: const Text("Send code"),
           ),
         ],
@@ -119,7 +121,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                 controller: codeController,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                decoration: const InputDecoration(labelText: "Verification code"),
+                decoration: const InputDecoration(
+                  labelText: "Verification code",
+                ),
               ),
             ],
           ),
@@ -129,10 +133,8 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
               child: const Text("Cancel"),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(
-                dialogContext,
-                codeController.text.trim(),
-              ),
+              onPressed: () =>
+                  Navigator.pop(dialogContext, codeController.text.trim()),
               child: const Text("Verify and change"),
             ),
           ],
@@ -149,9 +151,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Could not change email: $error")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Could not change email: $error")));
     } finally {
       if (mounted) setState(() => _changingEmail = false);
     }
@@ -161,15 +163,13 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     final uri = Uri(
       scheme: "mailto",
       path: email,
-      queryParameters: {
-        "subject": "Exam Preparation - Help or Problem Report",
-      },
+      queryParameters: {"subject": "Exam Preparation - Help or Problem Report"},
     );
     if (!await launchUrl(uri)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please email $email")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Please email $email")));
     }
   }
 
@@ -225,7 +225,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                       onPressed: _changingEmail ? null : _changeEmail,
                       icon: const Icon(Icons.alternate_email),
                       label: Text(
-                        _changingEmail ? "Changing email..." : "Change Email Address",
+                        _changingEmail
+                            ? "Changing email..."
+                            : "Change Email Address",
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -243,10 +245,14 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.workspace_premium_outlined),
                     title: const Text("30-Day Unlimited Access"),
-                    subtitle: const Text("PKR 2,000 • Pay securely with Safepay"),
+                    subtitle: const Text(
+                      "PKR 2,000 • Pay securely with Safepay",
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const SubscriptionScreen(),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -269,16 +275,15 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                 ),
                 _themeOption(
                   context,
-                  label: "Match Device",
+                  label: "Default",
                   icon: Icons.smartphone,
                   mode: ThemeMode.system,
                   current: themeProvider.mode,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Note: this changes standard screens like Login and "
-                  "Practice forms. The Dashboard, Tests, and Quiz screens "
-                  "use their own fixed dark styling either way.",
+                  "Light makes every screen light, Dark makes every screen "
+                  "dark, and Default follows your device appearance.",
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 32),

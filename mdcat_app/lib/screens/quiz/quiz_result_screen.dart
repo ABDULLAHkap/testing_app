@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../services/file_saver.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/animated_hero_image.dart';
 import '../home/home_screen.dart';
 
@@ -25,9 +26,12 @@ class QuizResultScreen extends StatefulWidget {
 class _QuizResultScreenState extends State<QuizResultScreen> {
   final ApiClient _api = ApiClient();
   bool _downloading = false;
-  static const _bg = Color(0xFF061320);
-  static const _surface = Color(0xFF101F32);
   static const _cyan = Color(0xFF20D5C5);
+
+  Color get _bg => context.pageBackground;
+  Color get _surface => context.panelColor;
+  Color get _text => context.primaryTextColor;
+  Color get _muted => context.secondaryTextColor;
 
   Future<void> _downloadPdf() async {
     setState(() => _downloading = true);
@@ -40,8 +44,9 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       if (!mounted) return;
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Couldn't download PDF: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Couldn't download PDF: $e")));
     } finally {
       if (mounted) setState(() => _downloading = false);
     }
@@ -88,30 +93,50 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               child: Column(
                 children: [
                   Text(
-                    r.percentage >= 80 ? 'Excellent Work' : r.percentage >= 60 ? 'Well Done' : 'Keep Practicing',
-                    style: const TextStyle(color: _cyan, fontSize: 28, fontWeight: FontWeight.w700),
+                    r.percentage >= 80
+                        ? 'Excellent Work'
+                        : r.percentage >= 60
+                        ? 'Well Done'
+                        : 'Keep Practicing',
+                    style: const TextStyle(
+                      color: _cyan,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 22),
                   SizedBox(
                     width: 155,
                     height: 155,
-                    child: Stack(alignment: Alignment.center, children: [
-                      SizedBox.expand(child: CircularProgressIndicator(
-                        value: (r.percentage / 100).clamp(0, 1).toDouble(),
-                        strokeWidth: 14,
-                        backgroundColor: const Color(0xFF25354A),
-                        color: _cyan,
-                      )),
-                      Text(
-                        "${r.percentage.toStringAsFixed(0)}%",
-                        style: const TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w600),
-                      ),
-                    ]),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox.expand(
+                          child: CircularProgressIndicator(
+                            value: (r.percentage / 100).clamp(0, 1).toDouble(),
+                            strokeWidth: 14,
+                            backgroundColor: context.subtleBorderColor,
+                            color: _cyan,
+                          ),
+                        ),
+                        Text(
+                          "${r.percentage.toStringAsFixed(0)}%",
+                          style: TextStyle(
+                            color: _text,
+                            fontSize: 42,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     "Grade ${r.grade} • ${widget.subject}",
-                    style: TextStyle(color: _gradeColor(r.grade), fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: _gradeColor(r.grade),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -120,52 +145,106 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
             Row(
               children: [
                 Expanded(
-                    child: _statCard("Correct", "${r.correct}", const Color(0xFF35D58A), Icons.check_circle)),
+                  child: _statCard(
+                    "Correct",
+                    "${r.correct}",
+                    const Color(0xFF35D58A),
+                    Icons.check_circle,
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Expanded(child: _statCard("Incorrect", "${r.wrong}", const Color(0xFFFF515D), Icons.cancel)),
+                Expanded(
+                  child: _statCard(
+                    "Incorrect",
+                    "${r.wrong}",
+                    const Color(0xFFFF515D),
+                    Icons.cancel,
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Expanded(child: _statCard("Total", "${r.total}", const Color(0xFF45A8FF), Icons.fact_check_outlined)),
+                Expanded(
+                  child: _statCard(
+                    "Total",
+                    "${r.total}",
+                    const Color(0xFF45A8FF),
+                    Icons.fact_check_outlined,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 24),
             if (r.review.isNotEmpty) ...[
-              const Row(children: [
-                Expanded(child: Divider(color: Colors.white24)),
-                Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Row(children: [Icon(Icons.assignment_outlined, color: _cyan), SizedBox(width: 7), Text("Question Review", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))])),
-                Expanded(child: Divider(color: Colors.white24)),
-              ]),
+              const Row(
+                children: [
+                  Expanded(child: Divider(color: context.subtleBorderColor)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.assignment_outlined, color: _cyan),
+                        const SizedBox(width: 7),
+                        Text(
+                          "Question Review",
+                          style: TextStyle(
+                            color: _text,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(child: Divider(color: context.subtleBorderColor)),
+                ],
+              ),
               const SizedBox(height: 14),
               ...r.review.take(3).map(_reviewCard),
-              if (r.review.length > 3) TextButton.icon(
-                onPressed: () => _showFullReview(r.review),
-                icon: const Icon(Icons.list_alt),
-                label: const Text('Review All Answers'),
-              ),
+              if (r.review.length > 3)
+                TextButton.icon(
+                  onPressed: () => _showFullReview(r.review),
+                  icon: const Icon(Icons.list_alt),
+                  label: const Text('Review All Answers'),
+                ),
               const SizedBox(height: 16),
             ],
-            SizedBox(height: 56, child: ElevatedButton.icon(
-              onPressed: _downloading ? null : _downloadPdf,
-              icon: _downloading
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.download),
-              label: Text(_downloading ? "Downloading..." : "Download Result PDF"),
-              style: ElevatedButton.styleFrom(backgroundColor: _cyan, foregroundColor: const Color(0xFF031018)),
-            )),
+            SizedBox(
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: _downloading ? null : _downloadPdf,
+                icon: _downloading
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download),
+                label: Text(
+                  _downloading ? "Downloading..." : "Download Result PDF",
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _cyan,
+                  foregroundColor: const Color(0xFF031018),
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
-            SizedBox(height: 56, child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  (route) => false,
-                );
-              },
-              icon: const Icon(Icons.home_outlined),
-              label: const Text("Back to Home"),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white24)),
-            )),
+            SizedBox(
+              height: 56,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                    (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.home_outlined),
+                label: const Text("Back to Home"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _text,
+                  side: BorderSide(color: context.subtleBorderColor),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -184,11 +263,16 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
         children: [
           Icon(icon, color: color, size: 25),
           const SizedBox(height: 7),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          Text(label, style: TextStyle(color: _muted, fontSize: 11)),
         ],
       ),
     );
@@ -205,7 +289,10 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     return Card(
       color: _surface,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: statusColor.withOpacity(.75))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: statusColor.withOpacity(.75)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -220,7 +307,10 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 const SizedBox(width: 8),
                 Text(
                   item.isCorrect ? 'Correct' : 'Wrong',
-                  style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -230,10 +320,13 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            Text('Your answer: $selected', style: const TextStyle(color: Colors.white70)),
+            Text('Your answer: $selected', style: TextStyle(color: _muted)),
             Text(
               'Correct answer: ${item.correctAnswer}',
-              style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.green,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             if (item.explanation != null && item.explanation!.isNotEmpty) ...[
               const SizedBox(height: 6),
@@ -257,7 +350,16 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           controller: controller,
           padding: const EdgeInsets.all(18),
           children: [
-            const Center(child: Text('All Answers', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold))),
+            Center(
+              child: Text(
+                'All Answers',
+                style: TextStyle(
+                  color: _text,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
             const SizedBox(height: 18),
             ...review.map(_reviewCard),
           ],

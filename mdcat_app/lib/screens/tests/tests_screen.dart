@@ -4,13 +4,11 @@ import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
+import '../../theme/app_theme.dart';
 import 'past_paper_detail_screen.dart';
 import '../practice/practice_by_topic_screen.dart';
 import '../practice/mock_test_screen.dart';
 import '../quiz/quiz_screen.dart';
-
-const _bg = Color(0xFF0E1B26);
-const _cardBg = Color(0xFF16232F);
 
 class TestsScreen extends StatefulWidget {
   const TestsScreen({super.key});
@@ -37,19 +35,20 @@ class _TestsScreenState extends State<TestsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final exam = context.watch<AuthProvider>().currentUser?.targetExam ?? "Exam";
+    final exam =
+        context.watch<AuthProvider>().currentUser?.targetExam ?? "Exam";
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: context.pageBackground,
       appBar: AppBar(
         title: Text("$exam Tests"),
-        backgroundColor: _bg,
-        foregroundColor: Colors.white,
+        backgroundColor: context.pageBackground,
+        foregroundColor: context.primaryTextColor,
         elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: const Color(0xFF1D9E75),
           labelColor: const Color(0xFF1D9E75),
-          unselectedLabelColor: Colors.white54,
+          unselectedLabelColor: context.secondaryTextColor,
           tabs: const [
             Tab(text: "Offline Quizzes"),
             Tab(text: "Online Quizzes"),
@@ -74,15 +73,16 @@ class _OnlineQuizzesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final exam = context.watch<AuthProvider>().currentUser?.targetExam ?? "your exam";
+    final exam =
+        context.watch<AuthProvider>().currentUser?.targetExam ?? "your exam";
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(bottom: 12),
           child: Text(
             "Generate fresh quizzes — needs an internet connection.",
-            style: TextStyle(color: Colors.white54, fontSize: 13),
+            style: TextStyle(color: context.secondaryTextColor, fontSize: 13),
           ),
         ),
         _linkCard(
@@ -102,9 +102,9 @@ class _OnlineQuizzesTab extends StatelessWidget {
           color: const Color(0xFFE0A429),
           title: "Full Mock Test",
           subtitle: "Full-length $exam test covering all selected subjects",
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const MockTestScreen()),
-          ),
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const MockTestScreen())),
         ),
         const SizedBox(height: 12),
         _linkCard(
@@ -141,7 +141,7 @@ class _OnlineQuizzesTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: _cardBg,
+          color: context.panelColor,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -160,18 +160,26 @@ class _OnlineQuizzesTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: context.primaryTextColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: context.secondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward, color: Colors.white38, size: 18),
+            Icon(Icons.arrow_forward, color: context.inactiveColor, size: 18),
           ],
         ),
       ),
@@ -219,13 +227,14 @@ class _OfflineQuizzesTabState extends State<_OfflineQuizzesTab> {
     try {
       final quizSet = await _api.getQuizSet(quizSetId);
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => QuizScreen(quizSet: quizSet)),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => QuizScreen(quizSet: quizSet)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Couldn't open quiz: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Couldn't open quiz: $e")));
     } finally {
       if (mounted) setState(() => _opening = false);
     }
@@ -241,8 +250,10 @@ class _OfflineQuizzesTabState extends State<_OfflineQuizzesTab> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Couldn't load saved quizzes: $_error",
-                style: const TextStyle(color: Colors.white70)),
+            Text(
+              "Couldn't load saved quizzes: $_error",
+              style: TextStyle(color: context.secondaryTextColor),
+            ),
             const SizedBox(height: 12),
             OutlinedButton(onPressed: _load, child: const Text("Retry")),
           ],
@@ -256,19 +267,29 @@ class _OfflineQuizzesTabState extends State<_OfflineQuizzesTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.offline_bolt_outlined, size: 56, color: Colors.grey.shade600),
+              Icon(
+                Icons.offline_bolt_outlined,
+                size: 56,
+                color: Colors.grey.shade600,
+              ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 "No saved quizzes yet",
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: context.primaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "Generate a quiz from Online Quizzes or Past Papers first — "
                 "it'll show up here so you can retake it anytime without "
                 "generating a new one.",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54, fontSize: 13),
+                style: TextStyle(
+                  color: context.secondaryTextColor,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -286,11 +307,14 @@ class _OfflineQuizzesTabState extends State<_OfflineQuizzesTab> {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: _cardBg,
+              color: context.panelColor,
               borderRadius: BorderRadius.circular(14),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 6,
+              ),
               leading: Container(
                 width: 44,
                 height: 44,
@@ -300,20 +324,29 @@ class _OfflineQuizzesTabState extends State<_OfflineQuizzesTab> {
                 ),
                 child: const Icon(Icons.offline_bolt, color: Color(0xFF1D9E75)),
               ),
-              title: Text(s.subject,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w600)),
+              title: Text(
+                s.subject,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.primaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               subtitle: Text(
                 "${s.questionCount} MCQs  •  ${s.difficulty}",
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                style: TextStyle(
+                  color: context.secondaryTextColor,
+                  fontSize: 12,
+                ),
               ),
               trailing: _opening
                   ? const SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.play_arrow, color: Colors.white38),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(Icons.play_arrow, color: context.inactiveColor),
               onTap: _opening ? null : () => _retake(s.id),
             ),
           );
@@ -375,8 +408,10 @@ class _PastPapersTabState extends State<_PastPapersTab> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Couldn't load past papers: $_error",
-                style: const TextStyle(color: Colors.white70)),
+            Text(
+              "Couldn't load past papers: $_error",
+              style: TextStyle(color: context.secondaryTextColor),
+            ),
             const SizedBox(height: 12),
             OutlinedButton(onPressed: _load, child: const Text("Retry")),
           ],
@@ -394,11 +429,14 @@ class _PastPapersTabState extends State<_PastPapersTab> {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: _cardBg,
+              color: context.panelColor,
               borderRadius: BorderRadius.circular(14),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 6,
+              ),
               leading: Container(
                 width: 44,
                 height: 44,
@@ -406,19 +444,28 @@ class _PastPapersTabState extends State<_PastPapersTab> {
                   color: const Color(0xFF378ADD).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.description_outlined,
-                    color: Color(0xFF378ADD)),
+                child: const Icon(
+                  Icons.description_outlined,
+                  color: Color(0xFF378ADD),
+                ),
               ),
-              title: Text(paper.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w600)),
+              title: Text(
+                paper.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.primaryTextColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               subtitle: Text(
                 "${paper.totalQuestions} MCQs  •  ${_fmtMinutes(paper.quizMinutes)}",
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                style: TextStyle(
+                  color: context.secondaryTextColor,
+                  fontSize: 12,
+                ),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+              trailing: Icon(Icons.chevron_right, color: context.inactiveColor),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => PastPaperDetailScreen(paperId: paper.id),

@@ -3,9 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
+import '../../theme/app_theme.dart';
 
-const _bg = Color(0xFF061320);
-const _surface = Color(0xFF101F32);
 const _cyan = Color(0xFF20D5C5);
 
 class TutorChatScreen extends StatefulWidget {
@@ -22,6 +21,11 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
   final List<_TutorMessage> _messages = [];
   bool _sending = false;
 
+  Color get _bg => context.pageBackground;
+  Color get _surface => context.panelColor;
+  Color get _text => context.primaryTextColor;
+  Color get _muted => context.secondaryTextColor;
+
   String get _exam =>
       context.read<AuthProvider>().currentUser?.targetExam ?? 'your exam';
 
@@ -31,12 +35,15 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
-        _messages.add(_TutorMessage(
-          isUser: false,
-          text: 'Welcome! I am your $_exam tutor. I can explain questions, '
-              'teach syllabus topics, build a study plan, and guide you '
-              'through tests in this app. What would you like to learn?',
-        ));
+        _messages.add(
+          _TutorMessage(
+            isUser: false,
+            text:
+                'Welcome! I am your $_exam tutor. I can explain questions, '
+                'teach syllabus topics, build a study plan, and guide you '
+                'through tests in this app. What would you like to learn?',
+          ),
+        );
       });
     });
   }
@@ -55,14 +62,16 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
 
     final history = _messages
         .skip(1)
-        .map((item) => {
-              'role': item.isUser ? 'user' : 'assistant',
-              // Keep detailed plans in context while ensuring an unexpectedly
-              // long response can never break the next request.
-              'content': item.text.length > 5500
-                  ? item.text.substring(0, 5500)
-                  : item.text,
-            })
+        .map(
+          (item) => {
+            'role': item.isUser ? 'user' : 'assistant',
+            // Keep detailed plans in context while ensuring an unexpectedly
+            // long response can never break the next request.
+            'content': item.text.length > 5500
+                ? item.text.substring(0, 5500)
+                : item.text,
+          },
+        )
         .toList();
 
     setState(() {
@@ -75,20 +84,21 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
       final result = await _api.askTutor(text, history);
       if (!mounted) return;
       setState(() {
-        _messages.add(_TutorMessage(
-          isUser: false,
-          text: result['reply']?.toString() ??
-              'I could not prepare a response. Please try again.',
-        ));
+        _messages.add(
+          _TutorMessage(
+            isUser: false,
+            text:
+                result['reply']?.toString() ??
+                'I could not prepare a response. Please try again.',
+          ),
+        );
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _messages.add(_TutorMessage(
-          isUser: false,
-          isError: true,
-          text: error.toString(),
-        ));
+        _messages.add(
+          _TutorMessage(isUser: false, isError: true, text: error.toString()),
+        );
       });
     } finally {
       if (mounted) {
@@ -130,10 +140,14 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Exam Tutor',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                Text('Focused on $_exam',
-                    style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                const Text(
+                  'Exam Tutor',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  'Focused on $_exam',
+                  style: TextStyle(color: _muted, fontSize: 11),
+                ),
               ],
             ),
           ],
@@ -166,34 +180,34 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
   }
 
   Widget _scopeNotice() => Container(
-        width: double.infinity,
-        margin: const EdgeInsets.fromLTRB(14, 4, 14, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          color: const Color(0x141FAF8C),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _cyan.withOpacity(.25)),
+    width: double.infinity,
+    margin: const EdgeInsets.fromLTRB(14, 4, 14, 0),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+    decoration: BoxDecoration(
+      color: const Color(0x141FAF8C),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: _cyan.withOpacity(.25)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.verified_user_outlined, color: _cyan, size: 17),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'This tutor answers only $_exam preparation and app-guidance questions.',
+            style: TextStyle(color: _muted, fontSize: 11),
+          ),
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.verified_user_outlined, color: _cyan, size: 17),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'This tutor answers only $_exam preparation and app-guidance questions.',
-                style: const TextStyle(color: Colors.white60, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 
   Widget _messageBubble(_TutorMessage message) {
     final color = message.isUser
         ? const Color(0xFF147D75)
         : message.isError
-            ? const Color(0xFF4A2028)
-            : _surface;
+        ? const Color(0xFF4A2028)
+        : _surface;
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -212,34 +226,34 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
           ),
           border: message.isUser
               ? null
-              : Border.all(color: Colors.white10),
+              : Border.all(color: context.subtleBorderColor),
         ),
         child: SelectableText(
           message.text,
-          style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.42),
+          style: TextStyle(color: _text, fontSize: 14, height: 1.42),
         ),
       ),
     );
   }
 
   Widget _typingBubble() => Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const SizedBox(
-            width: 36,
-            child: LinearProgressIndicator(
-              color: _cyan,
-              backgroundColor: Colors.white12,
-            ),
-          ),
+    alignment: Alignment.centerLeft,
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const SizedBox(
+        width: 36,
+        child: LinearProgressIndicator(
+          color: _cyan,
+          backgroundColor: context.subtleBorderColor,
         ),
-      );
+      ),
+    ),
+  );
 
   Widget _quickPrompts() {
     final prompts = [
@@ -267,47 +281,49 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
   }
 
   Widget _composer() => Container(
-        padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
-        decoration: const BoxDecoration(
-          color: _surface,
-          border: Border(top: BorderSide(color: Colors.white10)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                enabled: !_sending,
-                minLines: 1,
-                maxLines: 5,
-                textInputAction: TextInputAction.newline,
-                decoration: InputDecoration(
-                  hintText: 'Ask about $_exam...',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  filled: true,
-                  fillColor: _bg,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+    padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
+    decoration: const BoxDecoration(
+      color: _surface,
+      border: Border(top: BorderSide(color: context.subtleBorderColor)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _messageController,
+            enabled: !_sending,
+            minLines: 1,
+            maxLines: 5,
+            textInputAction: TextInputAction.newline,
+            decoration: InputDecoration(
+              hintText: 'Ask about $_exam...',
+              hintStyle: TextStyle(color: context.inactiveColor),
+              filled: true,
+              fillColor: _bg,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide.none,
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: _sending ? null : _send,
-              style: IconButton.styleFrom(
-                backgroundColor: _cyan,
-                foregroundColor: const Color(0xFF031018),
-              ),
-              icon: const Icon(Icons.send_rounded),
-            ),
-          ],
+          ),
         ),
-      );
+        const SizedBox(width: 8),
+        IconButton.filled(
+          onPressed: _sending ? null : _send,
+          style: IconButton.styleFrom(
+            backgroundColor: _cyan,
+            foregroundColor: const Color(0xFF031018),
+          ),
+          icon: const Icon(Icons.send_rounded),
+        ),
+      ],
+    ),
+  );
 }
 
 class _TutorMessage {
