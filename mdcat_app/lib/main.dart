@@ -26,7 +26,9 @@ class MdcatApp extends StatelessWidget {
             title: 'Exam Preparation',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.theme,
-            darkTheme: AppTheme.darkTheme,
+            darkTheme: themeProvider.appearance == AppAppearance.standard
+                ? AppTheme.standardTheme
+                : AppTheme.darkTheme,
             themeMode: themeProvider.mode,
             home: const AuthGate(),
           );
