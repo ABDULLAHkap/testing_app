@@ -263,27 +263,27 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                   context,
                   label: "Light",
                   icon: Icons.light_mode_outlined,
-                  mode: ThemeMode.light,
-                  current: themeProvider.mode,
+                  mode: AppAppearance.light,
+                  current: themeProvider.appearance,
                 ),
                 _themeOption(
                   context,
                   label: "Dark",
                   icon: Icons.dark_mode_outlined,
-                  mode: ThemeMode.dark,
-                  current: themeProvider.mode,
+                  mode: AppAppearance.dark,
+                  current: themeProvider.appearance,
                 ),
                 _themeOption(
                   context,
                   label: "Default",
                   icon: Icons.smartphone,
-                  mode: ThemeMode.system,
-                  current: themeProvider.mode,
+                  mode: AppAppearance.standard,
+                  current: themeProvider.appearance,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   "Light makes every screen light, Dark makes every screen "
-                  "dark, and Default follows your device appearance.",
+                  "black, and Default restores the original navy design.",
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 32),
@@ -335,16 +335,16 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     BuildContext context, {
     required String label,
     required IconData icon,
-    required ThemeMode mode,
-    required ThemeMode current,
+    required AppAppearance mode,
+    required AppAppearance current,
   }) {
     final selected = mode == current;
-    return RadioListTile<ThemeMode>(
+    return RadioListTile<AppAppearance>(
       value: mode,
       groupValue: current,
       onChanged: (value) {
         if (value != null) {
-          context.read<ThemeProvider>().setMode(value);
+          context.read<ThemeProvider>().setAppearance(value);
         }
       },
       title: Row(

@@ -19,7 +19,7 @@ class AppTheme {
       brightness: Brightness.light,
       scaffoldBackgroundColor: background,
       colorScheme: scheme,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -51,23 +51,34 @@ class AppTheme {
     );
   }
 
-  static ThemeData get darkTheme {
-    const darkBackground = Color(0xFF061320);
-    const darkSurface = Color(0xFF101F32);
+  static ThemeData get standardTheme => _buildDarkTheme(
+    background: const Color(0xFF061320),
+    surface: const Color(0xFF101F32),
+  );
+
+  static ThemeData get darkTheme => _buildDarkTheme(
+    background: Colors.black,
+    surface: const Color(0xFF121212),
+  );
+
+  static ThemeData _buildDarkTheme({
+    required Color background,
+    required Color surface,
+  }) {
     final scheme = ColorScheme.fromSeed(
       seedColor: primary,
       primary: primary,
       brightness: Brightness.dark,
-      surface: darkSurface,
+      surface: surface,
     );
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: darkBackground,
+      scaffoldBackgroundColor: background,
       colorScheme: scheme,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: darkSurface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: surface,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -84,10 +95,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         filled: true,
-        fillColor: darkSurface,
+        fillColor: surface,
       ),
       cardTheme: CardThemeData(
-        color: darkSurface,
+        color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
