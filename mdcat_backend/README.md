@@ -1,4 +1,4 @@
-# MDCAT AI Preparation API
+# Multi-Exam Preparation API
 
 FastAPI backend for the MDCAT AI Preparation System, built to be consumed by
 a Flutter mobile app (or any HTTP client). This replaces the Streamlit

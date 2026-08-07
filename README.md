@@ -1,4 +1,4 @@
-# MDCAT AI Preparation App
+# Multi-Exam Preparation App
 
 A Flutter study app backed by FastAPI, Groq-generated MCQs, JWT authentication,
 and PostgreSQL. The Flutter client talks to the API; it never connects directly
@@ -106,11 +106,30 @@ Set a real `GROQ_API_KEY` and a long random `JWT_SECRET_KEY` in the local
 - Passwords are hashed and API access uses seven-day JWT tokens.
 - Correct options and explanations stay on the server while a quiz is active.
 - Attempts cannot be submitted twice and the server enforces the quiz deadline.
-- AI batches are de-duplicated and a quiz is saved only when the requested
+- Generated question batches are de-duplicated and a quiz is saved only when the requested
   number of unique questions was generated.
 - `.env`, local databases, uploaded study files, build output, IDE files, and
   signing files are excluded from Git.
 
-The generation endpoints call a paid or rate-limited external AI API. Add
+The generation endpoints call a paid or rate-limited external question service. Add
 per-user rate limits and production monitoring before opening the app to a
 large public audience.
+
+## Enable push notifications
+
+The notification code is optional: the app continues to build and run when
+Firebase is not configured. To activate announcements and reminders:
+
+1. Create a Firebase project, register Web and Android apps, and enable Cloud
+   Messaging.
+2. In the Render **static site**, add `FIREBASE_API_KEY`, `FIREBASE_APP_ID`,
+   `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`,
+   `FIREBASE_STORAGE_BUCKET`, and `FIREBASE_WEB_VAPID_KEY`.
+3. In Firebase **Project settings > Service accounts**, create a private key.
+   Put the complete one-line JSON into the backend Render variable
+   `FIREBASE_SERVICE_ACCOUNT_JSON`. Never commit this JSON.
+4. Copy the backend's `NOTIFICATION_CRON_SECRET` value into a GitHub Actions
+   repository secret with the same name. The hourly workflow then sends exam
+   countdown, study, and subscription-expiry reminders.
+5. Redeploy the backend and static site. Sign in and use
+   **Settings > Push notifications** on each device.

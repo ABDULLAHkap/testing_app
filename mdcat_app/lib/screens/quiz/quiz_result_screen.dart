@@ -6,6 +6,7 @@ import '../../services/file_saver.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/animated_hero_image.dart';
 import '../home/home_screen.dart';
+import '../tutor/tutor_chat_screen.dart';
 
 class QuizResultScreen extends StatefulWidget {
   final AttemptResult result;
@@ -64,6 +65,54 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       default:
         return Colors.red;
     }
+  }
+
+  String _duration(int totalSeconds) {
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _explain(QuestionReview item) {
+    final optionDetails = item.options
+        .map((option) {
+          final letter = option.trim().isEmpty ? '' : option.trim()[0];
+          final known = item.optionExplanations[letter];
+          return known == null ? option : '$option — stored note: $known';
+        })
+        .join('\n');
+    final questionContext =
+        '''Question: ${item.question}
+
+Choices:
+$optionDetails
+My answer: ${item.selectedOption ?? 'Not answered'}
+Correct answer: ${item.correctOption} — ${item.correctAnswer}
+Known explanation: ${item.explanation ?? 'None'}
+Topic: ${item.topic ?? 'Not labelled'}
+Concept: ${item.concept ?? 'Not labelled'}''';
+    final safeContext = questionContext.length > 1400
+        ? questionContext.substring(0, 1400)
+        : questionContext;
+    final prompt =
+        '''Explain this exact ${item.subject ?? widget.subject} question for my exam:
+
+$safeContext
+
+Please explain in four short parts:
+1. Why the correct answer is right.
+2. Why each other choice is wrong.
+3. The concept I should revise.
+4. One quick exam tip or mini example.''';
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TutorChatScreen(initialMessage: prompt),
+      ),
+    );
   }
 
   @override
@@ -164,14 +213,22 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _statCard(
-                    "Total",
-                    "${r.total}",
+                    "Time",
+                    _duration(r.totalTimeSeconds),
                     const Color(0xFF45A8FF),
-                    Icons.fact_check_outlined,
+                    Icons.timer_outlined,
                   ),
                 ),
               ],
             ),
+            if (r.negativeMarking > 0) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Net score: ${r.score.toStringAsFixed(2)} / ${r.maxScore.toStringAsFixed(0)} • ${r.negativeMarking.toStringAsFixed(2)} deducted per wrong answer',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _muted, fontSize: 12),
+              ),
+            ],
             const SizedBox(height: 24),
             if (r.review.isNotEmpty) ...[
               Row(
@@ -332,6 +389,34 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               const SizedBox(height: 6),
               Text('Explanation: ${item.explanation}'),
             ],
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (item.concept?.isNotEmpty == true)
+                  Chip(
+                    avatar: const Icon(Icons.menu_book_outlined, size: 16),
+                    label: Text('Revise: ${item.concept}'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                Chip(
+                  avatar: const Icon(Icons.timer_outlined, size: 16),
+                  label: Text(_duration(item.timeSpentSeconds)),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _explain(item),
+                icon: const Icon(Icons.school_outlined),
+                label: const Text('Explain This Question'),
+              ),
+            ),
           ],
         ),
       ),

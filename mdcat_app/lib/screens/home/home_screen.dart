@@ -13,6 +13,7 @@ import '../admin/communications_screen.dart';
 import '../communications/announcements_screen.dart';
 import '../practice/practice_by_topic_screen.dart';
 import '../practice/mock_test_screen.dart';
+import '../practice/exam_format_screen.dart';
 import '../settings/server_settings_screen.dart';
 import '../progress/progress_screen.dart';
 import '../tests/tests_screen.dart';
@@ -335,45 +336,59 @@ class _HomeScreenState extends State<HomeScreen> {
     ],
   );
 
-  Widget _featureCards(String exam) => Row(
-    children: [
-      Expanded(
-        child: _featureCard(
-          Icons.track_changes_rounded,
-          _cyan,
-          'Daily Challenge',
-          'Curated $exam questions',
-          () => _dailyChallenge(exam),
-        ),
-      ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: _featureCard(
-          Icons.menu_book_rounded,
-          const Color(0xFF45A8FF),
-          'Practice by Topic',
-          'Strengthen your concepts',
-          () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => PracticeByTopicScreen(examType: exam),
-            ),
+  Widget _featureCards(String exam) {
+    final sectionBased = exam == 'IELTS' || exam == 'PMS' || exam == 'SAT';
+    void openSections() => Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => ExamFormatScreen(examType: exam)));
+    return Row(
+      children: [
+        Expanded(
+          child: _featureCard(
+            Icons.track_changes_rounded,
+            _cyan,
+            sectionBased ? 'Daily Section' : 'Daily Challenge',
+            sectionBased ? 'Focused $exam skill' : 'Curated $exam questions',
+            sectionBased ? openSections : () => _dailyChallenge(exam),
           ),
         ),
-      ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: _featureCard(
-          Icons.assignment_turned_in_outlined,
-          const Color(0xFFE0A429),
-          'Full Mock Test',
-          'Real $exam experience',
-          () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => MockTestScreen(examType: exam)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _featureCard(
+            Icons.menu_book_rounded,
+            const Color(0xFF45A8FF),
+            sectionBased ? 'Practice Sections' : 'Practice by Topic',
+            sectionBased
+                ? 'Use the real skill modes'
+                : 'Strengthen your concepts',
+            sectionBased
+                ? openSections
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => PracticeByTopicScreen(examType: exam),
+                    ),
+                  ),
           ),
         ),
-      ),
-    ],
-  );
+        const SizedBox(width: 10),
+        Expanded(
+          child: _featureCard(
+            Icons.assignment_turned_in_outlined,
+            const Color(0xFFE0A429),
+            sectionBased ? 'Exam Format' : 'Full Mock Test',
+            sectionBased ? 'Real $exam sections' : 'Real $exam experience',
+            sectionBased
+                ? openSections
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MockTestScreen(examType: exam),
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
 
   void _dailyChallenge(String exam) => Navigator.of(context).push(
     MaterialPageRoute(

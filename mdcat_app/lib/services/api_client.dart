@@ -60,9 +60,7 @@ class ApiClient {
 
   Future<Map<String, String>> _authHeaders() async {
     final token = await getToken();
-    return {
-      if (token != null) "Authorization": "Bearer $token",
-    };
+    return {if (token != null) "Authorization": "Bearer $token"};
   }
 
   dynamic _decodeOrThrow(http.Response resp) {
@@ -192,10 +190,7 @@ class ApiClient {
     final baseUrl = await getBaseUrl();
     final resp = await http.put(
       Uri.parse("$baseUrl/auth/exam-date"),
-      headers: {
-        "Content-Type": "application/json",
-        ...await _authHeaders(),
-      },
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
       body: jsonEncode({"exam_date": examDate.toIso8601String()}),
     );
     final data = _decodeOrThrow(resp);
@@ -206,10 +201,7 @@ class ApiClient {
     final baseUrl = await getBaseUrl();
     final resp = await http.put(
       Uri.parse("$baseUrl/auth/username"),
-      headers: {
-        "Content-Type": "application/json",
-        ...await _authHeaders(),
-      },
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
       body: jsonEncode({"username": newUsername}),
     );
     final data = _decodeOrThrow(resp);
@@ -258,10 +250,7 @@ class ApiClient {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
       Uri.parse("$baseUrl/tutor/chat"),
-      headers: {
-        "Content-Type": "application/json",
-        ...await _authHeaders(),
-      },
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
       body: jsonEncode({"message": message, "history": history}),
     );
     return Map<String, dynamic>.from(_decodeOrThrow(resp));
@@ -286,10 +275,7 @@ class ApiClient {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
       Uri.parse("$baseUrl/mcqs/generate"),
-      headers: {
-        "Content-Type": "application/json",
-        ...await _authHeaders(),
-      },
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
       body: jsonEncode({
         if (text != null) "text": text,
         "number_of_questions": numberOfQuestions,
@@ -310,12 +296,18 @@ class ApiClient {
     final uri = Uri.parse("$baseUrl/mcqs/subjects").replace(
       queryParameters: examType == null ? null : {"exam_type": examType},
     );
-    final resp = await http.get(
-      uri,
-      headers: await _authHeaders(),
-    );
+    final resp = await http.get(uri, headers: await _authHeaders());
     final data = _decodeOrThrow(resp) as List;
     return data.map((e) => TopicListItem.fromJson(e)).toList();
+  }
+
+  Future<ExamFormat> getExamFormat({String? examType}) async {
+    final baseUrl = await getBaseUrl();
+    final uri = Uri.parse("$baseUrl/mcqs/exam-format").replace(
+      queryParameters: examType == null ? null : {"exam_type": examType},
+    );
+    final resp = await http.get(uri, headers: await _authHeaders());
+    return ExamFormat.fromJson(Map<String, dynamic>.from(_decodeOrThrow(resp)));
   }
 
   Future<QuizSet> generateMockTest({
@@ -323,35 +315,81 @@ class ApiClient {
     required String difficulty,
     required int quizMinutes,
     String? examType,
+    bool officialFormat = false,
   }) async {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
       Uri.parse("$baseUrl/mcqs/mock-test"),
-      headers: {
-        "Content-Type": "application/json",
-        ...await _authHeaders(),
-      },
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
       body: jsonEncode({
         "total_questions": totalQuestions,
         "difficulty": difficulty,
         "quiz_minutes": quizMinutes,
         if (examType != null) "exam_type": examType,
+        "official_format": officialFormat,
       }),
     );
     final data = _decodeOrThrow(resp);
     return QuizSet.fromJson(data);
   }
 
+  Future<QuizSet> generateAdaptivePractice({
+    int numberOfQuestions = 15,
+    int quizMinutes = 25,
+    String difficulty = 'Medium',
+  }) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/mcqs/adaptive-practice"),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({
+        "number_of_questions": numberOfQuestions,
+        "quiz_minutes": quizMinutes,
+        "difficulty": difficulty,
+      }),
+    );
+    return QuizSet.fromJson(_decodeOrThrow(resp));
+  }
+
   // ---------------- Past Papers ----------------
 
-  Future<List<PastPaperSummary>> getPastPapers() async {
+  Future<List<PastPaperSummary>> getPastPapers({
+    String? examType,
+    int? year,
+    String? subject,
+    String? board,
+    String? sourceType,
+  }) async {
     final baseUrl = await getBaseUrl();
+    final params = <String, String>{
+      if (examType != null) 'exam_type': examType,
+      if (year != null) 'year': '$year',
+      if (subject != null && subject.isNotEmpty) 'subject': subject,
+      if (board != null && board.isNotEmpty) 'board': board,
+      if (sourceType != null && sourceType.isNotEmpty)
+        'source_type': sourceType,
+    };
     final resp = await http.get(
-      Uri.parse("$baseUrl/mcqs/past-papers"),
+      Uri.parse(
+        "$baseUrl/mcqs/past-papers",
+      ).replace(queryParameters: params.isEmpty ? null : params),
       headers: await _authHeaders(),
     );
     final data = _decodeOrThrow(resp) as List;
     return data.map((e) => PastPaperSummary.fromJson(e)).toList();
+  }
+
+  Future<List<int>> downloadPastPaper(String paperId) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/mcqs/past-papers/$paperId/download"),
+      headers: await _authHeaders(),
+    );
+    if (resp.statusCode != 200) {
+      _decodeOrThrow(resp);
+      throw ApiException(resp.statusCode, 'Could not download practice paper');
+    }
+    return resp.bodyBytes;
   }
 
   Future<PastPaperDetail> getPastPaperDetail(String paperId) async {
@@ -409,16 +447,18 @@ class ApiClient {
   Future<AttemptResult> submitAttempt(
     int attemptId,
     Map<int, String> answers,
+    Map<int, int> questionTimes,
   ) async {
     final baseUrl = await getBaseUrl();
     final answersJson = answers.map((k, v) => MapEntry(k.toString(), v));
+    final timesJson = questionTimes.map((k, v) => MapEntry(k.toString(), v));
     final resp = await http.post(
       Uri.parse("$baseUrl/quiz/attempts/$attemptId/submit"),
-      headers: {
-        "Content-Type": "application/json",
-        ...await _authHeaders(),
-      },
-      body: jsonEncode({"answers": answersJson}),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({
+        "answers": answersJson,
+        "time_spent_seconds": timesJson,
+      }),
     );
     final data = _decodeOrThrow(resp);
     return AttemptResult.fromJson(data);
@@ -457,6 +497,17 @@ class ApiClient {
     );
     final data = _decodeOrThrow(resp) as List;
     return data.map((e) => ProgressPoint.fromJson(e)).toList();
+  }
+
+  Future<AdvancedAnalytics> getAdvancedAnalytics() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/progress/analytics"),
+      headers: await _authHeaders(),
+    );
+    return AdvancedAnalytics.fromJson(
+      Map<String, dynamic>.from(_decodeOrThrow(resp)),
+    );
   }
 
   // ---------------- Admin ----------------
@@ -568,7 +619,43 @@ class ApiClient {
     _decodeOrThrow(resp);
   }
 
-  Future<List<Map<String, dynamic>>> getSupportMessages({int? studentId}) async {
+  Future<Map<String, dynamic>> registerPushDevice({
+    required String token,
+    required String platform,
+    bool announcementsEnabled = true,
+    bool studyRemindersEnabled = true,
+    bool examAlertsEnabled = true,
+    bool subscriptionAlertsEnabled = true,
+  }) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.post(
+      Uri.parse("$baseUrl/communications/notifications/devices"),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({
+        "token": token,
+        "platform": platform,
+        "timezone_offset_minutes": DateTime.now().timeZoneOffset.inMinutes,
+        "announcements_enabled": announcementsEnabled,
+        "study_reminders_enabled": studyRemindersEnabled,
+        "exam_alerts_enabled": examAlertsEnabled,
+        "subscription_alerts_enabled": subscriptionAlertsEnabled,
+      }),
+    );
+    return Map<String, dynamic>.from(_decodeOrThrow(resp));
+  }
+
+  Future<Map<String, dynamic>> getNotificationStatus() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/communications/notifications/status"),
+      headers: await _authHeaders(),
+    );
+    return Map<String, dynamic>.from(_decodeOrThrow(resp));
+  }
+
+  Future<List<Map<String, dynamic>>> getSupportMessages({
+    int? studentId,
+  }) async {
     final baseUrl = await getBaseUrl();
     final uri = Uri.parse("$baseUrl/communications/support/messages").replace(
       queryParameters: studentId == null ? null : {"student_id": "$studentId"},
@@ -583,7 +670,10 @@ class ApiClient {
     final resp = await http.post(
       Uri.parse("$baseUrl/communications/support/messages"),
       headers: {"Content-Type": "application/json", ...await _authHeaders()},
-      body: jsonEncode({"message": message, if (studentId != null) "student_id": studentId}),
+      body: jsonEncode({
+        "message": message,
+        if (studentId != null) "student_id": studentId,
+      }),
     );
     _decodeOrThrow(resp);
   }

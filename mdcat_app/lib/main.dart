@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 
 import 'services/auth_provider.dart';
 import 'services/theme_provider.dart';
+import 'services/notification_service.dart';
 import 'screens/auth_gate.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.bootstrap();
   runApp(const MdcatApp());
 }
 

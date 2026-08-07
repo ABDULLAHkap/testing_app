@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../utils/exam_content.dart';
 import '../quiz/quiz_screen.dart';
+import 'exam_format_screen.dart';
 
 class MockTestScreen extends StatefulWidget {
   final int? presetTotalQuestions;
@@ -31,6 +33,8 @@ class _MockTestScreenState extends State<MockTestScreen> {
   late int _quizMinutes;
   String _difficulty = "Medium";
   bool _generating = false;
+  bool _loadingFormat = true;
+  ExamFormat? _format;
 
   final _difficulties = ["Easy", "Medium", "Hard"];
 
@@ -39,9 +43,28 @@ class _MockTestScreenState extends State<MockTestScreen> {
     super.initState();
     _totalQuestions = widget.presetTotalQuestions ?? 100;
     _quizMinutes = widget.presetMinutes ?? 150;
+    _loadFormat();
   }
 
   bool get _isPreset => widget.presetTotalQuestions != null;
+
+  Future<void> _loadFormat() async {
+    try {
+      final format = await _api.getExamFormat(examType: widget.examType);
+      if (!mounted) return;
+      setState(() {
+        _format = format;
+        if (!_isPreset && format.supportsFullMcqMock) {
+          _totalQuestions = format.totalQuestions;
+          _quizMinutes = format.durationMinutes;
+        }
+      });
+    } catch (_) {
+      // The generator still provides its existing custom fallback.
+    } finally {
+      if (mounted) setState(() => _loadingFormat = false);
+    }
+  }
 
   Future<void> _generate() async {
     setState(() => _generating = true);
@@ -51,6 +74,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
         difficulty: _difficulty,
         quizMinutes: _quizMinutes,
         examType: widget.examType,
+        officialFormat: !_isPreset,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -58,8 +82,9 @@ class _MockTestScreenState extends State<MockTestScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Failed: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Failed: $e")));
     } finally {
       if (mounted) setState(() => _generating = false);
     }
@@ -67,8 +92,54 @@ class _MockTestScreenState extends State<MockTestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final exam = widget.examType ??
-        context.watch<AuthProvider>().currentUser?.targetExam ?? "Exam";
+    final exam =
+        widget.examType ??
+        context.watch<AuthProvider>().currentUser?.targetExam ??
+        "Exam";
+    if (_loadingFormat) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_format?.supportsFullMcqMock == false) {
+      return Scaffold(
+        appBar: AppBar(title: Text('$exam Exam Sections')),
+        body: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.view_module_outlined, size: 64),
+              const SizedBox(height: 16),
+              Text(
+                '$exam needs section-based preparation.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'A fixed generic MCQ set would not reproduce this exam accurately. Use its official sections and supported question modes instead.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
+              const SizedBox(height: 22),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => ExamFormatScreen(examType: widget.examType),
+                  ),
+                ),
+                icon: const Icon(Icons.account_tree_outlined),
+                label: const Text('Open Exam Sections'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: Text("$exam ${widget.title}")),
       body: Padding(
@@ -76,37 +147,38 @@ class _MockTestScreenState extends State<MockTestScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(mockTestDescription(exam), style: const TextStyle(fontSize: 13)),
+            Text(
+              mockTestDescription(exam),
+              style: const TextStyle(fontSize: 13),
+            ),
             const SizedBox(height: 24),
             if (!_isPreset) ...[
-              Text("Total Questions: $_totalQuestions",
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              Slider(
-                value: _totalQuestions.toDouble(),
-                min: 20,
-                max: 200,
-                divisions: 18,
-                label: "$_totalQuestions",
-                onChanged: (v) => setState(() => _totalQuestions = v.round()),
+              Text(
+                'Official ${_format?.version ?? ''} format',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
-              Text("Time Limit: $_quizMinutes min",
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              Slider(
-                value: _quizMinutes.toDouble(),
-                min: 20,
-                max: 210,
-                divisions: 19,
-                label: "$_quizMinutes",
-                onChanged: (v) => setState(() => _quizMinutes = v.round()),
+              Text('$_totalQuestions questions • $_quizMinutes minutes'),
+              Text(
+                (_format?.negativeMarking ?? 0) == 0
+                    ? 'No negative marking'
+                    : '${_format!.negativeMarking} deducted per wrong answer',
               ),
               const SizedBox(height: 16),
             ] else ...[
-              Text("$_totalQuestions questions • $_quizMinutes minutes",
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                "$_totalQuestions questions • $_quizMinutes minutes",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 16),
             ],
-            const Text("Difficulty", style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              "Difficulty",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             DropdownButton<String>(
               value: _difficulty,
               isExpanded: true,
@@ -120,8 +192,13 @@ class _MockTestScreenState extends State<MockTestScreen> {
               onPressed: _generating ? null : _generate,
               child: _generating
                   ? const SizedBox(
-                      height: 20, width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text("Generate Test"),
             ),
           ],

@@ -56,7 +56,11 @@ def generate_mcqs(
     base_rules = """Rules:
 - Each question must have exactly 4 options (A, B, C, D).
 - Exactly one correct option.
-- Include a short explanation for the correct answer.
+- Include a concise explanation for the correct answer.
+- Include one concise explanation for every option. State why the correct
+  choice is right and why each distractor is wrong.
+- Identify the subject, the specific topic, and the core concept a student
+  should revise after missing the question.
 - Follow the official exam style and syllabus scope.
 - Do not include an introduction, conclusion, or any text outside the JSON."""
 
@@ -67,7 +71,16 @@ def generate_mcqs(
     "question": "string",
     "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
     "correct_option": "A",
-    "explanation": "string"
+    "explanation": "string",
+    "option_explanations": {
+        "A": "why A is right or wrong",
+        "B": "why B is right or wrong",
+        "C": "why C is right or wrong",
+        "D": "why D is right or wrong"
+    },
+    "subject": "string",
+    "topic": "specific syllabus topic",
+    "concept": "concept to revise"
     }
     ]
 }"""
@@ -140,6 +153,26 @@ Generate {number} high-quality, original {exam_type} MCQs for the subject
             and len(q["options"]) == 4
             and q.get("correct_option") in ("A", "B", "C", "D")
         ):
+            explanations = q.get("option_explanations")
+            if not isinstance(explanations, dict):
+                explanations = {}
+            correct = q["correct_option"]
+            fallback_explanation = str(q.get("explanation") or "Review this concept.")
+            q["option_explanations"] = {
+                letter: str(
+                    explanations.get(letter)
+                    or (
+                        fallback_explanation
+                        if letter == correct
+                        else f"Option {letter} does not match the tested concept."
+                    )
+                )
+                for letter in ("A", "B", "C", "D")
+            }
+            q["subject"] = str(q.get("subject") or subject)
+            q["topic"] = str(q.get("topic") or topic or subject)
+            q["concept"] = str(q.get("concept") or q["topic"])
+            q["section"] = str(q.get("section") or subject)
             valid_questions.append(q)
 
     return valid_questions

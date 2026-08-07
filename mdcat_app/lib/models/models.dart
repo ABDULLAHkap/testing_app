@@ -83,17 +83,98 @@ class TopicListItem {
   }
 }
 
+class ExamSection {
+  final String name;
+  final String kind;
+  final int? questions;
+  final int? minutes;
+
+  const ExamSection({
+    required this.name,
+    required this.kind,
+    this.questions,
+    this.minutes,
+  });
+
+  factory ExamSection.fromJson(Map<String, dynamic> json) => ExamSection(
+    name: json['name']?.toString() ?? '',
+    kind: json['kind']?.toString() ?? 'mcq',
+    questions: (json['questions'] as num?)?.toInt(),
+    minutes: (json['minutes'] as num?)?.toInt(),
+  );
+}
+
+class ExamFormat {
+  final String examType;
+  final String title;
+  final String version;
+  final int durationMinutes;
+  final int totalQuestions;
+  final double negativeMarking;
+  final String delivery;
+  final bool supportsFullMcqMock;
+  final String? officialSource;
+  final List<ExamSection> sections;
+  final List<String> notes;
+
+  const ExamFormat({
+    required this.examType,
+    required this.title,
+    required this.version,
+    required this.durationMinutes,
+    required this.totalQuestions,
+    required this.negativeMarking,
+    required this.delivery,
+    required this.supportsFullMcqMock,
+    required this.sections,
+    required this.notes,
+    this.officialSource,
+  });
+
+  factory ExamFormat.fromJson(Map<String, dynamic> json) => ExamFormat(
+    examType: json['exam_type']?.toString() ?? 'Exam',
+    title: json['title']?.toString() ?? 'Exam format',
+    version: json['version']?.toString() ?? '',
+    durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 0,
+    totalQuestions: (json['total_questions'] as num?)?.toInt() ?? 0,
+    negativeMarking: (json['negative_marking'] as num?)?.toDouble() ?? 0,
+    delivery: json['delivery']?.toString() ?? '',
+    supportsFullMcqMock: json['supports_full_mcq_mock'] == true,
+    officialSource: json['official_source']?.toString(),
+    sections: (json['sections'] as List? ?? [])
+        .map((item) => ExamSection.fromJson(Map<String, dynamic>.from(item)))
+        .toList(),
+    notes: List<String>.from(json['notes'] as List? ?? const []),
+  );
+}
+
 class PastPaperSummary {
   final String id;
   final String title;
   final int totalQuestions;
   final int quizMinutes;
+  final String examType;
+  final int year;
+  final String subject;
+  final String board;
+  final String sourceType;
+  final bool isOfficial;
+  final bool downloadAvailable;
+  final String? officialSource;
 
   PastPaperSummary({
     required this.id,
     required this.title,
     required this.totalQuestions,
     required this.quizMinutes,
+    required this.examType,
+    required this.year,
+    required this.subject,
+    required this.board,
+    required this.sourceType,
+    required this.isOfficial,
+    required this.downloadAvailable,
+    this.officialSource,
   });
 
   factory PastPaperSummary.fromJson(Map<String, dynamic> json) {
@@ -102,6 +183,14 @@ class PastPaperSummary {
       title: json['title'],
       totalQuestions: json['total_questions'],
       quizMinutes: json['quiz_minutes'],
+      examType: json['exam_type'] ?? 'Exam',
+      year: (json['year'] as num?)?.toInt() ?? 0,
+      subject: json['subject'] ?? 'All Subjects',
+      board: json['board'] ?? '',
+      sourceType: json['source_type'] ?? 'practice',
+      isOfficial: json['is_official'] == true,
+      downloadAvailable: json['download_available'] != false,
+      officialSource: json['official_source'],
     );
   }
 }
@@ -136,6 +225,13 @@ class PastPaperDetail {
   final double marksPenaltyPerWrong;
   final List<SubjectBreakdownItem> subjectBreakdown;
   final List<String> instructions;
+  final String examType;
+  final int year;
+  final String subject;
+  final String board;
+  final String sourceType;
+  final bool isOfficial;
+  final String? officialSource;
 
   PastPaperDetail({
     required this.id,
@@ -147,6 +243,13 @@ class PastPaperDetail {
     required this.marksPenaltyPerWrong,
     required this.subjectBreakdown,
     required this.instructions,
+    required this.examType,
+    required this.year,
+    required this.subject,
+    required this.board,
+    required this.sourceType,
+    required this.isOfficial,
+    this.officialSource,
   });
 
   factory PastPaperDetail.fromJson(Map<String, dynamic> json) {
@@ -162,6 +265,13 @@ class PastPaperDetail {
           .map((e) => SubjectBreakdownItem.fromJson(e))
           .toList(),
       instructions: List<String>.from(json['instructions']),
+      examType: json['exam_type'] ?? 'Exam',
+      year: (json['year'] as num?)?.toInt() ?? 0,
+      subject: json['subject'] ?? 'All Subjects',
+      board: json['board'] ?? '',
+      sourceType: json['source_type'] ?? 'practice',
+      isOfficial: json['is_official'] == true,
+      officialSource: json['official_source'],
     );
   }
 }
@@ -169,16 +279,25 @@ class PastPaperDetail {
 class MCQItem {
   final String question;
   final List<String> options;
+  final String? subject;
+  final String? topic;
+  final String? section;
 
   MCQItem({
     required this.question,
     required this.options,
+    this.subject,
+    this.topic,
+    this.section,
   });
 
   factory MCQItem.fromJson(Map<String, dynamic> json) {
     return MCQItem(
       question: json['question'],
       options: List<String>.from(json['options']),
+      subject: json['subject'],
+      topic: json['topic'],
+      section: json['section'],
     );
   }
 }
@@ -188,6 +307,11 @@ class QuizSet {
   final String subject;
   final String difficulty;
   final int quizMinutes;
+  final String examType;
+  final String mode;
+  final double negativeMarking;
+  final String? formatVersion;
+  final List<Map<String, dynamic>> sectionConfig;
   final List<MCQItem> questions;
 
   QuizSet({
@@ -196,6 +320,11 @@ class QuizSet {
     required this.difficulty,
     required this.quizMinutes,
     required this.questions,
+    this.examType = 'MDCAT',
+    this.mode = 'topic',
+    this.negativeMarking = 0,
+    this.formatVersion,
+    this.sectionConfig = const [],
   });
 
   factory QuizSet.fromJson(Map<String, dynamic> json) {
@@ -204,6 +333,13 @@ class QuizSet {
       subject: json['subject'],
       difficulty: json['difficulty'],
       quizMinutes: json['quiz_minutes'],
+      examType: json['exam_type'] ?? 'MDCAT',
+      mode: json['mode'] ?? 'topic',
+      negativeMarking: (json['negative_marking'] as num?)?.toDouble() ?? 0,
+      formatVersion: json['format_version'],
+      sectionConfig: (json['section_config'] as List? ?? const [])
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(),
       questions: (json['questions'] as List)
           .map((q) => MCQItem.fromJson(q))
           .toList(),
@@ -245,6 +381,10 @@ class AttemptResult {
   final int total;
   final double percentage;
   final String grade;
+  final double score;
+  final double maxScore;
+  final double negativeMarking;
+  final int totalTimeSeconds;
   final DateTime? finishedAt;
   final List<QuestionReview> review;
 
@@ -256,6 +396,10 @@ class AttemptResult {
     required this.total,
     required this.percentage,
     required this.grade,
+    this.score = 0,
+    this.maxScore = 0,
+    this.negativeMarking = 0,
+    this.totalTimeSeconds = 0,
     this.finishedAt,
     this.review = const [],
   });
@@ -269,6 +413,10 @@ class AttemptResult {
       total: json['total'],
       percentage: (json['percentage'] as num).toDouble(),
       grade: json['grade'],
+      score: (json['score'] as num?)?.toDouble() ?? 0,
+      maxScore: (json['max_score'] as num?)?.toDouble() ?? 0,
+      negativeMarking: (json['negative_marking'] as num?)?.toDouble() ?? 0,
+      totalTimeSeconds: (json['total_time_seconds'] as num?)?.toInt() ?? 0,
       finishedAt: json['finished_at'] != null
           ? DateTime.parse(json['finished_at'])
           : null,
@@ -288,6 +436,11 @@ class QuestionReview {
   final String correctAnswer;
   final bool isCorrect;
   final String? explanation;
+  final Map<String, String> optionExplanations;
+  final String? subject;
+  final String? topic;
+  final String? concept;
+  final int timeSpentSeconds;
 
   QuestionReview({
     required this.index,
@@ -298,6 +451,11 @@ class QuestionReview {
     required this.correctAnswer,
     required this.isCorrect,
     this.explanation,
+    this.optionExplanations = const {},
+    this.subject,
+    this.topic,
+    this.concept,
+    this.timeSpentSeconds = 0,
   });
 
   factory QuestionReview.fromJson(Map<String, dynamic> json) {
@@ -310,6 +468,13 @@ class QuestionReview {
       correctAnswer: json['correct_answer'],
       isCorrect: json['is_correct'],
       explanation: json['explanation'],
+      optionExplanations: Map<String, String>.from(
+        json['option_explanations'] as Map? ?? const {},
+      ),
+      subject: json['subject'],
+      topic: json['topic'],
+      concept: json['concept'],
+      timeSpentSeconds: (json['time_spent_seconds'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -319,6 +484,8 @@ class ProgressPoint {
   final int quizSetId;
   final String subject;
   final String difficulty;
+  final String examType;
+  final int totalTimeSeconds;
   final double percentage;
   final String grade;
   final DateTime? finishedAt;
@@ -328,6 +495,8 @@ class ProgressPoint {
     required this.quizSetId,
     required this.subject,
     required this.difficulty,
+    this.examType = 'MDCAT',
+    this.totalTimeSeconds = 0,
     required this.percentage,
     required this.grade,
     this.finishedAt,
@@ -339,11 +508,124 @@ class ProgressPoint {
       quizSetId: json['quiz_set_id'],
       subject: json['subject'],
       difficulty: json['difficulty'],
+      examType: json['exam_type'] ?? 'MDCAT',
+      totalTimeSeconds: (json['total_time_seconds'] as num?)?.toInt() ?? 0,
       percentage: (json['percentage'] as num).toDouble(),
       grade: json['grade'],
       finishedAt: json['finished_at'] != null
           ? DateTime.parse(json['finished_at'])
           : null,
+    );
+  }
+}
+
+class PerformanceMetric {
+  final String name;
+  final String? subject;
+  final double accuracy;
+  final int correct;
+  final int questions;
+  final double averageTimeSeconds;
+
+  const PerformanceMetric({
+    required this.name,
+    required this.accuracy,
+    required this.correct,
+    required this.questions,
+    required this.averageTimeSeconds,
+    this.subject,
+  });
+
+  factory PerformanceMetric.fromJson(Map<String, dynamic> json) =>
+      PerformanceMetric(
+        name: json['name']?.toString() ?? '',
+        subject: json['subject']?.toString(),
+        accuracy: (json['accuracy'] as num?)?.toDouble() ?? 0,
+        correct: (json['correct'] as num?)?.toInt() ?? 0,
+        questions: (json['questions'] as num?)?.toInt() ?? 0,
+        averageTimeSeconds:
+            (json['average_time_seconds'] as num?)?.toDouble() ?? 0,
+      );
+}
+
+class WeeklyPerformance {
+  final DateTime weekStart;
+  final double averageScore;
+  final int tests;
+
+  const WeeklyPerformance({
+    required this.weekStart,
+    required this.averageScore,
+    required this.tests,
+  });
+
+  factory WeeklyPerformance.fromJson(Map<String, dynamic> json) =>
+      WeeklyPerformance(
+        weekStart: DateTime.parse(json['week_start']),
+        averageScore: (json['average_score'] as num?)?.toDouble() ?? 0,
+        tests: (json['tests'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class AdvancedAnalytics {
+  final List<PerformanceMetric> subjectScores;
+  final List<PerformanceMetric> topicScores;
+  final List<PerformanceMetric> strongestTopics;
+  final List<PerformanceMetric> weakestTopics;
+  final List<WeeklyPerformance> weeklyImprovement;
+  final int testsCompleted;
+  final double averageScore;
+  final double bestScore;
+  final int totalTimeSeconds;
+  final double? latestScore;
+  final double? previousScore;
+  final double? change;
+
+  const AdvancedAnalytics({
+    required this.subjectScores,
+    required this.topicScores,
+    required this.strongestTopics,
+    required this.weakestTopics,
+    required this.weeklyImprovement,
+    required this.testsCompleted,
+    required this.averageScore,
+    required this.bestScore,
+    required this.totalTimeSeconds,
+    this.latestScore,
+    this.previousScore,
+    this.change,
+  });
+
+  factory AdvancedAnalytics.fromJson(Map<String, dynamic> json) {
+    List<PerformanceMetric> metrics(String key) =>
+        (json[key] as List? ?? const [])
+            .map(
+              (item) =>
+                  PerformanceMetric.fromJson(Map<String, dynamic>.from(item)),
+            )
+            .toList();
+    final summary = Map<String, dynamic>.from(json['summary'] ?? const {});
+    final comparison = Map<String, dynamic>.from(
+      json['latest_comparison'] ?? const {},
+    );
+    return AdvancedAnalytics(
+      subjectScores: metrics('subject_scores'),
+      topicScores: metrics('topic_scores'),
+      strongestTopics: metrics('strongest_topics'),
+      weakestTopics: metrics('weakest_topics'),
+      weeklyImprovement: (json['weekly_improvement'] as List? ?? const [])
+          .map(
+            (item) =>
+                WeeklyPerformance.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList(),
+      testsCompleted: (summary['tests_completed'] as num?)?.toInt() ?? 0,
+      averageScore: (summary['average_score'] as num?)?.toDouble() ?? 0,
+      bestScore: (summary['best_score'] as num?)?.toDouble() ?? 0,
+      totalTimeSeconds: (summary['total_time_seconds'] as num?)?.toInt() ?? 0,
+      latestScore: (comparison['latest_score'] as num?)?.toDouble(),
+      previousScore: (comparison['previous_score'] as num?)?.toDouble(),
+      change: (comparison['change'] as num?)?.toDouble(),
     );
   }
 }

@@ -443,6 +443,144 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 409)
 
+    def test_question_explanations_analytics_adaptive_formats_and_devices(self):
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            user = User(
+                username="advanced_student",
+                email="advanced@example.com",
+                hashed_password=hash_password("secure-password"),
+                email_verified=True,
+                phone="03009998888",
+                target_exam="NUST NET",
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            quiz = QuizSet(
+                user_id=user.id,
+                exam_type="NUST NET",
+                subject="Mathematics",
+                difficulty="Medium",
+                quiz_minutes=10,
+                negative_marking=0.25,
+                questions=[
+                    {
+                        "question": "What is 2 + 2?",
+                        "options": ["A) 3", "B) 4", "C) 5", "D) 6"],
+                        "correct_option": "B",
+                        "explanation": "Two pairs make four.",
+                        "option_explanations": {
+                            "A": "One too small.",
+                            "B": "Correct sum.",
+                            "C": "One too large.",
+                            "D": "Two too large.",
+                        },
+                        "subject": "Mathematics",
+                        "topic": "Algebra",
+                        "concept": "Basic operations",
+                    },
+                    {
+                        "question": "What is 3 + 3?",
+                        "options": ["A) 5", "B) 6", "C) 7", "D) 8"],
+                        "correct_option": "B",
+                        "explanation": "Three plus three is six.",
+                        "subject": "Mathematics",
+                        "topic": "Algebra",
+                        "concept": "Basic operations",
+                    },
+                ],
+            )
+            db.add(quiz)
+            db.commit()
+            quiz_id = quiz.id
+
+        login = self.client.post(
+            "/auth/login",
+            data={"username": "advanced_student", "password": "secure-password"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        started = self.client.post(f"/quiz/{quiz_id}/start", headers=headers)
+        attempt_id = started.json()["id"]
+        result = self.client.post(
+            f"/quiz/attempts/{attempt_id}/submit",
+            headers=headers,
+            json={
+                "answers": {"0": "B", "1": "A"},
+                "time_spent_seconds": {"0": 12, "1": 18},
+            },
+        )
+        self.assertEqual(result.status_code, 200, result.text)
+        body = result.json()
+        self.assertEqual(body["score"], 0.75)
+        self.assertEqual(body["percentage"], 37.5)
+        self.assertEqual(body["total_time_seconds"], 30)
+        self.assertEqual(body["review"][0]["concept"], "Basic operations")
+        self.assertEqual(body["review"][0]["option_explanations"]["B"], "Correct sum.")
+
+        analytics = self.client.get("/progress/analytics", headers=headers)
+        self.assertEqual(analytics.status_code, 200, analytics.text)
+        self.assertEqual(analytics.json()["summary"]["total_time_seconds"], 30)
+        self.assertEqual(analytics.json()["topic_scores"][0]["name"], "Algebra")
+
+        exam_format = self.client.get("/mcqs/exam-format", headers=headers)
+        self.assertEqual(exam_format.status_code, 200)
+        self.assertEqual(exam_format.json()["exam_type"], "NUST NET")
+        self.assertEqual(len(exam_format.json()["sections"]), 3)
+
+        counter = {"value": 0}
+
+        def generated_questions(**kwargs):
+            rows = []
+            for _ in range(kwargs["total_questions"]):
+                counter["value"] += 1
+                rows.append({
+                    "question": f"Adaptive question {counter['value']}",
+                    "options": ["A) One", "B) Two", "C) Three", "D) Four"],
+                    "correct_option": "A",
+                    "explanation": "Practice explanation",
+                    "subject": kwargs["subject"],
+                    "topic": kwargs.get("topic") or kwargs["subject"],
+                    "concept": kwargs.get("topic") or kwargs["subject"],
+                })
+            return rows
+
+        with patch(
+            "app.routers.mcqs.generate_large_mcqs",
+            side_effect=generated_questions,
+        ):
+            adaptive = self.client.post(
+                "/mcqs/adaptive-practice",
+                headers=headers,
+                json={
+                    "number_of_questions": 5,
+                    "quiz_minutes": 10,
+                    "difficulty": "Medium",
+                },
+            )
+        self.assertEqual(adaptive.status_code, 200, adaptive.text)
+        self.assertEqual(adaptive.json()["mode"], "adaptive")
+        self.assertEqual(len(adaptive.json()["questions"]), 5)
+
+        token = "test-device-token-with-more-than-twenty-characters"
+        registered = self.client.post(
+            "/communications/notifications/devices",
+            headers=headers,
+            json={"token": token, "platform": "web"},
+        )
+        self.assertEqual(registered.status_code, 200, registered.text)
+        status = self.client.get(
+            "/communications/notifications/status", headers=headers
+        )
+        self.assertEqual(status.json()["active_devices"], 1)
+
+        official = self.client.get(
+            "/mcqs/past-papers?source_type=official", headers=headers
+        )
+        self.assertEqual(official.status_code, 200, official.text)
+        self.assertTrue(official.json()[0]["is_official"])
+
     def test_only_admin_can_change_test_category_and_admin_access_is_unlimited(self):
         # A student cannot use the new override to escape their signup category.
         response = self.client.get(
@@ -490,6 +628,12 @@ class ApiTests(unittest.TestCase):
             ["Listening", "Reading", "Writing", "Speaking"],
         )
 
+        sat_format = self.client.get(
+            "/mcqs/exam-format?exam_type=SAT", headers=self.headers
+        )
+        self.assertEqual(sat_format.status_code, 200, sat_format.text)
+        self.assertFalse(sat_format.json()["supports_full_mcq_mock"])
+
         generated = [
             {
                 "question": f"Question {index}",
@@ -510,14 +654,25 @@ class ApiTests(unittest.TestCase):
                     "exam_type": "IELTS",
                 },
             )
-        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertIn("not a single MCQ", response.json()["detail"])
+
+        writing = self.client.post(
+            "/mcqs/generate",
+            headers=self.headers,
+            json={
+                "number_of_questions": 5,
+                "subject": "Writing",
+                "difficulty": "Medium",
+                "quiz_minutes": 20,
+                "exam_type": "IELTS",
+            },
+        )
+        self.assertEqual(writing.status_code, 422, writing.text)
+        self.assertIn("not a generic MCQ", writing.json()["detail"])
 
         with SessionLocal() as db:
             from app.models.models import User
-            generated_quiz = db.query(QuizSet).filter(
-                QuizSet.id == response.json()["id"]
-            ).first()
-            self.assertEqual(generated_quiz.exam_type, "IELTS")
             admin = db.query(User).filter(User.email == "student@example.com").first()
             admin.is_admin = False
             db.commit()
