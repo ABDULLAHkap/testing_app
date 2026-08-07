@@ -230,7 +230,11 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
         ),
         child: SelectableText(
           message.text,
-          style: TextStyle(color: _text, fontSize: 14, height: 1.42),
+          style: TextStyle(
+            color: message.isUser || message.isError ? Colors.white : _text,
+            fontSize: 14,
+            height: 1.42,
+          ),
         ),
       ),
     );
@@ -245,7 +249,7 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
         color: _surface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const SizedBox(
+      child: SizedBox(
         width: 36,
         child: LinearProgressIndicator(
           color: _cyan,
@@ -282,7 +286,7 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
 
   Widget _composer() => Container(
     padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       color: _surface,
       border: Border(top: BorderSide(color: context.subtleBorderColor)),
     ),

@@ -174,7 +174,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
             ),
             const SizedBox(height: 24),
             if (r.review.isNotEmpty) ...[
-              const Row(
+              Row(
                 children: [
                   Expanded(child: Divider(color: context.subtleBorderColor)),
                   Padding(
