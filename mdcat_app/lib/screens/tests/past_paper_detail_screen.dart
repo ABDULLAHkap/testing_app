@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
+import '../../services/file_saver.dart';
 import '../../theme/app_theme.dart';
 import '../quiz/quiz_screen.dart';
 
@@ -28,6 +30,7 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
   PastPaperDetail? _detail;
   bool _loading = true;
   bool _generating = false;
+  bool _downloading = false;
   String? _error;
 
   @override
@@ -68,6 +71,40 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
     }
   }
 
+  Future<void> _downloadPaper() async {
+    setState(() => _downloading = true);
+    try {
+      final bytes = await _api.downloadPastPaper(widget.paperId);
+      await savePdf(
+        bytes,
+        '${_detail!.examType.replaceAll(' ', '_')}_Practice_${_detail!.year}.pdf',
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Couldn't download paper: $error")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  Future<void> _openOfficial() async {
+    final url = _detail?.officialSource;
+    if (url == null ||
+        !await launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        )) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't open the official source")),
+        );
+      }
+    }
+  }
+
   String _fmtMinutes(int minutes) {
     final h = minutes ~/ 60;
     final m = minutes % 60;
@@ -105,7 +142,9 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: _generating ? null : _startTest,
+                  onPressed: _detail!.isOfficial
+                      ? _openOfficial
+                      : (_generating ? null : _startTest),
                   child: _generating
                       ? const SizedBox(
                           height: 20,
@@ -115,7 +154,11 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text("Start Test"),
+                      : Text(
+                          _detail!.isOfficial
+                              ? "Open Official Source"
+                              : "Start Practice Test",
+                        ),
                 ),
               ),
             ),
@@ -149,12 +192,33 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.16),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    d.isOfficial
+                        ? 'OFFICIAL SOURCE'
+                        : 'ORIGINAL PRACTICE • ${d.year}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     _bannerStat(
                       Icons.help_outline,
-                      "${d.totalQuestions} Questions",
+                      "${d.totalQuestions} Items/tasks",
                     ),
                     const SizedBox(width: 16),
                     _bannerStat(
@@ -170,31 +234,49 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Marking scheme
-          _sectionCard(
-            title: "Marking Scheme",
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _markingRow(
-                  Colors.green,
-                  "+${d.marksPerCorrect.toStringAsFixed(d.marksPerCorrect % 1 == 0 ? 0 : 2)} for correct",
-                ),
-                _markingRow(
-                  Colors.redAccent,
-                  d.marksPenaltyPerWrong > 0
-                      ? "-${d.marksPenaltyPerWrong.toStringAsFixed(d.marksPenaltyPerWrong % 1 == 0 ? 0 : 2)} for incorrect"
-                      : "0 for incorrect",
-                ),
-                _markingRow(Colors.grey, "0 for unanswered"),
-              ],
+          if (!d.isOfficial) ...[
+            OutlinedButton.icon(
+              onPressed: _downloading ? null : _downloadPaper,
+              icon: _downloading
+                  ? const SizedBox(
+                      width: 17,
+                      height: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_for_offline_outlined),
+              label: Text(
+                _downloading ? 'Preparing PDF...' : 'Download for Offline Use',
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
+
+          if (!d.isOfficial) ...[
+            _sectionCard(
+              title: "Marking Scheme",
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _markingRow(
+                    Colors.green,
+                    "+${d.marksPerCorrect.toStringAsFixed(d.marksPerCorrect % 1 == 0 ? 0 : 2)} for correct",
+                  ),
+                  _markingRow(
+                    Colors.redAccent,
+                    d.marksPenaltyPerWrong > 0
+                        ? "-${d.marksPenaltyPerWrong.toStringAsFixed(d.marksPenaltyPerWrong % 1 == 0 ? 0 : 2)} for incorrect"
+                        : "0 for incorrect",
+                  ),
+                  _markingRow(Colors.grey, "0 for unanswered"),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Subject breakdown
           _sectionCard(
-            title: "Subject Breakdown",
+            title: d.isOfficial ? "Section Breakdown" : "Subject Breakdown",
             child: Column(
               children: d.subjectBreakdown.map((s) {
                 final color =
@@ -222,7 +304,7 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                         ),
                       ),
                       Text(
-                        "${s.mcqCount} MCQs",
+                        "${s.mcqCount} items/tasks",
                         style: TextStyle(
                           color: context.secondaryTextColor,
                           fontSize: 13,
@@ -279,7 +361,7 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                       ),
                       const SizedBox(width: 16),
                       Text(
-                        "Total MCQs",
+                        "Total items/tasks",
                         style: TextStyle(
                           color: context.secondaryTextColor,
                           fontSize: 12,
@@ -355,7 +437,7 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
                         Padding(
                           padding: EdgeInsets.symmetric(vertical: 6),
                           child: Text(
-                            "MCQs",
+                            "Items",
                             style: TextStyle(
                               color: context.secondaryTextColor,
                               fontSize: 12,

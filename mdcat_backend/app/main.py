@@ -19,7 +19,7 @@ apply_compatibility_migrations()
 ensure_admin()
 
 app = FastAPI(
-    title="AI Exam Preparation API",
+    title="Exam Preparation API",
     description="Backend API for the multi-exam preparation Flutter app",
     version="1.0.0",
 )
@@ -52,7 +52,7 @@ app.include_router(tutor.router)
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "AI Exam Preparation API"}
+    return {"status": "ok", "service": "Exam Preparation API"}
 
 
 @app.get("/health")

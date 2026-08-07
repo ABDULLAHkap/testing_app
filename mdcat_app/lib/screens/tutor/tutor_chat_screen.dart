@@ -8,7 +8,9 @@ import '../../theme/app_theme.dart';
 const _cyan = Color(0xFF20D5C5);
 
 class TutorChatScreen extends StatefulWidget {
-  const TutorChatScreen({super.key});
+  final String? initialMessage;
+
+  const TutorChatScreen({super.key, this.initialMessage});
 
   @override
   State<TutorChatScreen> createState() => _TutorChatScreenState();
@@ -45,6 +47,9 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
           ),
         );
       });
+      if (widget.initialMessage?.trim().isNotEmpty == true) {
+        _send(widget.initialMessage);
+      }
     });
   }
 

@@ -13,7 +13,12 @@ from app.services.pdf_report import create_result_pdf
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
 
-def _review(quiz_set: QuizSet, answers: dict[str, str]) -> list[dict]:
+def _review(
+    quiz_set: QuizSet,
+    answers: dict[str, str],
+    question_times: dict[str, int] | None = None,
+) -> list[dict]:
+    question_times = question_times or {}
     items = []
     for index, question in enumerate(quiz_set.questions):
         selected = answers.get(str(index))
@@ -31,11 +36,18 @@ def _review(quiz_set: QuizSet, answers: dict[str, str]) -> list[dict]:
             "correct_answer": correct_answer,
             "is_correct": selected == correct,
             "explanation": question.get("explanation"),
+            "option_explanations": question.get("option_explanations") or {},
+            "subject": question.get("subject") or quiz_set.subject,
+            "topic": question.get("topic") or question.get("subject") or quiz_set.subject,
+            "concept": question.get("concept") or question.get("topic"),
+            "time_spent_seconds": int(question_times.get(str(index), 0) or 0),
         })
     return items
 
 
 def _result(attempt: QuizAttempt, quiz_set: QuizSet | None = None) -> dict:
+    negative_marking = float(quiz_set.negative_marking or 0.0) if quiz_set else 0.0
+    score = max(0.0, float(attempt.correct) - float(attempt.wrong) * negative_marking)
     return {
         "id": attempt.id,
         "quiz_set_id": attempt.quiz_set_id,
@@ -44,9 +56,13 @@ def _result(attempt: QuizAttempt, quiz_set: QuizSet | None = None) -> dict:
         "total": attempt.total,
         "percentage": attempt.percentage,
         "grade": attempt.grade,
+        "score": round(score, 2),
+        "max_score": float(attempt.total),
+        "negative_marking": negative_marking,
+        "total_time_seconds": sum((attempt.question_times or {}).values()),
         "finished_at": attempt.finished_at,
         "review": (
-            _review(quiz_set, attempt.answers or {})
+            _review(quiz_set, attempt.answers or {}, attempt.question_times or {})
             if quiz_set is not None and attempt.finished_at is not None
             else []
         ),
@@ -71,7 +87,9 @@ def _grade(quiz_set: QuizSet, answers: dict[str, str]) -> dict:
             wrong += 1
 
     total = len(quiz_set.questions)
-    percentage = (correct / total * 100) if total else 0.0
+    negative_marking = float(quiz_set.negative_marking or 0.0)
+    score = max(0.0, correct - (wrong * negative_marking))
+    percentage = (score / total * 100) if total else 0.0
 
     if percentage >= 90:
         grade = "A+"
@@ -90,6 +108,7 @@ def _grade(quiz_set: QuizSet, answers: dict[str, str]) -> dict:
         "total": total,
         "percentage": percentage,
         "grade": grade,
+        "score": score,
     }
 
 
@@ -148,6 +167,13 @@ def submit_attempt(
     if invalid_indexes:
         raise HTTPException(422, detail="One or more answer indexes are invalid")
 
+    invalid_time_indexes = [
+        index for index in payload.time_spent_seconds
+        if int(index) >= len(quiz_set.questions)
+    ]
+    if invalid_time_indexes:
+        raise HTTPException(422, detail="One or more question-time indexes are invalid")
+
     started_at = attempt.started_at
     if started_at.tzinfo is None:
         started_at = started_at.replace(tzinfo=timezone.utc)
@@ -158,6 +184,7 @@ def submit_attempt(
     grading = _grade(quiz_set, payload.answers)
 
     attempt.answers = payload.answers
+    attempt.question_times = payload.time_spent_seconds
     attempt.correct = grading["correct"]
     attempt.wrong = grading["wrong"]
     attempt.total = grading["total"]

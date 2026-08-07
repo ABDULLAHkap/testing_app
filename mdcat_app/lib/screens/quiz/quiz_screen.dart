@@ -23,6 +23,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
   int _index = 0;
   final Map<int, String> _answers = {}; // question index -> "A"/"B"/"C"/"D"
+  final Map<int, int> _questionTimes = {}; // seconds spent per question
 
   Timer? _timer;
   late Duration _remaining;
@@ -56,7 +57,10 @@ class _QuizScreenState extends State<QuizScreen> {
       _submit(auto: true);
       return;
     }
-    setState(() => _remaining -= const Duration(seconds: 1));
+    setState(() {
+      _remaining -= const Duration(seconds: 1);
+      _questionTimes[_index] = (_questionTimes[_index] ?? 0) + 1;
+    });
   }
 
   String _letterFor(String optionText) {
@@ -70,7 +74,11 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() => _submitting = true);
 
     try {
-      final result = await _api.submitAttempt(_attemptId!, _answers);
+      final result = await _api.submitAttempt(
+        _attemptId!,
+        _answers,
+        _questionTimes,
+      );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -84,8 +92,9 @@ class _QuizScreenState extends State<QuizScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Couldn't submit: $e")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Couldn't submit: $e")));
     }
   }
 
@@ -97,11 +106,13 @@ class _QuizScreenState extends State<QuizScreen> {
         content: const Text("Your progress on this attempt will be lost."),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text("Stay")),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Stay"),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text("Leave")),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Leave"),
+          ),
         ],
       ),
     );
@@ -142,7 +153,10 @@ class _QuizScreenState extends State<QuizScreen> {
               child: Center(
                 child: Text(
                   "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ),
@@ -163,8 +177,24 @@ class _QuizScreenState extends State<QuizScreen> {
                     Text(
                       question.question,
                       style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w600),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    if (question.topic != null || question.subject != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        [
+                          question.subject,
+                          question.topic,
+                        ].whereType<String>().toSet().join(' • '),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     ...question.options.map((option) {
                       final letter = _letterFor(option);
@@ -173,7 +203,8 @@ class _QuizScreenState extends State<QuizScreen> {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(10),
-                          onTap: () => setState(() => _answers[_index] = letter),
+                          onTap: () =>
+                              setState(() => _answers[_index] = letter),
                           child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(14),
@@ -186,10 +217,9 @@ class _QuizScreenState extends State<QuizScreen> {
                                 width: selected ? 2 : 1,
                               ),
                               color: selected
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.06)
+                                  ? Theme.of(
+                                      context,
+                                    ).colorScheme.primary.withOpacity(0.06)
                                   : null,
                             ),
                             child: Text(option),
@@ -226,12 +256,18 @@ class _QuizScreenState extends State<QuizScreen> {
                             },
                       child: _submitting
                           ? const SizedBox(
-                              height: 18, width: 18,
+                              height: 18,
+                              width: 18,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : Text(_index < questions.length - 1
-                              ? "Next"
-                              : "Finish Quiz"),
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              _index < questions.length - 1
+                                  ? "Next"
+                                  : "Finish Quiz",
+                            ),
                     ),
                   ),
                 ],

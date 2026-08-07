@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../services/theme_provider.dart';
+import '../../services/notification_service.dart';
 import '../communications/support_chat_screen.dart';
 import '../subscription/subscription_screen.dart';
 
@@ -24,6 +25,8 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
   bool _changingEmail = false;
 
   bool _loading = true;
+  bool _enablingNotifications = false;
+  Map<String, dynamic>? _notificationStatus;
 
   @override
   void initState() {
@@ -38,6 +41,31 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
       _usernameController.text = auth.currentUser?.username ?? "";
       _loading = false;
     });
+    if (auth.currentUser != null && !auth.currentUser!.isAdmin) {
+      try {
+        final status = await _api.getNotificationStatus();
+        if (mounted) setState(() => _notificationStatus = status);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _enableNotifications() async {
+    setState(() => _enablingNotifications = true);
+    final enabled = await NotificationService.instance
+        .registerForSignedInUser();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'Notifications enabled on this device'
+                : 'Firebase is not configured yet or notification permission was not granted.',
+          ),
+        ),
+      );
+      setState(() => _enablingNotifications = false);
+      _load();
+    }
   }
 
   Future<void> _saveUsername() async {
@@ -254,6 +282,25 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                         builder: (_) => const SubscriptionScreen(),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  _sectionHeader("Notifications"),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.notifications_active_outlined),
+                    title: const Text("Push notifications"),
+                    subtitle: Text(
+                      (_notificationStatus?['active_devices'] as int? ?? 0) > 0
+                          ? "Enabled for announcements and reminders"
+                          : "Receive announcements, countdowns and expiry alerts",
+                    ),
+                    trailing:
+                        (_notificationStatus?['active_devices'] as int? ?? 0) >
+                            0
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : null,
+                    onTap: _enablingNotifications ? null : _enableNotifications,
                   ),
                   const SizedBox(height: 24),
                 ],

@@ -1,8 +1,10 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/models.dart';
 import '../../services/api_client.dart';
+import '../../theme/app_theme.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -14,6 +16,7 @@ class ProgressScreen extends StatefulWidget {
 class _ProgressScreenState extends State<ProgressScreen> {
   final ApiClient _api = ApiClient();
   List<ProgressPoint> _points = [];
+  AdvancedAnalytics? _analytics;
   bool _loading = true;
   String? _error;
 
@@ -29,161 +32,400 @@ class _ProgressScreenState extends State<ProgressScreen> {
       _error = null;
     });
     try {
-      final points = await _api.getProgress();
-      // Most recent first for the list view.
-      points.sort((a, b) {
-        final aDate = a.finishedAt ?? DateTime(2000);
-        final bDate = b.finishedAt ?? DateTime(2000);
-        return bDate.compareTo(aDate);
+      final results = await Future.wait([
+        _api.getProgress(),
+        _api.getAdvancedAnalytics(),
+      ]);
+      final points = results[0] as List<ProgressPoint>;
+      points.sort(
+        (a, b) => (b.finishedAt ?? DateTime(2000)).compareTo(
+          a.finishedAt ?? DateTime(2000),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _points = points;
+        _analytics = results[1] as AdvancedAnalytics;
       });
-      setState(() => _points = points);
-    } catch (e) {
-      setState(() => _error = e.toString());
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
     } finally {
-      setState(() => _loading = false);
-    }
-  }
-
-  Color _gradeColor(String grade) {
-    switch (grade) {
-      case "A+":
-      case "A":
-        return Colors.green;
-      case "B":
-        return Colors.lightGreen;
-      case "C":
-        return Colors.orange;
-      default:
-        return Colors.red;
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Progress")),
+      backgroundColor: context.pageBackground,
+      appBar: AppBar(title: const Text('Performance Analytics')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? _buildError()
-                : _points.isEmpty
-                    ? _buildEmptyState()
-                    : _buildList(),
+            ? _errorView()
+            : _points.isEmpty
+            ? _emptyView()
+            : _content(),
       ),
     );
   }
 
-  Widget _buildError() {
+  Widget _errorView() => ListView(
+    children: [
+      const SizedBox(height: 100),
+      Center(child: Text("Couldn't load analytics: $_error")),
+      const SizedBox(height: 12),
+      Center(
+        child: OutlinedButton(onPressed: _load, child: const Text('Retry')),
+      ),
+    ],
+  );
+
+  Widget _emptyView() => ListView(
+    padding: const EdgeInsets.all(32),
+    children: [
+      const SizedBox(height: 70),
+      Icon(Icons.insights_outlined, size: 68, color: context.inactiveColor),
+      const SizedBox(height: 16),
+      Text(
+        'Your analytics will appear after your first test.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: context.primaryTextColor, fontSize: 17),
+      ),
+    ],
+  );
+
+  Widget _content() {
+    final a = _analytics!;
     return ListView(
+      padding: const EdgeInsets.all(16),
       children: [
-        const SizedBox(height: 100),
-        Center(child: Text("Couldn't load progress: $_error")),
-        const SizedBox(height: 16),
-        Center(
-          child: OutlinedButton(onPressed: _load, child: const Text("Retry")),
+        Row(
+          children: [
+            Expanded(child: _summary('${a.testsCompleted}', 'Tests')),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _summary(
+                '${a.averageScore.toStringAsFixed(1)}%',
+                'Average',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _summary('${a.bestScore.toStringAsFixed(1)}%', 'Best'),
+            ),
+          ],
         ),
+        const SizedBox(height: 14),
+        _weeklyChart(a.weeklyImprovement),
+        const SizedBox(height: 14),
+        if (a.latestScore != null) _comparison(a),
+        const SizedBox(height: 14),
+        _twoColumnTopics(a.strongestTopics, a.weakestTopics),
+        const SizedBox(height: 14),
+        _metricSection('Subject-wise scores', a.subjectScores),
+        const SizedBox(height: 14),
+        _metricSection('Topic-wise scores and time', a.topicScores),
+        const SizedBox(height: 18),
+        Text('Recent attempts', style: _headingStyle),
+        const SizedBox(height: 8),
+        ..._points.take(12).map(_attemptTile),
       ],
     );
   }
 
-  Widget _buildEmptyState() {
-    return ListView(
+  TextStyle get _headingStyle => TextStyle(
+    color: context.primaryTextColor,
+    fontSize: 17,
+    fontWeight: FontWeight.w700,
+  );
+
+  Widget _summary(String value, String label) => Container(
+    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+    decoration: _cardDecoration(),
+    child: Column(
       children: [
-        const SizedBox(height: 80),
-        Icon(Icons.query_stats, size: 64, color: Colors.grey.shade400),
-        const SizedBox(height: 16),
-        const Center(
-          child: Text(
-            "No quizzes yet",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        Text(
+          value,
+          style: TextStyle(
+            color: context.primaryTextColor,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(color: context.secondaryTextColor, fontSize: 11),
+        ),
+      ],
+    ),
+  );
+
+  Widget _weeklyChart(List<WeeklyPerformance> weeks) => Container(
+    height: 245,
+    padding: const EdgeInsets.fromLTRB(14, 16, 18, 12),
+    decoration: _cardDecoration(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Weekly improvement', style: _headingStyle),
+        const SizedBox(height: 16),
+        Expanded(
+          child: LineChart(
+            LineChartData(
+              minY: 0,
+              maxY: 100,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (_) =>
+                    FlLine(color: context.subtleBorderColor, strokeWidth: 1),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 32,
+                    interval: 25,
+                    getTitlesWidget: (value, _) => Text(
+                      '${value.toInt()}%',
+                      style: TextStyle(
+                        color: context.secondaryTextColor,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: 1,
+                    getTitlesWidget: (value, _) {
+                      final i = value.toInt();
+                      if (i < 0 || i >= weeks.length || i.isOdd)
+                        return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          DateFormat('d MMM').format(weeks[i].weekStart),
+                          style: TextStyle(
+                            color: context.secondaryTextColor,
+                            fontSize: 9,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: [
+                    for (var i = 0; i < weeks.length; i++)
+                      FlSpot(i.toDouble(), weeks[i].averageScore),
+                  ],
+                  isCurved: true,
+                  color: const Color(0xFF20D5C5),
+                  barWidth: 3,
+                  dotData: const FlDotData(show: true),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    color: const Color(0xFF20D5C5).withOpacity(.12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _comparison(AdvancedAnalytics a) {
+    final change = a.change;
+    final up = (change ?? 0) >= 0;
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Icon(
+            up ? Icons.trending_up : Icons.trending_down,
+            color: up ? Colors.green : Colors.red,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              a.previousScore == null
+                  ? 'Latest result: ${a.latestScore!.toStringAsFixed(1)}%'
+                  : 'Latest ${a.latestScore!.toStringAsFixed(1)}% vs previous ${a.previousScore!.toStringAsFixed(1)}%',
+              style: TextStyle(
+                color: context.primaryTextColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (change != null)
+            Text(
+              '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}%',
+              style: TextStyle(
+                color: up ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _twoColumnTopics(
+    List<PerformanceMetric> strong,
+    List<PerformanceMetric> weak,
+  ) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(child: _topicCard('Strongest', strong, Colors.green)),
+      const SizedBox(width: 8),
+      Expanded(child: _topicCard('Needs practice', weak, Colors.orange)),
+    ],
+  );
+
+  Widget _topicCard(
+    String title,
+    List<PerformanceMetric> values,
+    Color color,
+  ) => Container(
+    padding: const EdgeInsets.all(13),
+    decoration: _cardDecoration(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40),
-          child: Center(
-            child: Text(
-              "Take your first quiz from Practice by Topic or Full Mock Test "
-              "on the dashboard — your results will show up here.",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+        if (values.isEmpty)
+          Text(
+            'More results needed',
+            style: TextStyle(color: context.secondaryTextColor, fontSize: 11),
+          )
+        else
+          ...values
+              .take(3)
+              .map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '${item.name}  ${item.accuracy.toStringAsFixed(0)}%',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.primaryTextColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ),
+      ],
+    ),
+  );
+
+  Widget _metricSection(
+    String title,
+    List<PerformanceMetric> values,
+  ) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: _cardDecoration(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: _headingStyle),
+        const SizedBox(height: 12),
+        ...values.map(
+          (item) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.subject == null
+                            ? item.name
+                            : '${item.subject} • ${item.name}',
+                        style: TextStyle(
+                          color: context.primaryTextColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${item.accuracy.toStringAsFixed(0)}% • ${item.averageTimeSeconds.toStringAsFixed(0)}s/q',
+                      style: TextStyle(
+                        color: context.secondaryTextColor,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                LinearProgressIndicator(
+                  value: (item.accuracy / 100).clamp(0, 1).toDouble(),
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(6),
+                  color: item.accuracy >= 75
+                      ? Colors.green
+                      : item.accuracy >= 50
+                      ? Colors.orange
+                      : Colors.red,
+                  backgroundColor: context.subtleBorderColor,
+                ),
+              ],
             ),
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
 
-  Widget _buildList() {
-    // Summary header: overall average across all attempts shown.
-    final avg = _points.isEmpty
-        ? 0.0
-        : _points.map((p) => p.percentage).reduce((a, b) => a + b) /
-            _points.length;
+  Widget _attemptTile(ProgressPoint point) => Card(
+    color: context.panelColor,
+    margin: const EdgeInsets.only(bottom: 8),
+    child: ListTile(
+      title: Text(
+        '${point.subject} • ${point.difficulty}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        point.finishedAt == null
+            ? 'In progress'
+            : DateFormat(
+                'MMM d, y • h:mm a',
+              ).format(point.finishedAt!.toLocal()),
+      ),
+      trailing: Text(
+        '${point.percentage.toStringAsFixed(0)}%',
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+    ),
+  );
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _points.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _summaryStat("${_points.length}", "Total Attempts"),
-                    _summaryStat("${avg.toStringAsFixed(1)}%", "Overall Avg"),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-
-        final point = _points[index - 1];
-        final dateStr = point.finishedAt != null
-            ? DateFormat('MMM d, y • h:mm a').format(point.finishedAt!.toLocal())
-            : "In progress";
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: _gradeColor(point.grade).withOpacity(0.15),
-              child: Text(
-                point.grade,
-                style: TextStyle(
-                  color: _gradeColor(point.grade),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            title: Text("${point.subject} • ${point.difficulty}"),
-            subtitle: Text(dateStr),
-            trailing: Text(
-              "${point.percentage.toStringAsFixed(0)}%",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _summaryStat(String value, String label) {
-    return Column(
-      children: [
-        Text(value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ],
-    );
-  }
+  BoxDecoration _cardDecoration() => BoxDecoration(
+    color: context.panelColor,
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(color: context.subtleBorderColor),
+  );
 }

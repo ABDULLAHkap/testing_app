@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
@@ -144,6 +144,9 @@ class MCQItem(BaseModel):
 
     question: str
     options: List[str]
+    subject: Optional[str] = None
+    topic: Optional[str] = None
+    section: Optional[str] = None
 
 
 class QuizSetOut(BaseModel):
@@ -151,6 +154,11 @@ class QuizSetOut(BaseModel):
     subject: str
     difficulty: str
     quiz_minutes: int
+    exam_type: str = "MDCAT"
+    mode: str = "topic"
+    negative_marking: float = 0.0
+    format_version: Optional[str] = None
+    section_config: Optional[List[Dict[str, Any]]] = None
     source_filename: Optional[str]
     questions: List[MCQItem]
     created_at: datetime
@@ -176,6 +184,7 @@ class QuizSetSummary(BaseModel):
 class SubmitAnswersRequest(BaseModel):
     # keys are question index as string, values are the chosen option letter "A"/"B"/"C"/"D"
     answers: dict[str, str]
+    time_spent_seconds: dict[str, int] = Field(default_factory=dict)
 
     @field_validator("answers")
     @classmethod
@@ -187,6 +196,18 @@ class SubmitAnswersRequest(BaseModel):
                 raise ValueError("Each answer must be A, B, C, or D")
         return answers
 
+    @field_validator("time_spent_seconds")
+    @classmethod
+    def validate_question_times(
+        cls, values: dict[str, int]
+    ) -> dict[str, int]:
+        for index, seconds in values.items():
+            if not index.isdigit():
+                raise ValueError("Time keys must be question indexes")
+            if seconds < 0 or seconds > 86400:
+                raise ValueError("Question time must be between 0 and 86400 seconds")
+        return values
+
 
 class QuestionReview(BaseModel):
     index: int
@@ -197,6 +218,11 @@ class QuestionReview(BaseModel):
     correct_answer: str
     is_correct: bool
     explanation: Optional[str] = None
+    option_explanations: Dict[str, str] = Field(default_factory=dict)
+    subject: Optional[str] = None
+    topic: Optional[str] = None
+    concept: Optional[str] = None
+    time_spent_seconds: int = 0
 
 
 class AttemptResult(BaseModel):
@@ -207,6 +233,10 @@ class AttemptResult(BaseModel):
     total: int
     percentage: float
     grade: str
+    score: float = 0.0
+    max_score: float = 0.0
+    negative_marking: float = 0.0
+    total_time_seconds: int = 0
     finished_at: Optional[datetime]
     review: List[QuestionReview] = Field(default_factory=list)
 
@@ -219,6 +249,8 @@ class ProgressPoint(BaseModel):
     quiz_set_id: int
     subject: str
     difficulty: str
+    exam_type: str = "MDCAT"
+    total_time_seconds: int = 0
     percentage: float
     grade: str
     finished_at: Optional[datetime]
@@ -253,6 +285,14 @@ class PastPaperSummary(BaseModel):
     total_questions: int
     quiz_minutes: int
     is_new: bool = True
+    exam_type: str = "MDCAT"
+    year: int
+    subject: str = "All Subjects"
+    board: str
+    source_type: str = "practice"
+    is_official: bool = False
+    download_available: bool = True
+    official_source: Optional[str] = None
 
 
 class PastPaperDetail(BaseModel):
@@ -265,3 +305,32 @@ class PastPaperDetail(BaseModel):
     marks_penalty_per_wrong: float
     subject_breakdown: List[SubjectBreakdownItem]
     instructions: List[str]
+    exam_type: str = "MDCAT"
+    year: int
+    subject: str = "All Subjects"
+    board: str
+    source_type: str = "practice"
+    is_official: bool = False
+    official_source: Optional[str] = None
+
+
+# ---------- Adaptive practice and push notifications ----------
+
+class AdaptivePracticeRequest(BaseModel):
+    number_of_questions: int = Field(default=15, ge=5, le=50)
+    difficulty: str = Field(default="Medium", pattern=r"^(Easy|Medium|Hard)$")
+    quiz_minutes: int = Field(default=25, ge=5, le=120)
+
+
+class PushDeviceRegistration(BaseModel):
+    token: str = Field(min_length=20, max_length=512)
+    platform: str = Field(default="unknown", max_length=20)
+    timezone_offset_minutes: int = Field(default=0, ge=-840, le=840)
+    announcements_enabled: bool = True
+    study_reminders_enabled: bool = True
+    exam_alerts_enabled: bool = True
+    subscription_alerts_enabled: bool = True
+
+
+class PushDeviceUnregister(BaseModel):
+    token: str = Field(min_length=20, max_length=512)

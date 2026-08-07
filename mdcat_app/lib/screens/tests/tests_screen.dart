@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
+import '../../services/file_saver.dart';
 import '../../theme/app_theme.dart';
 import 'past_paper_detail_screen.dart';
 import '../practice/practice_by_topic_screen.dart';
 import '../practice/mock_test_screen.dart';
+import '../practice/adaptive_practice_screen.dart';
+import '../practice/exam_format_screen.dart';
 import '../quiz/quiz_screen.dart';
 
 class TestsScreen extends StatefulWidget {
@@ -75,6 +78,10 @@ class _OnlineQuizzesTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final exam =
         context.watch<AuthProvider>().currentUser?.targetExam ?? "your exam";
+    final sectionBased = exam == 'IELTS' || exam == 'PMS' || exam == 'SAT';
+    void openSections() => Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => ExamFormatScreen(examType: exam)));
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -87,41 +94,79 @@ class _OnlineQuizzesTab extends StatelessWidget {
         ),
         _linkCard(
           context,
+          icon: Icons.account_tree_outlined,
+          color: const Color(0xFF7C5CFF),
+          title: "Official Exam Format",
+          subtitle: "Real sections, duration, question count and marking rules",
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const ExamFormatScreen())),
+        ),
+        const SizedBox(height: 12),
+        _linkCard(
+          context,
+          icon: Icons.auto_graph,
+          color: const Color(0xFF20D5C5),
+          title: "Adaptive Practice",
+          subtitle: "More practice for weak topics, less for mastered topics",
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AdaptivePracticeScreen()),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _linkCard(
+          context,
           icon: Icons.menu_book_rounded,
           color: const Color(0xFF378ADD),
-          title: "Practice by Topic",
-          subtitle: "$exam topic-wise questions across the complete syllabus",
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const PracticeByTopicScreen()),
-          ),
+          title: sectionBased ? "Practice by Section" : "Practice by Topic",
+          subtitle: sectionBased
+              ? "Use each $exam skill in its real preparation mode"
+              : "$exam topic-wise questions across the complete syllabus",
+          onTap: sectionBased
+              ? openSections
+              : () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PracticeByTopicScreen(),
+                  ),
+                ),
         ),
         const SizedBox(height: 12),
         _linkCard(
           context,
           icon: Icons.assignment_rounded,
           color: const Color(0xFFE0A429),
-          title: "Full Mock Test",
-          subtitle: "Full-length $exam test covering all selected subjects",
-          onTap: () => Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const MockTestScreen())),
+          title: sectionBased
+              ? "Section-Based Mock Practice"
+              : "Full Mock Test",
+          subtitle: sectionBased
+              ? "Practise the official $exam sections separately"
+              : "Full-length $exam test covering all selected subjects",
+          onTap: sectionBased
+              ? openSections
+              : () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MockTestScreen()),
+                ),
         ),
         const SizedBox(height: 12),
         _linkCard(
           context,
           icon: Icons.local_fire_department,
           color: const Color(0xFFE0A429),
-          title: "Daily Challenge",
-          subtitle: "10 $exam questions • 15 min • All subjects",
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const MockTestScreen(
-                presetTotalQuestions: 10,
-                presetMinutes: 15,
-                title: "Daily Challenge",
-              ),
-            ),
-          ),
+          title: sectionBased ? "Daily Section Practice" : "Daily Challenge",
+          subtitle: sectionBased
+              ? "Continue one focused $exam skill session"
+              : "10 $exam questions • 15 min • All subjects",
+          onTap: sectionBased
+              ? openSections
+              : () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const MockTestScreen(
+                      presetTotalQuestions: 10,
+                      presetMinutes: 15,
+                      title: "Daily Challenge",
+                    ),
+                  ),
+                ),
         ),
       ],
     );
@@ -367,6 +412,11 @@ class _PastPapersTabState extends State<_PastPapersTab> {
   final ApiClient _api = ApiClient();
   List<PastPaperSummary> _papers = [];
   bool _loading = true;
+  String _sourceFilter = 'all';
+  int? _yearFilter;
+  String? _subjectFilter;
+  String? _boardFilter;
+  String? _downloadingId;
   String? _error;
 
   @override
@@ -398,6 +448,35 @@ class _PastPapersTabState extends State<_PastPapersTab> {
     return "$h hr $m min";
   }
 
+  List<PastPaperSummary> get _filtered => _papers.where((paper) {
+    final sourceMatches =
+        _sourceFilter == 'all' || paper.sourceType == _sourceFilter;
+    final yearMatches = _yearFilter == null || paper.year == _yearFilter;
+    final subjectMatches =
+        _subjectFilter == null || paper.subject == _subjectFilter;
+    final boardMatches = _boardFilter == null || paper.board == _boardFilter;
+    return sourceMatches && yearMatches && subjectMatches && boardMatches;
+  }).toList();
+
+  Future<void> _download(PastPaperSummary paper) async {
+    setState(() => _downloadingId = paper.id);
+    try {
+      final bytes = await _api.downloadPastPaper(paper.id);
+      await savePdf(
+        bytes,
+        '${paper.examType.replaceAll(' ', '_')}_Practice_${paper.year}.pdf',
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Couldn't download paper: $error")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloadingId = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -419,13 +498,99 @@ class _PastPapersTabState extends State<_PastPapersTab> {
       );
     }
 
+    final papers = _filtered;
+    final years = _papers.map((paper) => paper.year).toSet().toList()
+      ..sort((a, b) => b.compareTo(a));
+    final subjects = _papers.map((paper) => paper.subject).toSet().toList()
+      ..sort();
+    final boards = _papers.map((paper) => paper.board).toSet().toList()..sort();
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _papers.length,
+        itemCount: papers.length + 1,
         itemBuilder: (context, index) {
-          final paper = _papers[index];
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  DropdownButton<String>(
+                    value: _sourceFilter,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'all',
+                        child: Text('All sources'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'official',
+                        child: Text('Official'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'practice',
+                        child: Text('Practice'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _sourceFilter = value!),
+                  ),
+                  DropdownButton<int?>(
+                    value: _yearFilter,
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('All years'),
+                      ),
+                      ...years.map(
+                        (year) => DropdownMenuItem<int?>(
+                          value: year,
+                          child: Text('$year'),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => _yearFilter = value),
+                  ),
+                  DropdownButton<String?>(
+                    value: _subjectFilter,
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All subjects'),
+                      ),
+                      ...subjects.map(
+                        (value) => DropdownMenuItem<String?>(
+                          value: value,
+                          child: Text(value),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _subjectFilter = value),
+                  ),
+                  DropdownButton<String?>(
+                    value: _boardFilter,
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All boards'),
+                      ),
+                      ...boards.map(
+                        (value) => DropdownMenuItem<String?>(
+                          value: value,
+                          child: Text(value),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => _boardFilter = value),
+                  ),
+                  Chip(label: Text('${papers.length} papers/resources')),
+                ],
+              ),
+            );
+          }
+          final paper = papers[index - 1];
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
@@ -458,14 +623,48 @@ class _PastPapersTabState extends State<_PastPapersTab> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              subtitle: Text(
-                "${paper.totalQuestions} MCQs  •  ${_fmtMinutes(paper.quizMinutes)}",
-                style: TextStyle(
-                  color: context.secondaryTextColor,
-                  fontSize: 12,
-                ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "${paper.totalQuestions} questions  •  ${_fmtMinutes(paper.quizMinutes)} • ${paper.year}",
+                    style: TextStyle(
+                      color: context.secondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Wrap(
+                    spacing: 5,
+                    children: [
+                      _paperBadge(
+                        paper.isOfficial
+                            ? 'OFFICIAL SOURCE'
+                            : 'ORIGINAL PRACTICE',
+                        paper.isOfficial
+                            ? Colors.green
+                            : const Color(0xFF378ADD),
+                      ),
+                      _paperBadge(paper.board, context.inactiveColor),
+                    ],
+                  ),
+                ],
               ),
-              trailing: Icon(Icons.chevron_right, color: context.inactiveColor),
+              trailing: paper.downloadAvailable
+                  ? IconButton(
+                      tooltip: 'Download for offline use',
+                      onPressed: _downloadingId == null
+                          ? () => _download(paper)
+                          : null,
+                      icon: _downloadingId == paper.id
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.download_for_offline_outlined),
+                    )
+                  : Icon(Icons.chevron_right, color: context.inactiveColor),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => PastPaperDetailScreen(paperId: paper.id),
@@ -477,4 +676,16 @@ class _PastPapersTabState extends State<_PastPapersTab> {
       ),
     );
   }
+
+  Widget _paperBadge(String label, Color color) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withOpacity(.13),
+      borderRadius: BorderRadius.circular(5),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(color: color, fontSize: 8, fontWeight: FontWeight.bold),
+    ),
+  );
 }

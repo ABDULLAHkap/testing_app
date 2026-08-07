@@ -39,7 +39,7 @@ def _send_with_brevo(
         },
         json={
             "sender": {
-                "name": os.getenv("EMAIL_FROM_NAME", "AI Exam Preparation"),
+                "name": os.getenv("EMAIL_FROM_NAME", "Exam Preparation"),
                 "email": sender,
             },
             "to": [{"email": email}],

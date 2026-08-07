@@ -1,0 +1,25 @@
+name: Scheduled student notifications
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deliver reminders
+        env:
+          NOTIFICATION_CRON_SECRET: ${{ secrets.NOTIFICATION_CRON_SECRET }}
+          BACKEND_URL: ${{ vars.API_BASE_URL || 'https://mdcat-backend.onrender.com' }}
+        run: |
+          if [ -z "$NOTIFICATION_CRON_SECRET" ]; then
+            echo "NOTIFICATION_CRON_SECRET is not configured; skipping."
+            exit 0
+          fi
+          curl --fail --silent --show-error \
+            --retry 2 \
+            -X POST \
+            -H "X-Notification-Secret: $NOTIFICATION_CRON_SECRET" \
+            "$BACKEND_URL/communications/notifications/process"

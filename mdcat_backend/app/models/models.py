@@ -35,6 +35,7 @@ class User(Base):
     verification_codes = relationship("EmailVerificationCode", cascade="all, delete-orphan")
     password_reset_codes = relationship("PasswordResetCode", cascade="all, delete-orphan")
     email_change_codes = relationship("EmailChangeCode", cascade="all, delete-orphan")
+    push_devices = relationship("PushDevice", cascade="all, delete-orphan")
 
     @property
     def free_tests_remaining(self):
@@ -131,6 +132,10 @@ class QuizSet(Base):
     exam_type = Column(String(30), default="MDCAT", nullable=False)
     difficulty = Column(String(20), nullable=False)
     quiz_minutes = Column(Integer, default=30)
+    mode = Column(String(30), default="topic", nullable=False)
+    negative_marking = Column(Float, default=0.0, nullable=False)
+    format_version = Column(String(80), nullable=True)
+    section_config = Column(JSON, nullable=True)
 
     source_filename = Column(String(255), nullable=True)
     # Structured MCQs stored as JSON list of:
@@ -153,6 +158,8 @@ class QuizAttempt(Base):
 
     # answers: {"0": "A) ...", "1": "B) ..."} keyed by question index
     answers = Column(JSON, default=dict)
+    # Seconds spent on each question: {"0": 18, "1": 42, ...}.
+    question_times = Column(JSON, default=dict)
 
     correct = Column(Integer, default=0)
     wrong = Column(Integer, default=0)
@@ -165,3 +172,25 @@ class QuizAttempt(Base):
 
     quiz_set = relationship("QuizSet", back_populates="attempts")
     user = relationship("User", back_populates="attempts")
+
+
+class PushDevice(Base):
+    """A device/browser registered to receive Firebase Cloud Messaging."""
+
+    __tablename__ = "push_devices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(512), unique=True, nullable=False, index=True)
+    platform = Column(String(20), default="unknown", nullable=False)
+    timezone_offset_minutes = Column(Integer, default=0, nullable=False)
+    announcements_enabled = Column(Boolean, default=True, nullable=False)
+    study_reminders_enabled = Column(Boolean, default=True, nullable=False)
+    exam_alerts_enabled = Column(Boolean, default=True, nullable=False)
+    subscription_alerts_enabled = Column(Boolean, default=True, nullable=False)
+    active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=now_utc)
+    updated_at = Column(DateTime, default=now_utc, onupdate=now_utc)
+    last_study_reminder_date = Column(String(10), nullable=True)
+    last_exam_alert_key = Column(String(40), nullable=True)
+    last_subscription_alert_key = Column(String(40), nullable=True)

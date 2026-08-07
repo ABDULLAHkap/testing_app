@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 import 'api_client.dart';
+import 'notification_service.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
@@ -39,6 +40,7 @@ class AuthProvider extends ChangeNotifier {
       currentUser = await _api.getMe();
       status = AuthStatus.authenticated;
       _startHeartbeat();
+      NotificationService.instance.registerForSignedInUser();
     } catch (_) {
       // token expired/invalid
       await _api.clearToken();
@@ -54,6 +56,7 @@ class AuthProvider extends ChangeNotifier {
       currentUser = await _api.getMe();
       status = AuthStatus.authenticated;
       _startHeartbeat();
+      NotificationService.instance.registerForSignedInUser();
       notifyListeners();
       return true;
     } catch (e) {

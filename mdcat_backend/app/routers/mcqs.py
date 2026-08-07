@@ -1,19 +1,28 @@
 import math
+from collections import Counter
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_test_access
-from app.exam_catalog import EXAM_CATALOG
+from app.exam_catalog import (
+    EXAM_CATALOG,
+    get_exam_format,
+    get_exam_topics,
+)
 from app.database import get_db
 from app.models.models import User, QuizSet
 from app.schemas import (
     GenerateMCQRequest, QuizSetOut, QuizSetSummary, TopicListItem,
     PastPaperSummary, PastPaperDetail, SubjectBreakdownItem,
+    AdaptivePracticeRequest,
 )
+from app.services.analytics_service import learning_breakdown
 from app.services.batch_generator import generate_large_mcqs
+from app.services.pdf_report import create_practice_paper_pdf
 
 router = APIRouter(prefix="/mcqs", tags=["mcqs"])
 
@@ -66,7 +75,7 @@ def _require_exact_questions(questions: list[dict], expected: int) -> None:
         raise HTTPException(
             502,
             detail=(
-                f"The AI service produced {len(questions)} unique questions "
+                f"The question service produced {len(questions)} unique questions "
                 f"instead of {expected}. Please try again."
             ),
         )
@@ -100,6 +109,7 @@ class MockTestRequest(BaseModel):
     difficulty: str = "Medium"
     quiz_minutes: int = 150
     exam_type: str | None = None
+    official_format: bool = False
 
 
 def _exam_for_request(current_user: User, requested_exam: str | None) -> str:
@@ -111,6 +121,26 @@ def _exam_for_request(current_user: User, requested_exam: str | None) -> str:
     if not current_user.is_admin and requested_exam != current_user.target_exam:
         raise HTTPException(403, detail="Only administrators can change test category")
     return requested_exam
+
+
+def _require_objective_section(exam_type: str, subject: str) -> None:
+    """Prevent descriptive/audio sections from silently becoming generic MCQs."""
+    section = next(
+        (
+            item for item in get_exam_format(exam_type)["sections"]
+            if item["name"].casefold() == subject.strip().casefold()
+        ),
+        None,
+    )
+    if section and section["kind"] != "mcq":
+        raise HTTPException(
+            422,
+            detail=(
+                f"{exam_type} {section['name']} is a {section['kind']} section, "
+                "not a generic MCQ quiz. Open Exam Format to practise it in "
+                "the correct section mode."
+            ),
+        )
 
 
 # Metadata describing the STRUCTURE of well-known MDCAT past papers
@@ -193,7 +223,30 @@ def _balanced_subject_breakdown(exam_type: str, total: int) -> dict[str, int]:
 
 def _past_paper_patterns_for(exam_type: str) -> dict[str, dict]:
     if exam_type == "MDCAT":
-        return PAST_PAPER_PATTERNS
+        result = {}
+        for paper_id, paper in PAST_PAPER_PATTERNS.items():
+            year = next(
+                (int(token) for token in paper["title"].split() if token.isdigit() and len(token) == 4),
+                2025,
+            )
+            result[paper_id] = {
+                **paper,
+                "exam_type": exam_type,
+                "year": year,
+                "subject": "All Subjects",
+                "board": "UHS" if "UHS" in paper["title"] else "PM&DC",
+                "source_type": "practice",
+                "is_official": False,
+                "download_available": True,
+                "official_source": get_exam_format(exam_type)["official_source"],
+            }
+        return result
+
+    # IELTS and PMS include skills that cannot be represented honestly as a
+    # generated MCQ paper. Their official preparation resources are still
+    # listed by the library, while practice happens section-by-section.
+    if not get_exam_format(exam_type)["supports_full_mcq_mock"]:
+        return {}
 
     settings = EXAM_PRACTICE_SETTINGS[exam_type]
     slug = exam_type.lower().replace(" ", "-")
@@ -219,8 +272,51 @@ def _past_paper_patterns_for(exam_type: str) -> dict[str, dict]:
             "subject_breakdown": _balanced_subject_breakdown(
                 exam_type, settings["questions"]
             ),
+            "exam_type": exam_type,
+            "year": 2025 - index,
+            "subject": "All Subjects",
+            "board": "Official exam format",
+            "source_type": "practice",
+            "is_official": False,
+            "download_available": True,
+            "official_source": get_exam_format(exam_type)["official_source"],
         }
         for index, title in enumerate(names)
+    }
+
+
+def _official_format_reference(exam_type: str) -> tuple[str, dict] | None:
+    profile = get_exam_format(exam_type)
+    if not profile.get("official_source"):
+        return None
+    slug = exam_type.lower().replace(" ", "-")
+    breakdown = {
+        section["name"]: section["questions"]
+        for section in profile["sections"]
+        if section.get("questions")
+    }
+    total = sum(breakdown.values()) or profile["total_questions"]
+    resource_source = {
+        "IELTS": (
+            "https://ielts.org/take-a-test/preparation-resources/"
+            "sample-test-questions/academic-test"
+        ),
+    }.get(exam_type, profile["official_source"])
+    return f"official-{slug}", {
+        "title": f"{profile['title']} — official format and resources",
+        "total_questions": total,
+        "quiz_minutes": profile["duration_minutes"],
+        "marks_per_correct": 1.0,
+        "marks_penalty_per_wrong": profile["negative_marking"],
+        "subject_breakdown": breakdown,
+        "exam_type": exam_type,
+        "year": int(profile["version"]) if str(profile["version"]).isdigit() else 2026,
+        "subject": "All Sections",
+        "board": "Official authority",
+        "source_type": "official",
+        "is_official": True,
+        "download_available": False,
+        "official_source": resource_source,
     }
 
 PAST_PAPER_INSTRUCTIONS = [
@@ -229,8 +325,14 @@ PAST_PAPER_INSTRUCTIONS = [
     "Marks are deducted for each wrong answer as shown above",
     "No mark is deducted for unanswered questions",
     "Use of calculator is not allowed",
-    "This is an AI-generated practice set following this exam's official "
+    "This is an original practice set following this exam's official "
     "pattern — not a reproduction of the original paper's questions.",
+]
+
+OFFICIAL_RESOURCE_INSTRUCTIONS = [
+    "This entry links to the examination authority's own format or sample resources.",
+    "Always check the authority page again before registration because rules can change.",
+    "Official material is linked, not copied or republished by this app.",
 ]
 
 
@@ -247,6 +349,7 @@ def generate_mcqs_endpoint(
     text = payload.text.strip() if payload.text else None
 
     exam_type = _exam_for_request(current_user, payload.exam_type)
+    _require_objective_section(exam_type, payload.subject)
     questions = generate_large_mcqs(
         total_questions=payload.number_of_questions,
         subject=payload.subject,
@@ -264,6 +367,9 @@ def generate_mcqs_endpoint(
         subject=payload.subject,
         difficulty=payload.difficulty,
         quiz_minutes=payload.quiz_minutes,
+        mode=payload.mode,
+        negative_marking=0.0,
+        format_version=get_exam_format(exam_type)["version"],
         source_filename=payload.source_filename,
         questions=questions,
     )
@@ -281,6 +387,15 @@ def exam_catalog():
     ]
 
 
+@router.get("/exam-format")
+def current_exam_format(
+    exam_type: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+):
+    selected_exam = _exam_for_request(current_user, exam_type)
+    return {"exam_type": selected_exam, **get_exam_format(selected_exam)}
+
+
 @router.get("/subjects", response_model=List[TopicListItem])
 def list_subjects_and_topics(
     exam_type: str | None = Query(default=None),
@@ -290,8 +405,8 @@ def list_subjects_and_topics(
     selected_exam = _exam_for_request(current_user, exam_type)
     if selected_exam != "MDCAT":
         return [
-            TopicListItem(subject=subject, topics=[subject])
-            for subject in EXAM_CATALOG[selected_exam]
+            TopicListItem(subject=subject, topics=topics)
+            for subject, topics in get_exam_topics(selected_exam).items()
         ]
     return [
         TopicListItem(subject=subject, topics=topics)
@@ -312,13 +427,29 @@ def generate_mock_test(
     all_questions: list[dict] = []
 
     exam_type = _exam_for_request(current_user, payload.exam_type)
-    if exam_type == "MDCAT":
-        counts = _allocate_mock_questions(payload.total_questions)
+    profile = get_exam_format(exam_type)
+    if not profile["supports_full_mcq_mock"]:
+        raise HTTPException(
+            422,
+            detail=(
+                f"{exam_type} is not a single MCQ examination. Open Exam "
+                "Format and practise its sections separately."
+            ),
+        )
+    if payload.official_format:
+        counts = dict(profile["mock_breakdown"])
+        expected_total = sum(counts.values())
+        quiz_minutes = int(profile["duration_minutes"])
     else:
-        subjects = EXAM_CATALOG[exam_type]
-        counts = {subject: payload.total_questions // len(subjects) for subject in subjects}
-        for subject in subjects[:payload.total_questions % len(subjects)]:
-            counts[subject] += 1
+        expected_total = payload.total_questions
+        quiz_minutes = payload.quiz_minutes
+        if exam_type == "MDCAT":
+            counts = _allocate_mock_questions(expected_total)
+        else:
+            subjects = EXAM_CATALOG[exam_type]
+            counts = {subject: expected_total // len(subjects) for subject in subjects}
+            for subject in subjects[:expected_total % len(subjects)]:
+                counts[subject] += 1
 
     for subject, count in counts.items():
 
@@ -331,16 +462,97 @@ def generate_mock_test(
         _require_exact_questions(questions, count)
         all_questions.extend(questions)
 
-    _require_exact_questions(all_questions, payload.total_questions)
+    _require_exact_questions(all_questions, expected_total)
 
     quiz_set = QuizSet(
         user_id=current_user.id,
         exam_type=exam_type,
         subject="Mixed (Mock Test)",
         difficulty=payload.difficulty,
-        quiz_minutes=payload.quiz_minutes,
+        quiz_minutes=quiz_minutes,
+        mode="official_mock" if payload.official_format else "mock_test",
+        negative_marking=profile["negative_marking"] if payload.official_format else 0.0,
+        format_version=profile["version"],
+        section_config=profile["sections"] if payload.official_format else None,
         source_filename=None,
         questions=all_questions,
+    )
+    db.add(quiz_set)
+    db.commit()
+    db.refresh(quiz_set)
+    return quiz_set
+
+
+@router.post("/adaptive-practice", response_model=QuizSetOut)
+def generate_adaptive_practice(
+    payload: AdaptivePracticeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_test_access),
+):
+    """Generate a test weighted toward weak topics and away from mastered ones."""
+    exam_type = current_user.target_exam
+    if not get_exam_format(exam_type)["supports_full_mcq_mock"]:
+        raise HTTPException(
+            422,
+            detail=(
+                f"Adaptive MCQ practice is not available for {exam_type}. "
+                "Open Exam Format for skill-specific practice."
+            ),
+        )
+    topic_catalog = get_exam_topics(exam_type)
+    analysis = learning_breakdown(db, current_user)
+    measured = analysis["topic_scores"]
+
+    candidates: list[dict] = []
+    if measured:
+        # A low accuracy produces a higher allocation weight. Mastered topics
+        # remain represented, but receive far fewer questions.
+        for item in measured:
+            accuracy = float(item["accuracy"])
+            weight = 4 if accuracy < 50 else 3 if accuracy < 70 else 1
+            candidates.extend([item] * weight)
+    else:
+        candidates = [
+            {"subject": subject, "topic": topic, "accuracy": 0.0}
+            for subject, topics in topic_catalog.items()
+            for topic in topics[:2]
+        ]
+
+    if not candidates:
+        raise HTTPException(422, detail="No syllabus topics are available for this exam")
+
+    allocation = Counter()
+    for index in range(payload.number_of_questions):
+        item = candidates[index % len(candidates)]
+        allocation[(item["subject"], item["topic"])] += 1
+
+    questions: list[dict] = []
+    plan = []
+    for (subject, topic), count in allocation.items():
+        generated = generate_large_mcqs(
+            total_questions=count,
+            subject=subject,
+            topic=topic,
+            difficulty=payload.difficulty,
+            exam_type=exam_type,
+        )
+        _require_exact_questions(generated, count)
+        questions.extend(generated)
+        plan.append({"subject": subject, "topic": topic, "questions": count})
+
+    _require_exact_questions(questions, payload.number_of_questions)
+    quiz_set = QuizSet(
+        user_id=current_user.id,
+        exam_type=exam_type,
+        subject="Adaptive Practice",
+        difficulty=payload.difficulty,
+        quiz_minutes=payload.quiz_minutes,
+        mode="adaptive",
+        negative_marking=0.0,
+        format_version=get_exam_format(exam_type)["version"],
+        section_config=plan,
+        source_filename=None,
+        questions=questions,
     )
     db.add(quiz_set)
     db.commit()
@@ -375,17 +587,45 @@ def list_quiz_sets(
 # ---------- Past Papers (pattern-based, AI-generated) ----------
 
 @router.get("/past-papers", response_model=List[PastPaperSummary])
-def list_past_papers(current_user: User = Depends(get_current_user)):
-    patterns = _past_paper_patterns_for(current_user.target_exam)
-    return [
+def list_past_papers(
+    exam_type: str | None = Query(default=None),
+    year: int | None = Query(default=None),
+    subject: str | None = Query(default=None),
+    board: str | None = Query(default=None),
+    source_type: str | None = Query(default=None, pattern="^(official|practice)$"),
+    current_user: User = Depends(get_current_user),
+):
+    selected_exam = _exam_for_request(current_user, exam_type)
+    patterns = _past_paper_patterns_for(selected_exam)
+    reference = _official_format_reference(selected_exam)
+    if reference:
+        patterns[reference[0]] = reference[1]
+    rows = [
         PastPaperSummary(
             id=paper_id,
             title=p["title"],
             total_questions=p["total_questions"],
             quiz_minutes=p["quiz_minutes"],
+            exam_type=p["exam_type"],
+            year=p["year"],
+            subject=p["subject"],
+            board=p["board"],
+            source_type=p["source_type"],
+            is_official=p["is_official"],
+            download_available=p["download_available"],
+            official_source=p.get("official_source"),
         )
         for paper_id, p in patterns.items()
     ]
+    if year is not None:
+        rows = [item for item in rows if item.year == year]
+    if subject:
+        rows = [item for item in rows if subject.lower() in item.subject.lower()]
+    if board:
+        rows = [item for item in rows if board.lower() in item.board.lower()]
+    if source_type:
+        rows = [item for item in rows if item.source_type == source_type]
+    return rows
 
 
 @router.get("/past-papers/{paper_id}", response_model=PastPaperDetail)
@@ -393,7 +633,12 @@ def get_past_paper_detail(
     paper_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    paper = _past_paper_patterns_for(current_user.target_exam).get(paper_id)
+    exam_type = current_user.target_exam
+    patterns = _past_paper_patterns_for(exam_type)
+    reference = _official_format_reference(exam_type)
+    if reference:
+        patterns[reference[0]] = reference[1]
+    paper = patterns.get(paper_id)
     if not paper:
         raise HTTPException(404, detail="Past paper pattern not found")
 
@@ -416,7 +661,18 @@ def get_past_paper_detail(
         marks_per_correct=paper["marks_per_correct"],
         marks_penalty_per_wrong=paper["marks_penalty_per_wrong"],
         subject_breakdown=breakdown,
-        instructions=PAST_PAPER_INSTRUCTIONS,
+        instructions=(
+            OFFICIAL_RESOURCE_INSTRUCTIONS
+            if paper["is_official"]
+            else PAST_PAPER_INSTRUCTIONS
+        ),
+        exam_type=paper["exam_type"],
+        year=paper["year"],
+        subject=paper["subject"],
+        board=paper["board"],
+        source_type=paper["source_type"],
+        is_official=paper["is_official"],
+        official_source=paper.get("official_source"),
     )
 
 
@@ -434,6 +690,8 @@ def generate_from_past_paper(
     paper = _past_paper_patterns_for(exam_type).get(paper_id)
     if not paper:
         raise HTTPException(404, detail="Past paper pattern not found")
+    if paper.get("is_official"):
+        raise HTTPException(422, detail="Open the official source instead of generating it")
 
     all_questions: list[dict] = []
     for subject, count in paper["subject_breakdown"].items():
@@ -456,6 +714,13 @@ def generate_from_past_paper(
         subject=f"Past Paper Pattern: {paper['title']}",
         difficulty="Medium",
         quiz_minutes=paper["quiz_minutes"],
+        mode="past_paper_practice",
+        negative_marking=paper["marks_penalty_per_wrong"],
+        format_version=get_exam_format(exam_type)["version"],
+        section_config=[
+            {"subject": subject, "questions": count}
+            for subject, count in paper["subject_breakdown"].items()
+        ],
         source_filename=None,
         questions=all_questions,
     )
@@ -463,6 +728,41 @@ def generate_from_past_paper(
     db.commit()
     db.refresh(quiz_set)
     return quiz_set
+
+
+@router.get("/past-papers/{paper_id}/download")
+def download_practice_paper(
+    paper_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_test_access),
+):
+    """Create an original practice paper PDF for offline study."""
+    exam_type = current_user.target_exam
+    paper = _past_paper_patterns_for(exam_type).get(paper_id)
+    if not paper or not paper.get("download_available", True):
+        raise HTTPException(404, detail="A downloadable practice paper is not available")
+
+    questions: list[dict] = []
+    for subject, count in paper["subject_breakdown"].items():
+        if count <= 0:
+            continue
+        generated = generate_large_mcqs(
+            total_questions=count,
+            subject=subject,
+            difficulty="Medium",
+            exam_type=exam_type,
+        )
+        _require_exact_questions(generated, count)
+        questions.extend(generated)
+    path = create_practice_paper_pdf(
+        title=paper["title"],
+        exam_type=exam_type,
+        minutes=paper["quiz_minutes"],
+        questions=questions,
+        negative_marking=paper["marks_penalty_per_wrong"],
+    )
+    filename = f"{exam_type.replace(' ', '_')}_Practice_{paper['year']}.pdf"
+    return FileResponse(path, media_type="application/pdf", filename=filename)
 
 
 @router.get("/{quiz_set_id}", response_model=QuizSetOut)
