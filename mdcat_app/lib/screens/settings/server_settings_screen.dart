@@ -261,14 +261,14 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                 const SizedBox(height: 8),
                 _themeOption(
                   context,
-                  label: "Light",
+                  label: "White",
                   icon: Icons.light_mode_outlined,
                   mode: AppAppearance.light,
                   current: themeProvider.appearance,
                 ),
                 _themeOption(
                   context,
-                  label: "Dark",
+                  label: "Black",
                   icon: Icons.dark_mode_outlined,
                   mode: AppAppearance.dark,
                   current: themeProvider.appearance,
@@ -282,7 +282,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Light makes every screen light, Dark makes every screen "
+                  "White makes every screen white, Black makes every screen "
                   "black, and Default restores the original navy design.",
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),

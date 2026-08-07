@@ -5,7 +5,7 @@ class AppTheme {
     0xFF2E7D6B,
   ); // teal-green, MDCAT/biology feel
   static const Color primaryDark = Color(0xFF1E5A4C);
-  static const Color background = Color(0xFFF7F9F8);
+  static const Color background = Colors.white;
 
   static ThemeData get theme {
     final scheme = ColorScheme.fromSeed(
@@ -20,9 +20,10 @@ class AppTheme {
       scaffoldBackgroundColor: background,
       colorScheme: scheme,
       appBarTheme: AppBarTheme(
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -58,7 +59,7 @@ class AppTheme {
 
   static ThemeData get darkTheme => _buildDarkTheme(
     background: Colors.black,
-    surface: const Color(0xFF121212),
+    surface: Colors.black,
   );
 
   static ThemeData _buildDarkTheme({
@@ -81,6 +82,7 @@ class AppTheme {
         backgroundColor: surface,
         foregroundColor: Colors.white,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -116,6 +118,13 @@ extension AppThemeColors on BuildContext {
   Color get primaryTextColor => Theme.of(this).colorScheme.onSurface;
   Color get secondaryTextColor => Theme.of(this).colorScheme.onSurfaceVariant;
   Color get subtleBorderColor => Theme.of(this).colorScheme.outlineVariant;
+  Color get insetPanelColor {
+    final surface = Theme.of(this).colorScheme.surface;
+    return surface == const Color(0xFF101F32)
+        ? const Color(0xFF0C192A)
+        : surface;
+  }
+
   Color get inactiveColor =>
       Theme.of(this).colorScheme.onSurfaceVariant.withOpacity(.62);
 }
