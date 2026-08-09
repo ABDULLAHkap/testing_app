@@ -7,6 +7,7 @@ os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 
 from app.routers.mcqs import (
+    _allocate_exam_practice_questions,
     _allocate_mock_questions,
     _official_format_reference,
     _past_paper_patterns_for,
@@ -27,7 +28,13 @@ def _question(text: str) -> dict:
 class CoreTests(unittest.TestCase):
     def test_past_papers_match_selected_exam(self):
         ielts_patterns = _past_paper_patterns_for("IELTS")
-        self.assertEqual(ielts_patterns, {})
+        self.assertEqual(len(ielts_patterns), 3)
+        self.assertTrue(
+            all(item["exam_type"] == "IELTS" for item in ielts_patterns.values())
+        )
+        self.assertTrue(
+            all(item["download_available"] for item in ielts_patterns.values())
+        )
         _resource_id, resource = _official_format_reference("IELTS")
         self.assertIn("IELTS", resource["title"])
         self.assertNotIn("MDCAT", resource["title"])
@@ -42,6 +49,16 @@ class CoreTests(unittest.TestCase):
             allocation = _allocate_mock_questions(total)
             self.assertEqual(sum(allocation.values()), total)
             self.assertTrue(all(count >= 1 for count in allocation.values()))
+
+    def test_every_exam_has_daily_quiz_and_mock_allocation(self):
+        from app.exam_catalog import EXAM_CATALOG, get_exam_format
+
+        for exam_type in EXAM_CATALOG:
+            daily = _allocate_exam_practice_questions(exam_type, 10)
+            self.assertEqual(sum(daily.values()), 10, exam_type)
+            self.assertTrue(all(count > 0 for count in daily.values()), exam_type)
+            self.assertTrue(get_exam_format(exam_type)["mock_breakdown"], exam_type)
+            self.assertTrue(_past_paper_patterns_for(exam_type), exam_type)
 
     def test_public_quiz_schema_hides_answers(self):
         quiz = QuizSetOut.model_validate(

@@ -381,15 +381,35 @@ class ApiClient {
 
   Future<List<int>> downloadPastPaper(String paperId) async {
     final baseUrl = await getBaseUrl();
-    final resp = await http.get(
-      Uri.parse("$baseUrl/mcqs/past-papers/$paperId/download"),
+    final started = await http.post(
+      Uri.parse("$baseUrl/mcqs/past-papers/$paperId/download-jobs"),
       headers: await _authHeaders(),
     );
-    if (resp.statusCode != 200) {
-      _decodeOrThrow(resp);
-      throw ApiException(resp.statusCode, 'Could not download practice paper');
+    final startData = Map<String, dynamic>.from(_decodeOrThrow(started));
+    final jobId = startData['job_id']?.toString();
+    if (jobId == null || jobId.isEmpty) {
+      throw ApiException(500, 'Download preparation did not start');
     }
-    return resp.bodyBytes;
+
+    // Large practice papers can require several question-generation batches.
+    // Polling keeps every HTTP request short, avoiding browser/proxy timeouts.
+    for (var attempt = 0; attempt < 180; attempt++) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      final resp = await http.get(
+        Uri.parse("$baseUrl/mcqs/past-papers/download-jobs/$jobId"),
+        headers: await _authHeaders(),
+      );
+      if (resp.statusCode == 200 &&
+          (resp.headers['content-type'] ?? '').contains('application/pdf')) {
+        return resp.bodyBytes;
+      }
+      final data = _decodeOrThrow(resp);
+      if (data is Map && data['status'] == 'preparing') continue;
+    }
+    throw ApiException(
+      408,
+      'The paper is still being prepared. Please try again shortly.',
+    );
   }
 
   Future<PastPaperDetail> getPastPaperDetail(String paperId) async {
