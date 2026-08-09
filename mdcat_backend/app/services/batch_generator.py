@@ -17,7 +17,10 @@ def generate_large_mcqs(
     and concatenate the resulting lists.
     """
     batch_size = 20
-    max_calls = math.ceil(total_questions / batch_size) + 3
+    # One repair call is enough; route-level fallbacks fill any remainder.
+    # The previous three extra calls could keep a web request open until the
+    # Flutter client timed out when the provider returned empty JSON.
+    max_calls = math.ceil(total_questions / batch_size) + 1
     all_mcqs: list[dict] = []
     seen_questions: set[str] = set()
 
@@ -35,6 +38,8 @@ def generate_large_mcqs(
             text=text,
             exam_type=exam_type,
         )
+        if not result:
+            break
         for question in result:
             normalized = " ".join(question["question"].lower().split())
             if normalized in seen_questions:
