@@ -579,16 +579,44 @@ def generate_mock_test(
         quiz_minutes = payload.quiz_minutes
         counts = _allocate_exam_practice_questions(exam_type, expected_total)
 
-    for subject, count in counts.items():
-
-        questions = generate_large_mcqs(
-            total_questions=count,
-            subject=subject,
-            difficulty=payload.difficulty,
-            exam_type=exam_type,
-        )
-        _require_exact_questions(questions, count)
-        all_questions.extend(questions)
+    # Daily challenges use a small mixed test. Generating each section in a
+    # separate provider request makes the browser wait for five sequential
+    # network calls. Use one mixed request, then fall back locally if needed.
+    if not payload.official_format and expected_total <= 20:
+        subjects = ", ".join(counts)
+        try:
+            all_questions = generate_large_mcqs(
+                total_questions=expected_total,
+                subject=f"Mixed sections: {subjects}",
+                difficulty=payload.difficulty,
+                exam_type=exam_type,
+            )
+        except Exception:
+            logger.warning("Mixed daily quiz provider request failed", exc_info=True)
+            all_questions = []
+        missing = expected_total - min(len(all_questions), expected_total)
+        if missing:
+            fallback: list[dict] = []
+            for subject, count in counts.items():
+                fallback.extend(
+                    _offline_download_questions(
+                        exam_type=exam_type,
+                        subject=subject,
+                        count=count,
+                    )
+                )
+            all_questions.extend(fallback[:missing])
+        all_questions = all_questions[:expected_total]
+    else:
+        for subject, count in counts.items():
+            questions = generate_large_mcqs(
+                total_questions=count,
+                subject=subject,
+                difficulty=payload.difficulty,
+                exam_type=exam_type,
+            )
+            _require_exact_questions(questions, count)
+            all_questions.extend(questions)
 
     _require_exact_questions(all_questions, expected_total)
 
