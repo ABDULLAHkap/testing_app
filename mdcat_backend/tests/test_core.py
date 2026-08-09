@@ -9,6 +9,7 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 from app.routers.mcqs import (
     _build_download_questions,
     _compact_download_breakdown,
+    _offline_download_questions,
     _allocate_exam_practice_questions,
     _allocate_mock_questions,
     _official_format_reference,
@@ -16,6 +17,7 @@ from app.routers.mcqs import (
 )
 from app.schemas import QuizSetOut
 from app.services.batch_generator import generate_large_mcqs
+from app.services.pdf_report import create_practice_paper_pdf
 
 
 def _question(text: str) -> dict:
@@ -86,6 +88,26 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len(questions), 25)
         self.assertTrue(all(len(item["options"]) == 4 for item in questions))
         self.assertTrue(all(item["correct_option"] == "A" for item in questions))
+
+    def test_practice_pdf_renders_multiple_paragraphs(self):
+        questions = _offline_download_questions(
+            exam_type="MDCAT",
+            subject="Biology",
+            count=2,
+        )
+        path = create_practice_paper_pdf(
+            title="MDCAT compact test",
+            exam_type="MDCAT",
+            minutes=15,
+            questions=questions,
+            negative_marking=0,
+        )
+        try:
+            self.assertGreater(os.path.getsize(path), 500)
+            with open(path, "rb") as handle:
+                self.assertEqual(handle.read(4), b"%PDF")
+        finally:
+            os.remove(path)
 
     def test_public_quiz_schema_hides_answers(self):
         quiz = QuizSetOut.model_validate(
