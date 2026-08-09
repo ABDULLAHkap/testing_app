@@ -1,8 +1,12 @@
 import math
+import os
+import time
+import uuid
 from collections import Counter
+from threading import Lock
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -25,6 +29,11 @@ from app.services.batch_generator import generate_large_mcqs
 from app.services.pdf_report import create_practice_paper_pdf
 
 router = APIRouter(prefix="/mcqs", tags=["mcqs"])
+
+
+_download_jobs: dict[str, dict] = {}
+_download_jobs_lock = Lock()
+_DOWNLOAD_JOB_TTL_SECONDS = 60 * 60
 
 
 # Curated MDCAT subject/topic structure (per the standard Pakistani MDCAT
@@ -102,6 +111,32 @@ def _allocate_mock_questions(total: int) -> dict[str, int]:
         assigned += 1
 
     return counts
+
+
+def _allocate_exam_practice_questions(
+    exam_type: str,
+    total: int,
+) -> dict[str, int]:
+    """Allocate quiz questions across sections that support objective practice.
+
+    Some examinations also contain essays, interviews or audio tasks. Their
+    ``mock_breakdown`` deliberately contains only the sections that this quiz
+    engine can grade reliably, so every category can still offer a daily quiz
+    without pretending that an MCQ set reproduces the entire examination.
+    """
+    if exam_type == "MDCAT":
+        return _allocate_mock_questions(total)
+
+    subjects = list(get_exam_format(exam_type)["mock_breakdown"])
+    if not subjects:
+        raise HTTPException(
+            422,
+            detail=f"No objective practice sections are configured for {exam_type}",
+        )
+    counts = {subject: total // len(subjects) for subject in subjects}
+    for subject in subjects[: total % len(subjects)]:
+        counts[subject] += 1
+    return {subject: count for subject, count in counts.items() if count > 0}
 
 
 class MockTestRequest(BaseModel):
@@ -241,12 +276,6 @@ def _past_paper_patterns_for(exam_type: str) -> dict[str, dict]:
                 "official_source": get_exam_format(exam_type)["official_source"],
             }
         return result
-
-    # IELTS and PMS include skills that cannot be represented honestly as a
-    # generated MCQ paper. Their official preparation resources are still
-    # listed by the library, while practice happens section-by-section.
-    if not get_exam_format(exam_type)["supports_full_mcq_mock"]:
-        return {}
 
     settings = EXAM_PRACTICE_SETTINGS[exam_type]
     slug = exam_type.lower().replace(" ", "-")
@@ -428,14 +457,6 @@ def generate_mock_test(
 
     exam_type = _exam_for_request(current_user, payload.exam_type)
     profile = get_exam_format(exam_type)
-    if not profile["supports_full_mcq_mock"]:
-        raise HTTPException(
-            422,
-            detail=(
-                f"{exam_type} is not a single MCQ examination. Open Exam "
-                "Format and practise its sections separately."
-            ),
-        )
     if payload.official_format:
         counts = dict(profile["mock_breakdown"])
         expected_total = sum(counts.values())
@@ -443,13 +464,7 @@ def generate_mock_test(
     else:
         expected_total = payload.total_questions
         quiz_minutes = payload.quiz_minutes
-        if exam_type == "MDCAT":
-            counts = _allocate_mock_questions(expected_total)
-        else:
-            subjects = EXAM_CATALOG[exam_type]
-            counts = {subject: expected_total // len(subjects) for subject in subjects}
-            for subject in subjects[:expected_total % len(subjects)]:
-                counts[subject] += 1
+        counts = _allocate_exam_practice_questions(exam_type, expected_total)
 
     for subject, count in counts.items():
 
@@ -470,7 +485,13 @@ def generate_mock_test(
         subject="Mixed (Mock Test)",
         difficulty=payload.difficulty,
         quiz_minutes=quiz_minutes,
-        mode="official_mock" if payload.official_format else "mock_test",
+        mode=(
+            "official_mock"
+            if payload.official_format and profile["supports_full_mcq_mock"]
+            else "structured_practice_mock"
+            if payload.official_format
+            else "mock_test"
+        ),
         negative_marking=profile["negative_marking"] if payload.official_format else 0.0,
         format_version=profile["version"],
         section_config=profile["sections"] if payload.official_format else None,
@@ -763,6 +784,124 @@ def download_practice_paper(
     )
     filename = f"{exam_type.replace(' ', '_')}_Practice_{paper['year']}.pdf"
     return FileResponse(path, media_type="application/pdf", filename=filename)
+
+
+def _remove_expired_download_jobs() -> None:
+    cutoff = time.time() - _DOWNLOAD_JOB_TTL_SECONDS
+    expired_paths: list[str] = []
+    with _download_jobs_lock:
+        expired_ids = [
+            job_id
+            for job_id, job in _download_jobs.items()
+            if job["created_at"] < cutoff
+        ]
+        for job_id in expired_ids:
+            job = _download_jobs.pop(job_id)
+            if job.get("path"):
+                expired_paths.append(job["path"])
+    for path in expired_paths:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+
+
+def _prepare_practice_paper_download(
+    job_id: str,
+    paper: dict,
+    exam_type: str,
+) -> None:
+    try:
+        questions: list[dict] = []
+        for subject, count in paper["subject_breakdown"].items():
+            if count <= 0:
+                continue
+            generated = generate_large_mcqs(
+                total_questions=count,
+                subject=subject,
+                difficulty="Medium",
+                exam_type=exam_type,
+            )
+            if len(generated) != count:
+                raise RuntimeError(
+                    f"Question service produced {len(generated)} of {count} "
+                    f"questions for {subject}"
+                )
+            questions.extend(generated)
+        path = create_practice_paper_pdf(
+            title=paper["title"],
+            exam_type=exam_type,
+            minutes=paper["quiz_minutes"],
+            questions=questions,
+            negative_marking=paper["marks_penalty_per_wrong"],
+        )
+        with _download_jobs_lock:
+            job = _download_jobs.get(job_id)
+            if job:
+                job.update(status="ready", path=path)
+    except Exception:
+        # Avoid exposing provider or infrastructure details to the client.
+        with _download_jobs_lock:
+            job = _download_jobs.get(job_id)
+            if job:
+                job.update(
+                    status="failed",
+                    error="The practice paper could not be prepared. Please try again.",
+                )
+
+
+@router.post("/past-papers/{paper_id}/download-jobs", status_code=202)
+def start_practice_paper_download(
+    paper_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_test_access),
+):
+    """Prepare a large PDF outside the browser request to avoid proxy timeouts."""
+    _remove_expired_download_jobs()
+    exam_type = current_user.target_exam
+    paper = _past_paper_patterns_for(exam_type).get(paper_id)
+    if not paper or not paper.get("download_available", True):
+        raise HTTPException(404, detail="A downloadable practice paper is not available")
+
+    job_id = uuid.uuid4().hex
+    filename = f"{exam_type.replace(' ', '_')}_Practice_{paper['year']}.pdf"
+    with _download_jobs_lock:
+        _download_jobs[job_id] = {
+            "user_id": current_user.id,
+            "status": "preparing",
+            "created_at": time.time(),
+            "filename": filename,
+            "path": None,
+            "error": None,
+        }
+    background_tasks.add_task(
+        _prepare_practice_paper_download,
+        job_id,
+        dict(paper),
+        exam_type,
+    )
+    return {"job_id": job_id, "status": "preparing"}
+
+
+@router.get("/past-papers/download-jobs/{job_id}")
+def get_practice_paper_download(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    with _download_jobs_lock:
+        job = _download_jobs.get(job_id)
+        snapshot = dict(job) if job else None
+    if not snapshot or snapshot["user_id"] != current_user.id:
+        raise HTTPException(404, detail="Download preparation was not found")
+    if snapshot["status"] == "failed":
+        raise HTTPException(502, detail=snapshot["error"])
+    if snapshot["status"] != "ready":
+        return {"job_id": job_id, "status": "preparing"}
+    return FileResponse(
+        snapshot["path"],
+        media_type="application/pdf",
+        filename=snapshot["filename"],
+    )
 
 
 @router.get("/{quiz_set_id}", response_model=QuizSetOut)

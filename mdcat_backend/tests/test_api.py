@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
@@ -100,6 +101,60 @@ class ApiTests(unittest.TestCase):
             },
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_past_paper_download_is_prepared_in_background(self):
+        def generated_questions(*, total_questions, subject, **_kwargs):
+            return [
+                {
+                    "question": f"{subject} question {index}",
+                    "options": ["A", "B", "C", "D"],
+                    "correct_option": "A",
+                    "explanation": "Test explanation",
+                }
+                for index in range(total_questions)
+            ]
+
+        descriptor, pdf_path = tempfile.mkstemp(suffix=".pdf")
+        os.write(descriptor, b"%PDF-1.4 test practice paper")
+        os.close(descriptor)
+        try:
+            with SessionLocal() as db:
+                from app.models.models import User
+
+                user = db.query(User).filter(User.email == "student@example.com").first()
+                user.is_admin = True
+                db.commit()
+
+            with patch(
+                "app.routers.mcqs.generate_large_mcqs",
+                side_effect=generated_questions,
+            ), patch(
+                "app.routers.mcqs.create_practice_paper_pdf",
+                return_value=pdf_path,
+            ):
+                started = self.client.post(
+                    "/mcqs/past-papers/uhs-2025-c/download-jobs",
+                    headers=self.headers,
+                )
+            self.assertEqual(started.status_code, 202, started.text)
+            job_id = started.json()["job_id"]
+
+            downloaded = self.client.get(
+                f"/mcqs/past-papers/download-jobs/{job_id}",
+                headers=self.headers,
+            )
+            self.assertEqual(downloaded.status_code, 200, downloaded.text)
+            self.assertEqual(downloaded.headers["content-type"], "application/pdf")
+            self.assertTrue(downloaded.content.startswith(b"%PDF"))
+        finally:
+            with SessionLocal() as db:
+                from app.models.models import User
+
+                user = db.query(User).filter(User.email == "student@example.com").first()
+                user.is_admin = False
+                db.commit()
+            if os.path.exists(pdf_path):
+                os.remove(pdf_path)
 
     def test_student_changes_email_after_old_email_otp(self):
         with SessionLocal() as db:
@@ -634,28 +689,34 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(sat_format.status_code, 200, sat_format.text)
         self.assertFalse(sat_format.json()["supports_full_mcq_mock"])
 
-        generated = [
-            {
-                "question": f"Question {index}",
-                "options": ["A", "B", "C", "D"],
-                "correct_option": "A",
-                "explanation": "Test explanation",
-            }
-            for index in range(5)
-        ]
-        with patch("app.routers.mcqs.generate_large_mcqs", return_value=generated):
+        def generated_questions(*, total_questions, subject, **_kwargs):
+            return [
+                {
+                    "question": f"{subject} question {index}",
+                    "options": ["A", "B", "C", "D"],
+                    "correct_option": "A",
+                    "explanation": "Test explanation",
+                }
+                for index in range(total_questions)
+            ]
+
+        with patch(
+            "app.routers.mcqs.generate_large_mcqs",
+            side_effect=generated_questions,
+        ):
             response = self.client.post(
                 "/mcqs/mock-test",
                 headers=self.headers,
                 json={
-                    "total_questions": 20,
+                    "total_questions": 10,
                     "quiz_minutes": 20,
                     "difficulty": "Medium",
                     "exam_type": "IELTS",
                 },
             )
-        self.assertEqual(response.status_code, 422, response.text)
-        self.assertIn("not a single MCQ", response.json()["detail"])
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["exam_type"], "IELTS")
+        self.assertEqual(len(response.json()["questions"]), 10)
 
         writing = self.client.post(
             "/mcqs/generate",

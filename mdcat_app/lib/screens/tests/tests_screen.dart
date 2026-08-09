@@ -135,38 +135,29 @@ class _OnlineQuizzesTab extends StatelessWidget {
           context,
           icon: Icons.assignment_rounded,
           color: const Color(0xFFE0A429),
-          title: sectionBased
-              ? "Section-Based Mock Practice"
-              : "Full Mock Test",
-          subtitle: sectionBased
-              ? "Practise the official $exam sections separately"
-              : "Full-length $exam test covering all selected subjects",
-          onTap: sectionBased
-              ? openSections
-              : () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const MockTestScreen()),
-                ),
+          title: "$exam Mock Test",
+          subtitle: "$exam objective practice across its configured sections",
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => MockTestScreen(examType: exam)),
+          ),
         ),
         const SizedBox(height: 12),
         _linkCard(
           context,
           icon: Icons.local_fire_department,
           color: const Color(0xFFE0A429),
-          title: sectionBased ? "Daily Section Practice" : "Daily Challenge",
-          subtitle: sectionBased
-              ? "Continue one focused $exam skill session"
-              : "10 $exam questions • 15 min • All subjects",
-          onTap: sectionBased
-              ? openSections
-              : () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MockTestScreen(
-                      presetTotalQuestions: 10,
-                      presetMinutes: 15,
-                      title: "Daily Challenge",
-                    ),
-                  ),
-                ),
+          title: "$exam Daily Quiz",
+          subtitle: "10 $exam questions • 15 min • Objective sections",
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MockTestScreen(
+                presetTotalQuestions: 10,
+                presetMinutes: 15,
+                title: "Daily Quiz",
+                examType: exam,
+              ),
+            ),
+          ),
         ),
       ],
     );

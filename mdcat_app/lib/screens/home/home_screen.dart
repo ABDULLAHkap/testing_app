@@ -337,7 +337,6 @@ class _HomeScreenState extends State<HomeScreen> {
   );
 
   Widget _featureCards(String exam) {
-    final sectionBased = exam == 'IELTS' || exam == 'PMS' || exam == 'SAT';
     void openSections() => Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => ExamFormatScreen(examType: exam)));
@@ -347,9 +346,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _featureCard(
             Icons.track_changes_rounded,
             _cyan,
-            sectionBased ? 'Daily Section' : 'Daily Challenge',
-            sectionBased ? 'Focused $exam skill' : 'Curated $exam questions',
-            sectionBased ? openSections : () => _dailyChallenge(exam),
+            'Daily Quiz',
+            '10 curated $exam questions',
+            () => _dailyChallenge(exam),
           ),
         ),
         const SizedBox(width: 10),
@@ -357,11 +356,13 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _featureCard(
             Icons.menu_book_rounded,
             const Color(0xFF45A8FF),
-            sectionBased ? 'Practice Sections' : 'Practice by Topic',
-            sectionBased
+            exam == 'IELTS' || exam == 'PMS' || exam == 'SAT'
+                ? 'Practice Sections'
+                : 'Practice by Topic',
+            exam == 'IELTS' || exam == 'PMS' || exam == 'SAT'
                 ? 'Use the real skill modes'
                 : 'Strengthen your concepts',
-            sectionBased
+            exam == 'IELTS' || exam == 'PMS' || exam == 'SAT'
                 ? openSections
                 : () => Navigator.of(context).push(
                     MaterialPageRoute(
@@ -375,15 +376,13 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _featureCard(
             Icons.assignment_turned_in_outlined,
             const Color(0xFFE0A429),
-            sectionBased ? 'Exam Format' : 'Full Mock Test',
-            sectionBased ? 'Real $exam sections' : 'Real $exam experience',
-            sectionBased
-                ? openSections
-                : () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => MockTestScreen(examType: exam),
-                    ),
-                  ),
+            'Mock Test',
+            '$exam objective practice',
+            () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MockTestScreen(examType: exam),
+              ),
+            ),
           ),
         ),
       ],
@@ -395,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (_) => MockTestScreen(
         presetTotalQuestions: 10,
         presetMinutes: 15,
-        title: 'Daily Challenge',
+        title: 'Daily Quiz',
         examType: exam,
       ),
     ),

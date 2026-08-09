@@ -6,7 +6,6 @@ import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../utils/exam_content.dart';
 import '../quiz/quiz_screen.dart';
-import 'exam_format_screen.dart';
 
 class MockTestScreen extends StatefulWidget {
   final int? presetTotalQuestions;
@@ -54,7 +53,7 @@ class _MockTestScreenState extends State<MockTestScreen> {
       if (!mounted) return;
       setState(() {
         _format = format;
-        if (!_isPreset && format.supportsFullMcqMock) {
+        if (!_isPreset) {
           _totalQuestions = format.totalQuestions;
           _quizMinutes = format.durationMinutes;
         }
@@ -99,47 +98,6 @@ class _MockTestScreenState extends State<MockTestScreen> {
     if (_loadingFormat) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (_format?.supportsFullMcqMock == false) {
-      return Scaffold(
-        appBar: AppBar(title: Text('$exam Exam Sections')),
-        body: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.view_module_outlined, size: 64),
-              const SizedBox(height: 16),
-              Text(
-                '$exam needs section-based preparation.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'A fixed generic MCQ set would not reproduce this exam accurately. Use its official sections and supported question modes instead.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Theme.of(context).textTheme.bodySmall?.color,
-                ),
-              ),
-              const SizedBox(height: 22),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => ExamFormatScreen(examType: widget.examType),
-                  ),
-                ),
-                icon: const Icon(Icons.account_tree_outlined),
-                label: const Text('Open Exam Sections'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
     return Scaffold(
       appBar: AppBar(title: Text("$exam ${widget.title}")),
       body: Padding(
@@ -154,7 +112,9 @@ class _MockTestScreenState extends State<MockTestScreen> {
             const SizedBox(height: 24),
             if (!_isPreset) ...[
               Text(
-                'Official ${_format?.version ?? ''} format',
+                _format?.supportsFullMcqMock == true
+                    ? 'Official ${_format?.version ?? ''} format'
+                    : '$exam objective practice format',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
@@ -167,6 +127,10 @@ class _MockTestScreenState extends State<MockTestScreen> {
                     ? 'No negative marking'
                     : '${_format!.negativeMarking} deducted per wrong answer',
               ),
+              if (_format?.supportsFullMcqMock == false)
+                const Text(
+                  'Writing, speaking or other descriptive sections remain available under Official Exam Format.',
+                ),
               const SizedBox(height: 16),
             ] else ...[
               Text(
