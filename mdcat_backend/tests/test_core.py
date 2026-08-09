@@ -7,6 +7,7 @@ os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 
 from app.routers.mcqs import (
+    _build_download_questions,
     _compact_download_breakdown,
     _allocate_exam_practice_questions,
     _allocate_mock_questions,
@@ -75,6 +76,16 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(sum(compact.values()), 25)
         self.assertTrue(all(count >= 1 for count in compact.values()))
         self.assertGreater(compact["Biology"], compact["English"])
+
+    @patch("app.routers.mcqs.generate_large_mcqs", side_effect=RuntimeError("quota"))
+    def test_download_questions_fall_back_when_provider_fails(self, _generate):
+        questions = _build_download_questions(
+            exam_type="MDCAT",
+            subject_breakdown={"Biology": 81, "Chemistry": 45},
+        )
+        self.assertEqual(len(questions), 25)
+        self.assertTrue(all(len(item["options"]) == 4 for item in questions))
+        self.assertTrue(all(item["correct_option"] == "A" for item in questions))
 
     def test_public_quiz_schema_hides_answers(self):
         quiz = QuizSetOut.model_validate(
