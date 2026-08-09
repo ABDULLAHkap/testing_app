@@ -15,7 +15,10 @@ def _get_client() -> Groq:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise RuntimeError("GROQ_API_KEY is required for MCQ generation")
-    return Groq(api_key=api_key, timeout=120)
+    # Web clients should receive the app's local fallback promptly when the
+    # provider is slow or rate-limited, rather than waiting two minutes and
+    # surfacing an opaque `Failed to fetch` error.
+    return Groq(api_key=api_key, timeout=6, max_retries=0)
 
 
 def generate_mcqs(
