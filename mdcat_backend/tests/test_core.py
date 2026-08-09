@@ -7,6 +7,7 @@ os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 
 from app.routers.mcqs import (
+    _compact_download_breakdown,
     _allocate_exam_practice_questions,
     _allocate_mock_questions,
     _official_format_reference,
@@ -59,6 +60,21 @@ class CoreTests(unittest.TestCase):
             self.assertTrue(all(count > 0 for count in daily.values()), exam_type)
             self.assertTrue(get_exam_format(exam_type)["mock_breakdown"], exam_type)
             self.assertTrue(_past_paper_patterns_for(exam_type), exam_type)
+
+    def test_compact_download_preserves_subjects_and_stays_small(self):
+        full = {
+            "Biology": 81,
+            "Chemistry": 45,
+            "Physics": 36,
+            "English": 9,
+            "Logical Reasoning": 9,
+        }
+        compact = _compact_download_breakdown(full)
+
+        self.assertEqual(set(compact), set(full))
+        self.assertEqual(sum(compact.values()), 25)
+        self.assertTrue(all(count >= 1 for count in compact.values()))
+        self.assertGreater(compact["Biology"], compact["English"])
 
     def test_public_quiz_schema_hides_answers(self):
         quiz = QuizSetOut.model_validate(

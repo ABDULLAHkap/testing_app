@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 import time
@@ -29,11 +30,13 @@ from app.services.batch_generator import generate_large_mcqs
 from app.services.pdf_report import create_practice_paper_pdf
 
 router = APIRouter(prefix="/mcqs", tags=["mcqs"])
+logger = logging.getLogger(__name__)
 
 
 _download_jobs: dict[str, dict] = {}
 _download_jobs_lock = Lock()
 _DOWNLOAD_JOB_TTL_SECONDS = 60 * 60
+_DOWNLOAD_PACK_MAX_QUESTIONS = 25
 
 
 # Curated MDCAT subject/topic structure (per the standard Pakistani MDCAT
@@ -137,6 +140,39 @@ def _allocate_exam_practice_questions(
     for subject in subjects[: total % len(subjects)]:
         counts[subject] += 1
     return {subject: count for subject, count in counts.items() if count > 0}
+
+
+def _compact_download_breakdown(subject_breakdown: dict[str, int]) -> dict[str, int]:
+    """Scale a full paper pattern into a reliable offline practice pack.
+
+    Generating 180-200 explained questions on demand requires dozens of model
+    requests and regularly exceeds provider rate limits. A compact pack keeps
+    the paper's subject proportions, includes every represented subject, and
+    can be prepared within normal API limits.
+    """
+    positive = {name: count for name, count in subject_breakdown.items() if count > 0}
+    if not positive:
+        return {}
+    target = min(_DOWNLOAD_PACK_MAX_QUESTIONS, sum(positive.values()))
+    if target < len(positive):
+        return {name: 1 for name in list(positive)[:target]}
+
+    counts = {name: 1 for name in positive}
+    remaining = target - len(positive)
+    total_weight = sum(positive.values())
+    raw = {
+        name: remaining * weight / total_weight
+        for name, weight in positive.items()
+    }
+    for name, value in raw.items():
+        counts[name] += math.floor(value)
+    assigned = sum(counts.values())
+    for name in sorted(raw, key=lambda item: raw[item] % 1, reverse=True):
+        if assigned >= target:
+            break
+        counts[name] += 1
+        assigned += 1
+    return counts
 
 
 class MockTestRequest(BaseModel):
@@ -764,7 +800,8 @@ def download_practice_paper(
         raise HTTPException(404, detail="A downloadable practice paper is not available")
 
     questions: list[dict] = []
-    for subject, count in paper["subject_breakdown"].items():
+    compact_breakdown = _compact_download_breakdown(paper["subject_breakdown"])
+    for subject, count in compact_breakdown.items():
         if count <= 0:
             continue
         generated = generate_large_mcqs(
@@ -776,7 +813,7 @@ def download_practice_paper(
         _require_exact_questions(generated, count)
         questions.extend(generated)
     path = create_practice_paper_pdf(
-        title=paper["title"],
+        title=f"{paper['title']} - Compact Offline Practice Pack",
         exam_type=exam_type,
         minutes=paper["quiz_minutes"],
         questions=questions,
@@ -813,7 +850,8 @@ def _prepare_practice_paper_download(
 ) -> None:
     try:
         questions: list[dict] = []
-        for subject, count in paper["subject_breakdown"].items():
+        compact_breakdown = _compact_download_breakdown(paper["subject_breakdown"])
+        for subject, count in compact_breakdown.items():
             if count <= 0:
                 continue
             generated = generate_large_mcqs(
@@ -829,7 +867,7 @@ def _prepare_practice_paper_download(
                 )
             questions.extend(generated)
         path = create_practice_paper_pdf(
-            title=paper["title"],
+            title=f"{paper['title']} - Compact Offline Practice Pack",
             exam_type=exam_type,
             minutes=paper["quiz_minutes"],
             questions=questions,
@@ -840,6 +878,7 @@ def _prepare_practice_paper_download(
             if job:
                 job.update(status="ready", path=path)
     except Exception:
+        logger.exception("Practice-paper download job %s failed", job_id)
         # Avoid exposing provider or infrastructure details to the client.
         with _download_jobs_lock:
             job = _download_jobs.get(job_id)

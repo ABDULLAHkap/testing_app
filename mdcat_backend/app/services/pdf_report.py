@@ -56,6 +56,15 @@ def create_practice_paper_pdf(
             f"{minutes} minutes | Negative marking: {negative_marking:g}"
         ),
     )
+    pdf.set_font("Arial", "I", 9)
+    pdf.multi_cell(
+        0,
+        5,
+        _latin(
+            "Compact offline pack: representative original questions following "
+            "the listed exam pattern. It is not a reproduction of an official paper."
+        ),
+    )
     pdf.ln(3)
 
     for index, question in enumerate(questions, 1):
