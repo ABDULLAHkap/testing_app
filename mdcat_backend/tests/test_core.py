@@ -10,6 +10,7 @@ from app.routers.mcqs import (
     _build_download_questions,
     _compact_download_breakdown,
     _offline_download_questions,
+    _generate_resilient_questions,
     _allocate_exam_practice_questions,
     _allocate_mock_questions,
     _official_format_reference,
@@ -109,6 +110,24 @@ class CoreTests(unittest.TestCase):
         finally:
             os.remove(path)
 
+    @patch("app.routers.mcqs.generate_large_mcqs", side_effect=RuntimeError("offline"))
+    def test_every_exam_category_generates_when_provider_is_offline(self, _generate):
+        from app.exam_catalog import EXAM_CATALOG
+
+        for exam_type, subjects in EXAM_CATALOG.items():
+            for subject in subjects:
+                questions = _generate_resilient_questions(
+                    total_questions=10,
+                    subject=subject,
+                    difficulty="Medium",
+                    exam_type=exam_type,
+                )
+                self.assertEqual(len(questions), 10, f"{exam_type}: {subject}")
+                self.assertTrue(
+                    all(len(question["options"]) == 4 for question in questions),
+                    f"{exam_type}: {subject}",
+                )
+
     def test_public_quiz_schema_hides_answers(self):
         quiz = QuizSetOut.model_validate(
             {
@@ -140,6 +159,11 @@ class CoreTests(unittest.TestCase):
             {question["question"] for question in questions},
             {"Question one", "Question two", "Question three"},
         )
+
+    @patch("app.services.batch_generator.generate_mcqs", return_value=[])
+    def test_generation_stops_after_empty_provider_response(self, mocked):
+        self.assertEqual(generate_large_mcqs(10, "Biology", "Medium"), [])
+        self.assertEqual(mocked.call_count, 1)
 
 
 if __name__ == "__main__":

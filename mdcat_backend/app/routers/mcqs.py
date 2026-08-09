@@ -176,7 +176,8 @@ def _compact_download_breakdown(subject_breakdown: dict[str, int]) -> dict[str, 
 
 
 def _offline_download_questions(
-    *, exam_type: str, subject: str, count: int, start_index: int = 0
+    *, exam_type: str, subject: str, count: int, start_index: int = 0,
+    topic_override: str | None = None,
 ) -> list[dict]:
     """Return honest, deterministic revision checks when the model is unavailable.
 
@@ -184,7 +185,11 @@ def _offline_download_questions(
     rate-limited.  These are deliberately labelled revision checkpoints rather
     than being presented as official past-paper questions.
     """
-    topics = get_exam_topics(exam_type).get(subject) or [subject]
+    topics = (
+        [topic_override]
+        if topic_override
+        else get_exam_topics(exam_type).get(subject) or [subject]
+    )
     questions: list[dict] = []
     for offset in range(count):
         topic = topics[(start_index + offset) % len(topics)]
@@ -213,6 +218,54 @@ def _offline_download_questions(
             }
         )
     return questions
+
+
+def _generate_resilient_questions(
+    *,
+    total_questions: int,
+    subject: str,
+    difficulty: str,
+    exam_type: str,
+    topic: str | None = None,
+    text: str | None = None,
+) -> list[dict]:
+    """Generate a complete test without exposing provider failures to users.
+
+    At most 20 questions are requested from Groq in one route operation. Large
+    tests are completed with deterministic syllabus revision checks, avoiding
+    proxy/client timeouts while preserving the requested question count.
+    """
+    provider_count = min(total_questions, 20)
+    generated: list[dict] = []
+    try:
+        generated = generate_large_mcqs(
+            total_questions=provider_count,
+            subject=subject,
+            difficulty=difficulty,
+            topic=topic,
+            text=text,
+            exam_type=exam_type,
+        )
+    except Exception:
+        logger.warning(
+            "Question provider unavailable for %s / %s",
+            exam_type,
+            subject,
+            exc_info=True,
+        )
+    generated = generated[:total_questions]
+    missing = total_questions - len(generated)
+    if missing:
+        generated.extend(
+            _offline_download_questions(
+                exam_type=exam_type,
+                subject=subject,
+                count=missing,
+                start_index=len(generated),
+                topic_override=topic,
+            )
+        )
+    return generated
 
 
 def _build_download_questions(
@@ -492,7 +545,7 @@ def generate_mcqs_endpoint(
 
     exam_type = _exam_for_request(current_user, payload.exam_type)
     _require_objective_section(exam_type, payload.subject)
-    questions = generate_large_mcqs(
+    questions = _generate_resilient_questions(
         total_questions=payload.number_of_questions,
         subject=payload.subject,
         difficulty=payload.difficulty,
@@ -579,44 +632,16 @@ def generate_mock_test(
         quiz_minutes = payload.quiz_minutes
         counts = _allocate_exam_practice_questions(exam_type, expected_total)
 
-    # Daily challenges use a small mixed test. Generating each section in a
-    # separate provider request makes the browser wait for five sequential
-    # network calls. Use one mixed request, then fall back locally if needed.
-    if not payload.official_format and expected_total <= 20:
-        subjects = ", ".join(counts)
-        try:
-            all_questions = generate_large_mcqs(
-                total_questions=expected_total,
-                subject=f"Mixed sections: {subjects}",
-                difficulty=payload.difficulty,
-                exam_type=exam_type,
-            )
-        except Exception:
-            logger.warning("Mixed daily quiz provider request failed", exc_info=True)
-            all_questions = []
-        missing = expected_total - min(len(all_questions), expected_total)
-        if missing:
-            fallback: list[dict] = []
-            for subject, count in counts.items():
-                fallback.extend(
-                    _offline_download_questions(
-                        exam_type=exam_type,
-                        subject=subject,
-                        count=count,
-                    )
-                )
-            all_questions.extend(fallback[:missing])
-        all_questions = all_questions[:expected_total]
-    else:
-        for subject, count in counts.items():
-            questions = generate_large_mcqs(
-                total_questions=count,
-                subject=subject,
-                difficulty=payload.difficulty,
-                exam_type=exam_type,
-            )
-            _require_exact_questions(questions, count)
-            all_questions.extend(questions)
+    # A single mixed provider operation prevents daily and full mocks from
+    # making sequential calls for every subject. The resilient helper fills
+    # any missing portion locally and always returns the requested count.
+    subjects = ", ".join(counts)
+    all_questions = _generate_resilient_questions(
+        total_questions=expected_total,
+        subject=f"Mixed sections: {subjects}",
+        difficulty=payload.difficulty,
+        exam_type=exam_type,
+    )
 
     _require_exact_questions(all_questions, expected_total)
 
@@ -691,7 +716,7 @@ def generate_adaptive_practice(
     questions: list[dict] = []
     plan = []
     for (subject, topic), count in allocation.items():
-        generated = generate_large_mcqs(
+        generated = _generate_resilient_questions(
             total_questions=count,
             subject=subject,
             topic=topic,
@@ -859,7 +884,7 @@ def generate_from_past_paper(
     for subject, count in paper["subject_breakdown"].items():
         if count <= 0:
             continue
-        questions = generate_large_mcqs(
+        questions = _generate_resilient_questions(
             total_questions=count,
             subject=subject,
             difficulty="Medium",
