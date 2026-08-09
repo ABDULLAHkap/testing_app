@@ -33,6 +33,17 @@ def _latin(value: object) -> str:
     return str(value).encode("latin-1", "replace").decode("latin-1")
 
 
+def _paragraph(pdf: FPDF, height: float, text: object) -> None:
+    """Write a full-width paragraph and reset the cursor for fpdf2.
+
+    Newer fpdf2 releases leave the cursor at the right edge after
+    ``multi_cell`` by default.  A following full-width cell then has no room
+    and raises ``Not enough horizontal space to render a single character``.
+    """
+    pdf.set_x(pdf.l_margin)
+    pdf.multi_cell(0, height, _latin(text), new_x="LMARGIN", new_y="NEXT")
+
+
 def create_practice_paper_pdf(
     *,
     title: str,
@@ -46,33 +57,29 @@ def create_practice_paper_pdf(
     pdf.set_auto_page_break(auto=True, margin=14)
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
-    pdf.multi_cell(0, 9, _latin(title))
+    _paragraph(pdf, 9, title)
     pdf.set_font("Arial", size=10)
-    pdf.multi_cell(
-        0,
+    _paragraph(
+        pdf,
         6,
-        _latin(
             f"{exam_type} original practice paper | {len(questions)} questions | "
-            f"{minutes} minutes | Negative marking: {negative_marking:g}"
-        ),
+            f"{minutes} minutes | Negative marking: {negative_marking:g}",
     )
     pdf.set_font("Arial", "I", 9)
-    pdf.multi_cell(
-        0,
+    _paragraph(
+        pdf,
         5,
-        _latin(
             "Compact offline pack: representative original questions following "
-            "the listed exam pattern. It is not a reproduction of an official paper."
-        ),
+            "the listed exam pattern. It is not a reproduction of an official paper.",
     )
     pdf.ln(3)
 
     for index, question in enumerate(questions, 1):
         pdf.set_font("Arial", "B", 10)
-        pdf.multi_cell(0, 6, _latin(f"{index}. {question['question']}"))
+        _paragraph(pdf, 6, f"{index}. {question['question']}")
         pdf.set_font("Arial", size=9)
         for option in question.get("options", []):
-            pdf.multi_cell(0, 5, _latin(f"   {option}"))
+            _paragraph(pdf, 5, f"   {option}")
         pdf.ln(2)
 
     pdf.add_page()
@@ -83,12 +90,12 @@ def create_practice_paper_pdf(
         explanation = question.get("explanation") or ""
         concept = question.get("concept") or question.get("topic") or ""
         pdf.set_font("Arial", "B", 10)
-        pdf.multi_cell(0, 6, _latin(f"{index}. Correct answer: {correct}"))
+        _paragraph(pdf, 6, f"{index}. Correct answer: {correct}")
         pdf.set_font("Arial", size=9)
         if explanation:
-            pdf.multi_cell(0, 5, _latin(explanation))
+            _paragraph(pdf, 5, explanation)
         if concept:
-            pdf.multi_cell(0, 5, _latin(f"Revise: {concept}"))
+            _paragraph(pdf, 5, f"Revise: {concept}")
         pdf.ln(2)
 
     descriptor, path = tempfile.mkstemp(suffix=".pdf")
