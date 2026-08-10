@@ -73,6 +73,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Widget build(BuildContext context) {
     final plan = Map<String, dynamic>.from(_status?['plan'] ?? const {});
     final configured = _status?['checkout_configured'] == true;
+    final price = (plan['price_pkr'] as num?)?.toInt() ?? 2000;
+    final priceText = NumberFormat.decimalPattern().format(price);
+    final days = (plan['days'] as num?)?.toInt() ?? 30;
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(title: const Text('Subscription'), backgroundColor: _bg),
@@ -108,15 +111,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'PKR 2,000',
-                          style: TextStyle(
+                        Text(
+                          'PKR $priceText',
+                          style: const TextStyle(
                             color: _cyan,
                             fontSize: 30,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        Text('for 30 days', style: TextStyle(color: _muted)),
+                        Text('for $days days', style: TextStyle(color: _muted)),
                         const SizedBox(height: 22),
                         const _Benefit('Unlimited practice tests'),
                         const _Benefit('Unlimited full mock tests'),
@@ -133,7 +136,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             label: Text(
                               _openingCheckout
                                   ? 'Opening Safepay...'
-                                  : 'Pay PKR 2,000',
+                                  : 'Pay PKR $priceText',
                             ),
                           ),
                         ),

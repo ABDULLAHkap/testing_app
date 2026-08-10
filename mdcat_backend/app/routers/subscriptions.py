@@ -13,10 +13,15 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.models.models import Payment, User
+from app.services.app_settings import get_subscription_price
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
-PLAN = {"id": "monthly", "name": "30-Day Unlimited Access", "days": 30, "price_pkr": 2000}
+PLAN = {"id": "monthly", "name": "30-Day Unlimited Access", "days": 30}
+
+
+def _plan(db: Session) -> dict:
+    return {**PLAN, "price_pkr": get_subscription_price(db)}
 
 
 def _environment() -> str:
@@ -47,18 +52,21 @@ def _frontend_url() -> str:
 
 
 @router.get("/plans")
-def plans():
-    return [PLAN]
+def plans(db: Session = Depends(get_db)):
+    return [_plan(db)]
 
 
 @router.get("/status")
-def status(current_user: User = Depends(get_current_user)):
+def status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     return {
         "free_tests_remaining": current_user.free_tests_remaining,
         "subscription_expires_at": current_user.subscription_expires_at,
         "payment_provider": "Safepay",
         "checkout_configured": bool(os.getenv("SAFEPAY_PUBLIC_KEY") and os.getenv("SAFEPAY_SECRET_KEY")),
-        "plan": PLAN,
+        "plan": _plan(db),
         "is_admin": current_user.is_admin,
     }
 
@@ -71,10 +79,11 @@ def checkout(plan_id: str, db: Session = Depends(get_db), current_user: User = D
         raise HTTPException(400, detail="Administrators already have unlimited access")
     public_key, _secret_key = _credentials()
     environment = _environment()
+    plan = _plan(db)
     try:
         response = httpx.post(
             f"{_api_base(environment)}/order/v1/init",
-            json={"amount": PLAN["price_pkr"], "client": public_key, "currency": "PKR", "environment": environment},
+            json={"amount": plan["price_pkr"], "client": public_key, "currency": "PKR", "environment": environment},
             timeout=20.0,
         )
         response.raise_for_status()
@@ -85,7 +94,7 @@ def checkout(plan_id: str, db: Session = Depends(get_db), current_user: User = D
     order_id = f"EXAM-{current_user.id}-{secrets.token_hex(6)}"
     payment = Payment(
         user_id=current_user.id, provider="safepay", transaction_ref=tracker,
-        amount_pkr=PLAN["price_pkr"], status="pending",
+        amount_pkr=plan["price_pkr"], status="pending",
         provider_response={"order_id": order_id, "environment": environment, "plan_id": PLAN["id"]},
     )
     db.add(payment)
@@ -100,7 +109,7 @@ def checkout(plan_id: str, db: Session = Depends(get_db), current_user: User = D
         "redirect_url": f"{backend_url}/subscriptions/safepay/return?payment_id={payment.id}",
         "source": "custom", "webhooks": "false",
     })
-    return {"checkout_url": f"{_checkout_base(environment)}?{query}", "payment_id": payment.id, "amount_pkr": PLAN["price_pkr"], "days": PLAN["days"]}
+    return {"checkout_url": f"{_checkout_base(environment)}?{query}", "payment_id": payment.id, "amount_pkr": plan["price_pkr"], "days": PLAN["days"]}
 
 
 def _complete_payment(payment_id: int, tracker: str, signature: str, db: Session):

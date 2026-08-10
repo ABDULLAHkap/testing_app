@@ -579,6 +579,27 @@ class ApiClient {
     _decodeOrThrow(resp);
   }
 
+  Future<Map<String, dynamic>> getAdminSubscriptionSettings() async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.get(
+      Uri.parse("$baseUrl/admin/subscription-settings"),
+      headers: await _authHeaders(),
+    );
+    return Map<String, dynamic>.from(_decodeOrThrow(resp));
+  }
+
+  Future<Map<String, dynamic>> updateAdminSubscriptionPrice(
+    int pricePkr,
+  ) async {
+    final baseUrl = await getBaseUrl();
+    final resp = await http.put(
+      Uri.parse("$baseUrl/admin/subscription-settings"),
+      headers: {"Content-Type": "application/json", ...await _authHeaders()},
+      body: jsonEncode({"price_pkr": pricePkr}),
+    );
+    return Map<String, dynamic>.from(_decodeOrThrow(resp));
+  }
+
   // ---------------- Subscription checkout ----------------
 
   Future<Map<String, dynamic>> getSubscriptionStatus() async {

@@ -18,12 +18,44 @@ from app.models.models import (
     SupportMessage,
     User,
 )
+from app.services.app_settings import get_subscription_price, set_subscription_price
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 class SubscriptionGrant(BaseModel):
     days: int = Field(default=30, ge=1, le=366)
+
+
+class SubscriptionPriceUpdate(BaseModel):
+    price_pkr: int = Field(ge=1, le=1_000_000)
+
+
+@router.get("/subscription-settings")
+def subscription_settings(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    return {
+        "price_pkr": get_subscription_price(db),
+        "currency": "PKR",
+        "days": 30,
+    }
+
+
+@router.put("/subscription-settings")
+def update_subscription_settings(
+    payload: SubscriptionPriceUpdate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    price = set_subscription_price(db, payload.price_pkr)
+    return {
+        "message": "Subscription price updated",
+        "price_pkr": price,
+        "currency": "PKR",
+        "days": 30,
+    }
 
 
 @router.get("/overview")

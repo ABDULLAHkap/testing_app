@@ -274,7 +274,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                     leading: const Icon(Icons.workspace_premium_outlined),
                     title: const Text("30-Day Unlimited Access"),
                     subtitle: const Text(
-                      "PKR 2,000 • Pay securely with Safepay",
+                      "View current price • Pay securely with Safepay",
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(

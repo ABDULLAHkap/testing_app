@@ -231,6 +231,49 @@ class ApiTests(unittest.TestCase):
                 )
                 self.assertEqual(response.status_code, 422, response.text)
 
+    def test_admin_updates_subscription_price_for_students(self):
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            user = db.query(User).filter(User.email == "student@example.com").first()
+            user.is_admin = True
+            db.commit()
+
+        try:
+            response = self.client.get(
+                "/admin/subscription-settings",
+                headers=self.headers,
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.json()["price_pkr"], 2000)
+
+            response = self.client.put(
+                "/admin/subscription-settings",
+                json={"price_pkr": 2750},
+                headers=self.headers,
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.json()["price_pkr"], 2750)
+
+            response = self.client.get(
+                "/subscriptions/status",
+                headers=self.headers,
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.json()["plan"]["price_pkr"], 2750)
+        finally:
+            with SessionLocal() as db:
+                from app.models.models import AppSetting, User
+
+                user = db.query(User).filter(User.email == "student@example.com").first()
+                user.is_admin = False
+                setting = db.query(AppSetting).filter(
+                    AppSetting.key == "subscription_price_pkr"
+                ).first()
+                if setting is not None:
+                    setting.value = "2000"
+                db.commit()
+
     def test_tutor_uses_authenticated_students_selected_exam(self):
         with patch(
             "app.routers.tutor.generate_tutor_reply",

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../services/api_client.dart';
 
@@ -15,6 +16,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final _api = ApiClient();
   Map<String, dynamic>? _overview;
   List<Map<String, dynamic>> _users = [];
+  Map<String, dynamic>? _subscriptionSettings;
   bool _loading = true;
   int? _updatingUserId;
   Timer? _refreshTimer;
@@ -41,11 +43,71 @@ class _AdminScreenState extends State<AdminScreen> {
       final results = await Future.wait([
         _api.getAdminOverview(),
         _api.getAdminUsers(),
+        _api.getAdminSubscriptionSettings(),
       ]);
       _overview = results[0] as Map<String, dynamic>;
       _users = results[1] as List<Map<String, dynamic>>;
+      _subscriptionSettings = results[2] as Map<String, dynamic>;
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _editSubscriptionPrice() async {
+    final current =
+        (_subscriptionSettings?['price_pkr'] as num?)?.toInt() ?? 2000;
+    final controller = TextEditingController(text: current.toString());
+    final price = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit subscription price'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Price in PKR',
+            prefixText: 'PKR ',
+            helperText:
+                'This amount will be shown to students and sent to Safepay.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final parsed = int.tryParse(controller.text.trim());
+              if (parsed == null || parsed < 1 || parsed > 1000000) return;
+              Navigator.pop(dialogContext, parsed);
+            },
+            child: const Text('Save price'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (price == null || !mounted) return;
+
+    try {
+      final updated = await _api.updateAdminSubscriptionPrice(price);
+      if (!mounted) return;
+      setState(() => _subscriptionSettings = updated);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Subscription price updated to PKR '
+            '${NumberFormat.decimalPattern().format(price)}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update subscription price: $error')),
+      );
     }
   }
 
@@ -191,6 +253,21 @@ class _AdminScreenState extends State<AdminScreen> {
                       _stat('Payments', _overview?['successful_payments']),
                       _stat('Online', _overview?['online_users']),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.payments_outlined),
+                      title: const Text('30-Day Subscription Price'),
+                      subtitle: Text(
+                        'PKR ${NumberFormat.decimalPattern().format((_subscriptionSettings?['price_pkr'] as num?)?.toInt() ?? 2000)}',
+                      ),
+                      trailing: IconButton(
+                        onPressed: _editSubscriptionPrice,
+                        tooltip: 'Edit price',
+                        icon: const Icon(Icons.edit),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   const Text('Users', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),

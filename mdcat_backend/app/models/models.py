@@ -121,6 +121,16 @@ class Payment(Base):
     completed_at = Column(DateTime, nullable=True)
 
 
+class AppSetting(Base):
+    """Database-backed application settings editable by administrators."""
+
+    __tablename__ = "app_settings"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(String(500), nullable=False)
+    updated_at = Column(DateTime, default=now_utc, onupdate=now_utc)
+
+
 class QuizSet(Base):
     """A generated batch of MCQs (one 'Generate MCQs' click)."""
     __tablename__ = "quiz_sets"
