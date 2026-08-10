@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "mdcat_app" "\0"
+            VALUE "FileDescription", "BrainBoost" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "mdcat_app" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
             VALUE "OriginalFilename", "mdcat_app.exe" "\0"
-            VALUE "ProductName", "mdcat_app" "\0"
+            VALUE "ProductName", "BrainBoost" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
