@@ -26,7 +26,7 @@ class MdcatApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
           return MaterialApp(
-            title: 'Exam Preparation',
+            title: 'BrainBoost',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.theme,
             darkTheme: themeProvider.appearance == AppAppearance.standard
