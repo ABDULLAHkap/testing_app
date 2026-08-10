@@ -3,7 +3,7 @@ self.addEventListener('push', (event) => {
   let payload = {};
   try { payload = event.data.json(); } catch (_) {}
   const notification = payload.notification || payload.data?.notification || {};
-  const title = notification.title || payload.data?.title || 'Exam Preparation';
+  const title = notification.title || payload.data?.title || 'BrainBoost';
   const options = {
     body: notification.body || payload.data?.body || 'You have a new update.',
     icon: '/icons/Icon-192.png',
