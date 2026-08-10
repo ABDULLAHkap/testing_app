@@ -1,11 +1,11 @@
 {
-    "name": "mdcat_app",
-    "short_name": "mdcat_app",
+    "name": "BrainBoost",
+    "short_name": "BrainBoost",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "BrainBoost multi-exam preparation and practice app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
