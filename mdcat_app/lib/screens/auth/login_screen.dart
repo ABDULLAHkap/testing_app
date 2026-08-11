@@ -78,23 +78,24 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _desktopLayout() {
+    final compact = MediaQuery.sizeOf(context).width < 1180;
     return Scaffold(
       backgroundColor: const Color(0xFF020B18),
       body: SafeArea(
         child: Row(
           children: [
-            Expanded(flex: 56, child: _desktopBrandPanel()),
+            Expanded(flex: 54, child: _desktopBrandPanel()),
             Expanded(
-              flex: 44,
+              flex: 46,
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 48,
-                    vertical: 32,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 24 : 48,
+                    vertical: compact ? 20 : 32,
                   ),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 580),
-                    child: _desktopLoginCard(),
+                    child: _desktopLoginCard(compact: compact),
                   ),
                 ),
               ),
@@ -106,87 +107,130 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _desktopBrandPanel() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(0, -.1),
-          radius: 1.05,
-          colors: [Color(0xFF07315A), Color(0xFF020B18)],
-        ),
-      ),
-      child: Stack(
-        children: [
-          const Positioned.fill(child: _ConstellationBackground()),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(56, 34, 48, 38),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _BrainBoostLogo(),
-                const Spacer(),
-                const Center(
-                  child: AnimatedHeroImage(
-                    asset: 'assets/images/login_knowledge.webp',
-                    height: 340,
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 640 || constraints.maxHeight < 780;
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(.05, .1),
+              radius: 1.1,
+              colors: [Color(0xFF092B57), Color(0xFF020B18)],
+            ),
+          ),
+          child: Stack(
+            children: [
+              const Positioned.fill(child: _ConstellationBackground()),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 32 : 62,
+                  compact ? 24 : 42,
+                  compact ? 26 : 50,
+                  compact ? 24 : 38,
                 ),
-                const SizedBox(height: 26),
-                const Text(
-                  'Prepare Smarter. Achieve More.',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -.8,
-                  ),
-                ),
-                const SizedBox(height: 9),
-                Text(
-                  'One platform for every exam journey.',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(.62),
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 26),
-                const Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _FeatureChip(
-                      icon: Icons.person_outline_rounded,
-                      label: 'Personalized Practice',
+                    const _BrainBoostLogo(),
+                    SizedBox(height: compact ? 8 : 12),
+                    const _BrandTagline(),
+                    SizedBox(height: compact ? 24 : 42),
+                    Text(
+                      'Your journey to\nsuccess starts here.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: compact ? 35 : 46,
+                        height: 1.12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1,
+                      ),
                     ),
-                    _FeatureChip(
-                      icon: Icons.assignment_turned_in_outlined,
-                      label: 'Mock Tests',
+                    SizedBox(height: compact ? 12 : 18),
+                    Text(
+                      'Smart preparation, expert resources, and personalized\n'
+                      'practice to help you crack every exam with confidence.',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(.68),
+                        fontSize: compact ? 14 : 17,
+                        height: 1.55,
+                      ),
                     ),
-                    _FeatureChip(
-                      icon: Icons.bar_chart_rounded,
-                      label: 'Progress Insights',
+                    SizedBox(height: compact ? 12 : 20),
+                    Expanded(
+                      child: Center(
+                        child: AnimatedHeroImage(
+                          asset: 'assets/images/login_knowledge.webp',
+                          height: compact ? 250 : 330,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: compact ? 12 : 20),
+                    const Row(
+                      children: [
+                        Expanded(
+                          child: _BrandStat(
+                            icon: Icons.menu_book_outlined,
+                            value: '10,000+',
+                            label: 'Expert Curated\nResources',
+                            color: _cyan,
+                          ),
+                        ),
+                        _StatDivider(),
+                        Expanded(
+                          child: _BrandStat(
+                            icon: Icons.assignment_turned_in_outlined,
+                            value: '1M+',
+                            label: 'Practice Questions\nSolved',
+                            color: Color(0xFFA05CF5),
+                          ),
+                        ),
+                        _StatDivider(),
+                        Expanded(
+                          child: _BrandStat(
+                            icon: Icons.people_outline_rounded,
+                            value: '500K+',
+                            label: 'Successful\nAspirants',
+                            color: Color(0xFF58A6FF),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _desktopLoginCard() {
+  Widget _desktopLoginCard({required bool compact}) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(44, 42, 44, 34),
+      padding: EdgeInsets.fromLTRB(
+        compact ? 30 : 44,
+        compact ? 26 : 32,
+        compact ? 30 : 44,
+        compact ? 24 : 28,
+      ),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A1728),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFF41516A)),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF101D34), Color(0xFF0B1428)],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFF42627D)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x4400B8D4),
-            blurRadius: 42,
-            offset: Offset(0, 16),
+            color: Color(0x3320D5C5),
+            blurRadius: 48,
+            offset: Offset(0, 18),
+          ),
+          BoxShadow(
+            color: Color(0x229A54F7),
+            blurRadius: 36,
+            offset: Offset(16, 0),
           ),
         ],
       ),
@@ -195,12 +239,42 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Center(
+              child: Container(
+                width: compact ? 66 : 76,
+                height: compact ? 66 : 76,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [_cyan, Color(0xFF9257F5)],
+                  ),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x443F9CFF), blurRadius: 22),
+                  ],
+                ),
+                padding: const EdgeInsets.all(1.4),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF111D35),
+                  ),
+                  child: Icon(
+                    _adminMode
+                        ? Icons.admin_panel_settings_outlined
+                        : Icons.person_outline_rounded,
+                    color: const Color(0xFF8A62F6),
+                    size: compact ? 34 : 40,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: compact ? 14 : 18),
             Text(
-              _adminMode ? 'Admin sign in' : 'Welcome back',
+              _adminMode ? 'Admin Login' : 'Welcome Back',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 34,
+                fontSize: compact ? 30 : 36,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -208,14 +282,14 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               _adminMode
                   ? 'Access the BrainBoost administration portal'
-                  : 'Continue your preparation',
+                  : 'Sign in to continue your learning journey',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white.withOpacity(.58),
                 fontSize: 16,
               ),
             ),
-            const SizedBox(height: 34),
+            SizedBox(height: compact ? 22 : 30),
             _fieldLabel('Email or username'),
             const SizedBox(height: 9),
             TextFormField(
@@ -230,7 +304,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? 'Enter your email or username'
                   : null,
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: compact ? 16 : 20),
             _fieldLabel('Password'),
             const SizedBox(height: 9),
             TextFormField(
@@ -259,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
               validator: (value) =>
                   value == null || value.isEmpty ? 'Enter your password' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Checkbox(
@@ -280,34 +354,98 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            SizedBox(
+            const SizedBox(height: 8),
+            Container(
               height: 58,
-              child: ElevatedButton(
-                onPressed: _loading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _cyan,
-                  foregroundColor: const Color(0xFF03131D),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_cyan, Color(0xFF4C9CFF), Color(0xFF9A54F7)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x334C9CFF), blurRadius: 20),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _loading ? null : _submit,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Center(
+                    child: _loading
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _adminMode ? 'Admin Sign In' : 'Sign In',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ],
+                          ),
                   ),
                 ),
-                child: _loading
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(
-                        _adminMode ? 'Admin Sign In' : 'Sign In',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              height: 54,
+              padding: const EdgeInsets.all(1),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_cyan, Color(0xFF9257F5)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Material(
+                color: const Color(0xFF0B172B),
+                borderRadius: BorderRadius.circular(11),
+                child: InkWell(
+                  onTap: _adminMode
+                      ? () => setState(() => _adminMode = false)
+                      : _showAdminLogin,
+                  borderRadius: BorderRadius.circular(11),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _adminMode
+                            ? Icons.school_outlined
+                            : Icons.admin_panel_settings_outlined,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _adminMode ? 'Student Login' : 'Admin Login',
                         style: const TextStyle(
-                          fontSize: 17,
+                          color: Colors.white,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
             Row(
               children: [
                 const Expanded(child: Divider(color: Colors.white24)),
@@ -321,29 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Expanded(child: Divider(color: Colors.white24)),
               ],
             ),
-            const SizedBox(height: 22),
-            SizedBox(
-              height: 54,
-              child: OutlinedButton.icon(
-                onPressed: _adminMode
-                    ? () => setState(() => _adminMode = false)
-                    : _showAdminLogin,
-                icon: Icon(
-                  _adminMode
-                      ? Icons.school_outlined
-                      : Icons.admin_panel_settings_outlined,
-                ),
-                label: Text(_adminMode ? 'Student Login' : 'Admin Login'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _cyan,
-                  side: const BorderSide(color: _cyan),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -357,7 +473,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -518,24 +634,43 @@ class _BrainBoostLogo extends StatelessWidget {
   const _BrainBoostLogo();
 
   @override
-  Widget build(BuildContext context) => const Row(
+  Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(Icons.psychology_outlined, color: _cyan, size: 42),
-      SizedBox(width: 10),
-      Text(
+      Container(
+        width: 54,
+        height: 54,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_cyan, Color(0xFF4D9CFF), Color(0xFF9458F6)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(color: Color(0x4420D5C5), blurRadius: 18),
+          ],
+        ),
+        child: const Icon(
+          Icons.psychology_outlined,
+          color: Colors.white,
+          size: 36,
+        ),
+      ),
+      const SizedBox(width: 13),
+      const Text(
         'Brain',
         style: TextStyle(
           color: Colors.white,
-          fontSize: 28,
+          fontSize: 30,
           fontWeight: FontWeight.w800,
         ),
       ),
-      Text(
+      const Text(
         'Boost',
         style: TextStyle(
           color: _cyan,
-          fontSize: 28,
+          fontSize: 30,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -543,34 +678,92 @@ class _BrainBoostLogo extends StatelessWidget {
   );
 }
 
-class _FeatureChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _FeatureChip({required this.icon, required this.label});
+class _BrandTagline extends StatelessWidget {
+  const _BrandTagline();
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-    decoration: BoxDecoration(
-      color: const Color(0xAA09182A),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFF36506E)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
+  Widget build(BuildContext context) => const Text.rich(
+    TextSpan(
+      style: TextStyle(color: Colors.white70, fontSize: 17),
       children: [
-        Icon(icon, color: _cyan, size: 21),
-        const SizedBox(width: 9),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
+        TextSpan(text: 'Prepare '),
+        TextSpan(text: 'Smarter.', style: TextStyle(color: _cyan)),
+        TextSpan(text: ' Achieve '),
+        TextSpan(
+          text: 'More.',
+          style: TextStyle(color: Color(0xFFA05CF5)),
         ),
       ],
     ),
+  );
+}
+
+class _BrandStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  const _BrandStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withOpacity(.1),
+          border: Border.all(color: color.withOpacity(.75)),
+        ),
+        child: Icon(icon, color: color, size: 25),
+      ),
+      const SizedBox(width: 11),
+      Flexible(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white60,
+                fontSize: 11,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 1,
+    height: 50,
+    margin: const EdgeInsets.symmetric(horizontal: 6),
+    color: Colors.white24,
   );
 }
 
