@@ -77,7 +77,10 @@ class _LandingScreenState extends State<LandingScreen> {
   Widget _topNavigation() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 1160;
+        // The navigation content is constrained to 1320 px below.  Use the
+        // compact spacing on common laptop and 1440 px displays as well so
+        // every destination and both auth actions remain visible.
+        final compact = constraints.maxWidth < 1500;
         return Material(
           color: Colors.white,
           elevation: 2,
@@ -653,23 +656,37 @@ class _LandingScreenState extends State<LandingScreen> {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1220),
-          child: Row(
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 32,
+            runSpacing: 16,
             children: [
-              const _LandingLogo(light: true),
-              const SizedBox(width: 24),
-              Text(
-                'Prepare smarter. Improve with every attempt.',
-                style: TextStyle(color: Colors.white.withOpacity(.62)),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 24,
+                runSpacing: 12,
+                children: [
+                  const _LandingLogo(light: true),
+                  Text(
+                    'Prepare smarter. Improve with every attempt.',
+                    style: TextStyle(color: Colors.white.withOpacity(.62)),
+                  ),
+                ],
               ),
-              const Spacer(),
-              TextButton(
-                onPressed: () => _scrollTo(_homeKey),
-                child: const Text('Back to top'),
-              ),
-              const SizedBox(width: 26),
-              Text(
-                '© 2026 BrainBoost',
-                style: TextStyle(color: Colors.white.withOpacity(.55)),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 26,
+                children: [
+                  TextButton(
+                    onPressed: () => _scrollTo(_homeKey),
+                    child: const Text('Back to top'),
+                  ),
+                  Text(
+                    '© 2026 BrainBoost',
+                    style: TextStyle(color: Colors.white.withOpacity(.55)),
+                  ),
+                ],
               ),
             ],
           ),
