@@ -41,7 +41,8 @@ void main() {
     expect(find.text('Contact'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Login').first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('Welcome Back'), findsOneWidget);
     expect(find.text('Sign In'), findsOneWidget);
