@@ -95,93 +95,166 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _desktopLayout() {
+    final size = MediaQuery.sizeOf(context);
+    final compact = size.width < 1180 || size.height < 780;
     return Scaffold(
       backgroundColor: const Color(0xFF020B18),
-      body: SafeArea(
-        child: Row(
-          children: [
-            Expanded(flex: 50, child: _desktopBrandPanel()),
-            Expanded(
-              flex: 50,
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 42,
-                    vertical: 28,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0xFF08264B), Color(0xFF04152A), Color(0xFF020B18)],
+            stops: [0, .54, 1],
+          ),
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Expanded(flex: 54, child: _desktopBrandPanel(compact: compact)),
+              Expanded(
+                flex: 46,
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Color(0xFF04152A), Color(0xFF020B18)],
+                    ),
                   ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: _desktopFormCard(),
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 16 : 28,
+                        compact ? 18 : 28,
+                        compact ? 24 : 48,
+                        compact ? 18 : 28,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 650),
+                        child: _desktopFormCard(compact: compact),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _desktopBrandPanel() => Container(
+  Widget _desktopBrandPanel({required bool compact}) => Container(
     decoration: const BoxDecoration(
       gradient: RadialGradient(
-        center: Alignment(0, -.1),
-        radius: 1.05,
-        colors: [Color(0xFF07315A), Color(0xFF020B18)],
+        center: Alignment(.05, .08),
+        radius: 1.12,
+        colors: [Color(0xFF092B57), Color(0xFF020B18)],
       ),
     ),
-    padding: const EdgeInsets.fromLTRB(54, 34, 46, 40),
+    padding: EdgeInsets.fromLTRB(
+      compact ? 32 : 62,
+      compact ? 24 : 42,
+      compact ? 26 : 50,
+      compact ? 24 : 38,
+    ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.psychology_outlined, color: _cyan, size: 42),
-            SizedBox(width: 10),
-            Text(
-              'Brain',
-              style: TextStyle(
+            Container(
+              width: compact ? 48 : 54,
+              height: compact ? 48 : 54,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [_cyan, Color(0xFF4D9CFF), Color(0xFF9458F6)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x4420D5C5), blurRadius: 18),
+                ],
+              ),
+              child: const Icon(
+                Icons.psychology_outlined,
                 color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
+                size: 36,
               ),
             ),
-            Text(
-              'Boost',
-              style: TextStyle(
-                color: _cyan,
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
+            const SizedBox(width: 13),
+            Text.rich(
+              TextSpan(
+                style: TextStyle(
+                  fontSize: compact ? 27 : 30,
+                  fontWeight: FontWeight.w800,
+                ),
+                children: const [
+                  TextSpan(
+                    text: 'Brain',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  TextSpan(
+                    text: 'Boost',
+                    style: TextStyle(color: _cyan),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        const Spacer(),
-        const Center(
-          child: AnimatedHeroImage(
-            asset: 'assets/images/signup_knowledge.webp',
-            height: 380,
+        SizedBox(height: compact ? 8 : 12),
+        const Text.rich(
+          TextSpan(
+            style: TextStyle(color: Colors.white70, fontSize: 17),
+            children: [
+              TextSpan(text: 'Prepare '),
+              TextSpan(
+                text: 'Smarter.',
+                style: TextStyle(color: _cyan),
+              ),
+              TextSpan(text: ' Achieve '),
+              TextSpan(
+                text: 'More.',
+                style: TextStyle(color: Color(0xFFA05CF5)),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 28),
-        const Text(
+        SizedBox(height: compact ? 22 : 34),
+        Text(
           'Start Strong. Go Further.',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 36,
+            fontSize: compact ? 34 : 44,
             fontWeight: FontWeight.w800,
+            letterSpacing: -1,
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: compact ? 10 : 14),
         Text(
           'Create one account for practice, mock tests, progress insights, and guided exam preparation.',
           style: TextStyle(
-            color: Colors.white.withOpacity(.62),
-            fontSize: 17,
-            height: 1.45,
+            color: Colors.white.withOpacity(.68),
+            fontSize: compact ? 14 : 17,
+            height: 1.5,
           ),
         ),
-        const SizedBox(height: 22),
+        SizedBox(height: compact ? 10 : 18),
+        Expanded(
+          child: Center(
+            child: Transform.scale(
+              scale: compact ? 1.18 : 1.28,
+              child: AnimatedHeroImage(
+                asset: 'assets/images/login_hero_reference.webp',
+                height: compact ? 250 : 335,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: compact ? 10 : 18),
         const Wrap(
           spacing: 12,
           runSpacing: 12,
@@ -201,17 +274,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ),
   );
 
-  Widget _desktopFormCard() => Container(
-    padding: const EdgeInsets.fromLTRB(38, 34, 38, 28),
+  Widget _desktopFormCard({required bool compact}) => Container(
+    padding: EdgeInsets.fromLTRB(
+      compact ? 28 : 38,
+      compact ? 24 : 30,
+      compact ? 28 : 38,
+      compact ? 22 : 26,
+    ),
     decoration: BoxDecoration(
-      color: const Color(0xFF0A1728),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF101D34), Color(0xFF0B1428)],
+      ),
       borderRadius: BorderRadius.circular(26),
-      border: Border.all(color: const Color(0xFF41516A)),
+      border: Border.all(color: const Color(0xFF42627D)),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x4400B8D4),
-          blurRadius: 42,
-          offset: Offset(0, 16),
+          color: Color(0x3320D5C5),
+          blurRadius: 48,
+          offset: Offset(0, 18),
+        ),
+        BoxShadow(
+          color: Color(0x229A54F7),
+          blurRadius: 36,
+          offset: Offset(16, 0),
         ),
       ],
     ),
@@ -220,12 +307,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Center(
+            child: Container(
+              width: compact ? 62 : 70,
+              height: compact ? 62 : 70,
+              padding: const EdgeInsets.all(1.4),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: [_cyan, Color(0xFF9257F5)]),
+                boxShadow: [
+                  BoxShadow(color: Color(0x443F9CFF), blurRadius: 22),
+                ],
+              ),
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF111D35),
+                ),
+                child: Icon(
+                  Icons.person_add_alt_1_outlined,
+                  color: Color(0xFF8A62F6),
+                  size: 34,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: compact ? 12 : 16),
+          Text(
             'Create your account',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
-              fontSize: 32,
+              fontSize: compact ? 29 : 34,
               fontWeight: FontWeight.w800,
             ),
           ),

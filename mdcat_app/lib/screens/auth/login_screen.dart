@@ -78,29 +78,51 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _desktopLayout() {
-    final compact = MediaQuery.sizeOf(context).width < 1180;
+    final size = MediaQuery.sizeOf(context);
+    final compact = size.width < 1180 || size.height < 780;
     return Scaffold(
       backgroundColor: const Color(0xFF020B18),
-      body: SafeArea(
-        child: Row(
-          children: [
-            Expanded(flex: 54, child: _desktopBrandPanel()),
-            Expanded(
-              flex: 46,
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: compact ? 24 : 48,
-                    vertical: compact ? 20 : 32,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [Color(0xFF08264B), Color(0xFF04152A), Color(0xFF020B18)],
+            stops: [0, .54, 1],
+          ),
+        ),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Expanded(flex: 54, child: _desktopBrandPanel()),
+              Expanded(
+                flex: 46,
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Color(0xFF04152A), Color(0xFF020B18)],
+                    ),
                   ),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 580),
-                    child: _desktopLoginCard(compact: compact),
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        compact ? 16 : 28,
+                        compact ? 20 : 32,
+                        compact ? 24 : 48,
+                        compact ? 20 : 32,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 580),
+                        child: _desktopLoginCard(compact: compact),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -109,7 +131,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _desktopBrandPanel() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 640 || constraints.maxHeight < 780;
+        final compact =
+            constraints.maxWidth < 640 || constraints.maxHeight < 780;
         return Container(
           decoration: const BoxDecoration(
             gradient: RadialGradient(
@@ -159,10 +182,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(
                       child: Center(
                         child: Transform.scale(
-                          scale: 1.18,
+                          scale: compact ? 1.22 : 1.32,
                           child: AnimatedHeroImage(
                             asset: 'assets/images/login_hero_reference.webp',
-                            height: compact ? 260 : 350,
+                            height: compact ? 275 : 370,
                           ),
                         ),
                       ),
@@ -690,7 +713,10 @@ class _BrandTagline extends StatelessWidget {
       style: TextStyle(color: Colors.white70, fontSize: 17),
       children: [
         TextSpan(text: 'Prepare '),
-        TextSpan(text: 'Smarter.', style: TextStyle(color: _cyan)),
+        TextSpan(
+          text: 'Smarter.',
+          style: TextStyle(color: _cyan),
+        ),
         TextSpan(text: ' Achieve '),
         TextSpan(
           text: 'More.',
