@@ -5,6 +5,7 @@ import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../utils/exam_content.dart';
+import '../../widgets/home_navigation_action.dart';
 import '../quiz/quiz_screen.dart';
 
 class MockTestScreen extends StatefulWidget {
@@ -99,7 +100,10 @@ class _MockTestScreenState extends State<MockTestScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
-      appBar: AppBar(title: Text("$exam ${widget.title}")),
+      appBar: AppBar(
+        title: Text("$exam ${widget.title}"),
+        actions: const [HomeNavigationAction()],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(

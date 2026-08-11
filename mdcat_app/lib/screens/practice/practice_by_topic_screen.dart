@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
 import '../../models/models.dart';
+import '../../widgets/home_navigation_action.dart';
 import '../quiz/quiz_screen.dart';
 
 class PracticeByTopicScreen extends StatefulWidget {
@@ -95,7 +96,10 @@ class _PracticeByTopicScreenState extends State<PracticeByTopicScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Practice by Topic")),
+      appBar: AppBar(
+        title: const Text("Practice by Topic"),
+        actions: const [HomeNavigationAction()],
+      ),
       body: _loadingSyllabus
           ? const Center(child: CircularProgressIndicator())
           : _error != null

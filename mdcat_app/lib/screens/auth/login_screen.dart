@@ -25,8 +25,17 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameFocus = FocusNode();
   bool _loading = false;
   bool _obscurePassword = true;
-  bool _rememberMe = true;
+  bool _rememberMe = false;
   bool _adminMode = false;
+
+  bool get _isLight => Theme.of(context).brightness == Brightness.light;
+  bool get _isBlack => context.pageBackground == Colors.black;
+  Color get _desktopText => Theme.of(context).colorScheme.onSurface;
+  Color get _desktopMuted => Theme.of(context).colorScheme.onSurfaceVariant;
+  Color get _desktopPanel => context.panelColor;
+  Color get _desktopField => _isLight
+      ? const Color(0xFFF4F7FC)
+      : (_isBlack ? Colors.black : const Color(0xFF071426));
 
   @override
   void dispose() {
@@ -44,6 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await auth.login(
       _usernameController.text.trim(),
       _passwordController.text,
+      rememberMe: _rememberMe,
     );
 
     if (!mounted) return;
@@ -81,13 +91,21 @@ class _LoginScreenState extends State<LoginScreen> {
     final size = MediaQuery.sizeOf(context);
     final compact = size.width < 1180 || size.height < 780;
     return Scaffold(
-      backgroundColor: const Color(0xFF020B18),
+      backgroundColor: context.pageBackground,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
-            colors: [Color(0xFF08264B), Color(0xFF04152A), Color(0xFF020B18)],
+            colors: _isLight
+                ? const [Color(0xFFEAF5FF), Color(0xFFF5F9FF), Colors.white]
+                : (_isBlack
+                    ? const [Colors.black, Colors.black, Colors.black]
+                    : const [
+                        Color(0xFF08264B),
+                        Color(0xFF04152A),
+                        Color(0xFF020B18),
+                      ]),
             stops: [0, .54, 1],
           ),
         ),
@@ -98,11 +116,15 @@ class _LoginScreenState extends State<LoginScreen> {
               Expanded(
                 flex: 46,
                 child: DecoratedBox(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
-                      colors: [Color(0xFF04152A), Color(0xFF020B18)],
+                      colors: _isLight
+                          ? const [Color(0xFFF5F9FF), Colors.white]
+                          : (_isBlack
+                              ? const [Colors.black, Colors.black]
+                              : const [Color(0xFF04152A), Color(0xFF020B18)]),
                     ),
                   ),
                   child: Center(
@@ -134,11 +156,15 @@ class _LoginScreenState extends State<LoginScreen> {
         final compact =
             constraints.maxWidth < 640 || constraints.maxHeight < 780;
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: RadialGradient(
               center: Alignment(.05, .1),
               radius: 1.1,
-              colors: [Color(0xFF092B57), Color(0xFF020B18)],
+              colors: _isLight
+                  ? const [Color(0xFFDDEEFF), Color(0xFFF8FBFF)]
+                  : (_isBlack
+                      ? const [Colors.black, Colors.black]
+                      : const [Color(0xFF092B57), Color(0xFF020B18)]),
             ),
           ),
           child: Stack(
@@ -161,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       'Your journey to\nsuccess starts here.',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: _desktopText,
                         fontSize: compact ? 35 : 46,
                         height: 1.12,
                         fontWeight: FontWeight.w800,
@@ -173,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Smart preparation, expert resources, and personalized\n'
                       'practice to help you crack every exam with confidence.',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(.68),
+                        color: _desktopMuted,
                         fontSize: compact ? 14 : 17,
                         height: 1.55,
                       ),
@@ -240,10 +266,14 @@ class _LoginScreenState extends State<LoginScreen> {
         compact ? 24 : 28,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF101D34), Color(0xFF0B1428)],
+          colors: _isLight
+              ? const [Colors.white, Color(0xFFF4F8FF)]
+              : (_isBlack
+                  ? const [Colors.black, Colors.black]
+                  : const [Color(0xFF101D34), Color(0xFF0B1428)]),
         ),
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: const Color(0xFF42627D)),
@@ -280,9 +310,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 padding: const EdgeInsets.all(1.4),
                 child: Container(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Color(0xFF111D35),
+                    color: _desktopPanel,
                   ),
                   child: Icon(
                     _adminMode
@@ -299,7 +329,7 @@ class _LoginScreenState extends State<LoginScreen> {
               _adminMode ? 'Admin Login' : 'Welcome Back',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white,
+                color: _desktopText,
                 fontSize: compact ? 30 : 36,
                 fontWeight: FontWeight.w800,
               ),
@@ -310,10 +340,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? 'Access the BrainBoost administration portal'
                   : 'Sign in to continue your learning journey',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withOpacity(.58),
-                fontSize: 16,
-              ),
+              style: TextStyle(color: _desktopMuted, fontSize: 16),
             ),
             SizedBox(height: compact ? 22 : 30),
             _fieldLabel('Email or username'),
@@ -321,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TextFormField(
               controller: _usernameController,
               focusNode: _usernameFocus,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: _desktopText),
               decoration: _desktopInputDecoration(
                 hint: 'Email or username',
                 icon: Icons.person_outline_rounded,
@@ -336,26 +363,25 @@ class _LoginScreenState extends State<LoginScreen> {
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: _desktopText),
               onFieldSubmitted: (_) {
                 if (!_loading) _submit();
               },
-              decoration:
-                  _desktopInputDecoration(
-                    hint: 'Password',
-                    icon: Icons.lock_outline_rounded,
-                  ).copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: Colors.white54,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                    ),
+              decoration: _desktopInputDecoration(
+                hint: 'Password',
+                icon: Icons.lock_outline_rounded,
+              ).copyWith(
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    color: _desktopMuted,
                   ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
               validator: (value) =>
                   value == null || value.isEmpty ? 'Enter your password' : null,
             ),
@@ -365,14 +391,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 Checkbox(
                   value: _rememberMe,
                   activeColor: _cyan,
-                  side: const BorderSide(color: Colors.white38),
+                  side: BorderSide(color: _desktopMuted),
                   onChanged: (value) =>
-                      setState(() => _rememberMe = value ?? true),
+                      setState(() => _rememberMe = value ?? false),
                 ),
-                const Text(
-                  'Remember me',
-                  style: TextStyle(color: Colors.white70),
-                ),
+                Text('Remember me', style: TextStyle(color: _desktopMuted)),
                 const Spacer(),
                 TextButton(
                   onPressed: _openForgotPassword,
@@ -441,7 +464,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Material(
-                color: const Color(0xFF0B172B),
+                color: _desktopPanel,
                 borderRadius: BorderRadius.circular(11),
                 child: InkWell(
                   onTap: _adminMode
@@ -455,13 +478,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         _adminMode
                             ? Icons.school_outlined
                             : Icons.admin_panel_settings_outlined,
-                        color: Colors.white,
+                        color: _desktopText,
                       ),
                       const SizedBox(width: 10),
                       Text(
                         _adminMode ? 'Student Login' : 'Admin Login',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: _desktopText,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
@@ -474,24 +497,21 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 18),
             Row(
               children: [
-                const Expanded(child: Divider(color: Colors.white24)),
+                Expanded(child: Divider(color: context.subtleBorderColor)),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: Text(
-                    'or',
-                    style: TextStyle(color: Colors.white.withOpacity(.48)),
-                  ),
+                  child: Text('or', style: TextStyle(color: _desktopMuted)),
                 ),
-                const Expanded(child: Divider(color: Colors.white24)),
+                Expanded(child: Divider(color: context.subtleBorderColor)),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'New to BrainBoost? ',
-                  style: TextStyle(color: Colors.white60),
+                  style: TextStyle(color: _desktopMuted),
                 ),
                 TextButton(
                   onPressed: _openRegister,
@@ -500,14 +520,14 @@ class _LoginScreenState extends State<LoginScreen> {
               ],
             ),
             const SizedBox(height: 6),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.shield_outlined, color: _cyan, size: 18),
-                SizedBox(width: 7),
+                const Icon(Icons.shield_outlined, color: _cyan, size: 18),
+                const SizedBox(width: 7),
                 Text(
                   'Your account is protected',
-                  style: TextStyle(color: Colors.white38, fontSize: 12),
+                  style: TextStyle(color: _desktopMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -619,41 +639,43 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _fieldLabel(String text) => Text(
-    text,
-    style: const TextStyle(
-      color: Colors.white,
-      fontWeight: FontWeight.w600,
-      fontSize: 14,
-    ),
-  );
+        text,
+        style: TextStyle(
+          color: _desktopText,
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+        ),
+      );
 
   InputDecoration _desktopInputDecoration({
     required String hint,
     required IconData icon,
-  }) => InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: Colors.white38),
-    prefixIcon: Icon(icon, color: Colors.white54),
-    filled: true,
-    fillColor: const Color(0xFF071426),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 19),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xFF52627A)),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: _cyan, width: 1.5),
-    ),
-  );
+  }) =>
+      InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: _desktopMuted),
+        prefixIcon: Icon(icon, color: _desktopMuted),
+        filled: true,
+        fillColor: _desktopField,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 19),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: context.subtleBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _cyan, width: 1.5),
+        ),
+      );
 
   void _openForgotPassword() => Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()));
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()));
 
   void _openRegister() => Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
 }
 
 class _BrainBoostLogo extends StatelessWidget {
@@ -661,70 +683,73 @@ class _BrainBoostLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        width: 54,
-        height: 54,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [_cyan, Color(0xFF4D9CFF), Color(0xFF9458F6)],
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_cyan, Color(0xFF4D9CFF), Color(0xFF9458F6)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(color: Color(0x4420D5C5), blurRadius: 18),
+              ],
+            ),
+            child: const Icon(
+              Icons.psychology_outlined,
+              color: Colors.white,
+              size: 36,
+            ),
           ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(color: Color(0x4420D5C5), blurRadius: 18),
-          ],
-        ),
-        child: const Icon(
-          Icons.psychology_outlined,
-          color: Colors.white,
-          size: 36,
-        ),
-      ),
-      const SizedBox(width: 13),
-      const Text(
-        'Brain',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 30,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-      const Text(
-        'Boost',
-        style: TextStyle(
-          color: _cyan,
-          fontSize: 30,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    ],
-  );
+          const SizedBox(width: 13),
+          Text(
+            'Brain',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const Text(
+            'Boost',
+            style: TextStyle(
+              color: _cyan,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      );
 }
 
 class _BrandTagline extends StatelessWidget {
   const _BrandTagline();
 
   @override
-  Widget build(BuildContext context) => const Text.rich(
-    TextSpan(
-      style: TextStyle(color: Colors.white70, fontSize: 17),
-      children: [
-        TextSpan(text: 'Prepare '),
+  Widget build(BuildContext context) => Text.rich(
         TextSpan(
-          text: 'Smarter.',
-          style: TextStyle(color: _cyan),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 17,
+          ),
+          children: const [
+            TextSpan(text: 'Prepare '),
+            TextSpan(
+              text: 'Smarter.',
+              style: TextStyle(color: _cyan),
+            ),
+            TextSpan(text: ' Achieve '),
+            TextSpan(
+              text: 'More.',
+              style: TextStyle(color: Color(0xFFA05CF5)),
+            ),
+          ],
         ),
-        TextSpan(text: ' Achieve '),
-        TextSpan(
-          text: 'More.',
-          style: TextStyle(color: Color(0xFFA05CF5)),
-        ),
-      ],
-    ),
-  );
+      );
 }
 
 class _BrandStat extends StatelessWidget {
@@ -742,46 +767,46 @@ class _BrandStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color.withOpacity(.1),
-          border: Border.all(color: color.withOpacity(.75)),
-        ),
-        child: Icon(icon, color: color, size: 25),
-      ),
-      const SizedBox(width: 11),
-      Flexible(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-              ),
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withOpacity(.1),
+              border: Border.all(color: color.withOpacity(.75)),
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 11,
-                height: 1.25,
-              ),
+            child: Icon(icon, color: color, size: 25),
+          ),
+          const SizedBox(width: 11),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                    height: 1.25,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    ],
-  );
+          ),
+        ],
+      );
 }
 
 class _StatDivider extends StatelessWidget {
@@ -789,11 +814,11 @@ class _StatDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 1,
-    height: 50,
-    margin: const EdgeInsets.symmetric(horizontal: 6),
-    color: Colors.white24,
-  );
+        width: 1,
+        height: 50,
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        color: Theme.of(context).colorScheme.outlineVariant,
+      );
 }
 
 class _ConstellationBackground extends StatelessWidget {

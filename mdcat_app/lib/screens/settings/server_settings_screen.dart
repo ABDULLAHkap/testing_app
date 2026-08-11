@@ -6,6 +6,7 @@ import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../services/theme_provider.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/home_navigation_action.dart';
 import '../communications/support_chat_screen.dart';
 import '../subscription/subscription_screen.dart';
 
@@ -215,7 +216,10 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     final currentEmail = context.watch<AuthProvider>().currentUser?.email ?? "";
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(
+        title: const Text("Settings"),
+        actions: const [HomeNavigationAction()],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(

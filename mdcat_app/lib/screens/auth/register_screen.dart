@@ -43,6 +43,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Color get _surface => context.panelColor;
   Color get _text => context.primaryTextColor;
   Color get _muted => context.secondaryTextColor;
+  bool get _isLight => Theme.of(context).brightness == Brightness.light;
+  bool get _isBlack => _bg == Colors.black;
 
   @override
   void dispose() {
@@ -98,13 +100,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final size = MediaQuery.sizeOf(context);
     final compact = size.width < 1180 || size.height < 780;
     return Scaffold(
-      backgroundColor: const Color(0xFF020B18),
+      backgroundColor: _bg,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
-            colors: [Color(0xFF08264B), Color(0xFF04152A), Color(0xFF020B18)],
+            colors: _isLight
+                ? const [Color(0xFFEAF5FF), Color(0xFFF5F9FF), Colors.white]
+                : (_isBlack
+                      ? const [Colors.black, Colors.black, Colors.black]
+                      : const [
+                          Color(0xFF08264B),
+                          Color(0xFF04152A),
+                          Color(0xFF020B18),
+                        ]),
             stops: [0, .54, 1],
           ),
         ),
@@ -115,11 +125,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Expanded(
                 flex: 46,
                 child: DecoratedBox(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
-                      colors: [Color(0xFF04152A), Color(0xFF020B18)],
+                      colors: _isLight
+                          ? const [Color(0xFFF5F9FF), Colors.white]
+                          : (_isBlack
+                                ? const [Colors.black, Colors.black]
+                                : const [Color(0xFF04152A), Color(0xFF020B18)]),
                     ),
                   ),
                   child: Center(
@@ -146,11 +160,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _desktopBrandPanel({required bool compact}) => Container(
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       gradient: RadialGradient(
         center: Alignment(.05, .08),
         radius: 1.12,
-        colors: [Color(0xFF092B57), Color(0xFF020B18)],
+        colors: _isLight
+            ? const [Color(0xFFDDEEFF), Color(0xFFF8FBFF)]
+            : (_isBlack
+                  ? const [Colors.black, Colors.black]
+                  : const [Color(0xFF092B57), Color(0xFF020B18)]),
       ),
     ),
     padding: EdgeInsets.fromLTRB(
@@ -191,10 +209,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   fontSize: compact ? 27 : 30,
                   fontWeight: FontWeight.w800,
                 ),
-                children: const [
+                children: [
                   TextSpan(
                     text: 'Brain',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: _text),
                   ),
                   TextSpan(
                     text: 'Boost',
@@ -206,10 +224,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
         SizedBox(height: compact ? 8 : 12),
-        const Text.rich(
+        Text.rich(
           TextSpan(
-            style: TextStyle(color: Colors.white70, fontSize: 17),
-            children: [
+            style: TextStyle(color: _muted, fontSize: 17),
+            children: const [
               TextSpan(text: 'Prepare '),
               TextSpan(
                 text: 'Smarter.',
@@ -227,7 +245,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text(
           'Start Strong. Go Further.',
           style: TextStyle(
-            color: Colors.white,
+            color: _text,
             fontSize: compact ? 34 : 44,
             fontWeight: FontWeight.w800,
             letterSpacing: -1,
@@ -237,7 +255,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text(
           'Create one account for practice, mock tests, progress insights, and guided exam preparation.',
           style: TextStyle(
-            color: Colors.white.withOpacity(.68),
+            color: _muted,
             fontSize: compact ? 14 : 17,
             height: 1.5,
           ),
@@ -282,10 +300,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       compact ? 22 : 26,
     ),
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF101D34), Color(0xFF0B1428)],
+        colors: _isLight
+            ? const [Colors.white, Color(0xFFF4F8FF)]
+            : (_isBlack
+                  ? const [Colors.black, Colors.black]
+                  : const [Color(0xFF101D34), Color(0xFF0B1428)]),
       ),
       borderRadius: BorderRadius.circular(26),
       border: Border.all(color: const Color(0xFF42627D)),
@@ -319,12 +341,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   BoxShadow(color: Color(0x443F9CFF), blurRadius: 22),
                 ],
               ),
-              child: const DecoratedBox(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFF111D35),
+                  color: _surface,
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.person_add_alt_1_outlined,
                   color: Color(0xFF8A62F6),
                   size: 34,
@@ -337,52 +359,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'Create your account',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white,
+              color: _text,
               fontSize: compact ? 29 : 34,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Start your BrainBoost preparation journey',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white54, fontSize: 15),
+            style: TextStyle(color: _muted, fontSize: 15),
           ),
           const SizedBox(height: 26),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _usernameField(dark: true)),
+              Expanded(child: _usernameField(dark: !_isLight)),
               const SizedBox(width: 14),
-              Expanded(child: _phoneField(dark: true)),
+              Expanded(child: _phoneField(dark: !_isLight)),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _genderField(dark: true)),
+              Expanded(child: _genderField(dark: !_isLight)),
               const SizedBox(width: 14),
-              Expanded(child: _examField(dark: true)),
+              Expanded(child: _examField(dark: !_isLight)),
             ],
           ),
           const SizedBox(height: 14),
-          _emailField(dark: true),
+          _emailField(dark: !_isLight),
           const SizedBox(height: 14),
-          _passwordField(dark: true),
+          _passwordField(dark: !_isLight),
           const SizedBox(height: 22),
           _createAccountButton(),
           const SizedBox(height: 10),
-          _signInButton(dark: true),
+          _signInButton(dark: !_isLight),
           const SizedBox(height: 8),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.shield_outlined, color: _cyan, size: 17),
-              SizedBox(width: 7),
+              const Icon(Icons.shield_outlined, color: _cyan, size: 17),
+              const SizedBox(width: 7),
               Text(
                 'Your information is securely protected',
-                style: TextStyle(color: Colors.white38, fontSize: 12),
+                style: TextStyle(color: _muted, fontSize: 12),
               ),
             ],
           ),
@@ -447,7 +469,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _usernameField({bool dark = false}) => TextFormField(
     controller: _usernameController,
-    style: dark ? const TextStyle(color: Colors.white) : null,
+    style: dark ? TextStyle(color: _text) : null,
     decoration: _fieldDecoration('Username', Icons.person_outline, dark: dark),
     validator: (value) =>
         value == null || value.length < 3 ? 'At least 3 characters' : null,
@@ -455,7 +477,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _phoneField({bool dark = false}) => TextFormField(
     controller: _phoneController,
-    style: dark ? const TextStyle(color: Colors.white) : null,
+    style: dark ? TextStyle(color: _text) : null,
     decoration: _fieldDecoration(
       'Phone number',
       Icons.phone_android_outlined,
@@ -471,8 +493,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _genderField({bool dark = false}) => DropdownButtonFormField<String>(
     initialValue: _gender,
-    dropdownColor: dark ? const Color(0xFF0A1728) : _surface,
-    style: TextStyle(color: dark ? Colors.white : _text),
+    dropdownColor: _surface,
+    style: TextStyle(color: _text),
     decoration: _fieldDecoration('Gender', Icons.people_outline, dark: dark),
     items: const ['Male', 'Female', 'Other', 'Prefer not to say']
         .map((value) => DropdownMenuItem(value: value, child: Text(value)))
@@ -482,8 +504,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _examField({bool dark = false}) => DropdownButtonFormField<String>(
     initialValue: _targetExam,
-    dropdownColor: dark ? const Color(0xFF0A1728) : _surface,
-    style: TextStyle(color: dark ? Colors.white : _text),
+    dropdownColor: _surface,
+    style: TextStyle(color: _text),
     decoration: _fieldDecoration(
       'Test category',
       Icons.grid_view_rounded,
@@ -497,7 +519,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _emailField({bool dark = false}) => TextFormField(
     controller: _emailController,
-    style: dark ? const TextStyle(color: Colors.white) : null,
+    style: dark ? TextStyle(color: _text) : null,
     decoration: _fieldDecoration('Email', Icons.mail_outline, dark: dark),
     keyboardType: TextInputType.emailAddress,
     validator: (value) =>
@@ -506,7 +528,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _passwordField({bool dark = false}) => TextFormField(
     controller: _passwordController,
-    style: dark ? const TextStyle(color: Colors.white) : null,
+    style: dark ? TextStyle(color: _text) : null,
     decoration: _fieldDecoration('Password', Icons.lock_outline, dark: dark)
         .copyWith(
           suffixIcon: IconButton(
@@ -514,7 +536,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _obscurePassword
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
-              color: dark ? Colors.white54 : _muted,
+              color: _muted,
             ),
             onPressed: () =>
                 setState(() => _obscurePassword = !_obscurePassword),
@@ -557,7 +579,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     onPressed: () => Navigator.of(context).pop(),
     child: Text.rich(
       TextSpan(
-        style: TextStyle(color: dark ? Colors.white54 : _muted, fontSize: 15),
+        style: TextStyle(color: _muted, fontSize: 15),
         children: const [
           TextSpan(text: 'Already registered? '),
           TextSpan(
@@ -576,16 +598,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: dark ? Colors.white38 : _muted),
+      hintStyle: TextStyle(color: _muted),
       prefixIcon: Icon(icon, color: _cyan),
       filled: true,
-      fillColor: dark ? const Color(0xFF071426) : _surface,
+      fillColor: _surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 19),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(
-          color: dark ? const Color(0xFF52627A) : context.subtleBorderColor,
-        ),
+        borderSide: BorderSide(color: context.subtleBorderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -613,16 +633,21 @@ class _SignupBenefit extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
     decoration: BoxDecoration(
-      color: const Color(0xAA09182A),
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFF36506E)),
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: _RegisterScreenState._cyan, size: 20),
         const SizedBox(width: 8),
-        Text(text, style: const TextStyle(color: Colors.white70)),
+        Text(
+          text,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     ),
   );

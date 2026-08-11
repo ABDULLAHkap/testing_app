@@ -7,6 +7,7 @@ import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../services/file_saver.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/home_navigation_action.dart';
 import '../quiz/quiz_screen.dart';
 
 const _subjectColors = {
@@ -122,6 +123,7 @@ class _PastPaperDetailScreenState extends State<PastPaperDetailScreen> {
         backgroundColor: context.pageBackground,
         foregroundColor: context.primaryTextColor,
         elevation: 0,
+        actions: const [HomeNavigationAction()],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

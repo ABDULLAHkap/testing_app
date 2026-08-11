@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/home_navigation_action.dart';
 
 const _cyan = Color(0xFF20D5C5);
 
@@ -131,6 +132,7 @@ class _TutorChatScreenState extends State<TutorChatScreen> {
       appBar: AppBar(
         backgroundColor: _bg,
         titleSpacing: 0,
+        actions: const [HomeNavigationAction()],
         title: Row(
           children: [
             Container(

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/home_navigation_action.dart';
 import '../tutor/tutor_chat_screen.dart';
 import 'practice_by_topic_screen.dart';
 
@@ -62,7 +63,10 @@ Teach me the official section format, give me one realistic practice task, let m
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.pageBackground,
-      appBar: AppBar(title: const Text('Exam Format')),
+      appBar: AppBar(
+        title: const Text('Exam Format'),
+        actions: const [HomeNavigationAction()],
+      ),
       body: _error != null
           ? Center(child: Text("Couldn't load format: $_error"))
           : _format == null

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
+import '../../widgets/home_navigation_action.dart';
 import '../communications/support_chat_screen.dart';
 
 class AdminCommunicationsScreen extends StatefulWidget {
   const AdminCommunicationsScreen({super.key});
 
   @override
-  State<AdminCommunicationsScreen> createState() => _AdminCommunicationsScreenState();
+  State<AdminCommunicationsScreen> createState() =>
+      _AdminCommunicationsScreenState();
 }
 
 class _AdminCommunicationsScreenState extends State<AdminCommunicationsScreen>
@@ -34,7 +36,8 @@ class _AdminCommunicationsScreenState extends State<AdminCommunicationsScreen>
   }
 
   Future<void> _sendAnnouncement() async {
-    if (_title.text.trim().length < 3 || _message.text.trim().length < 3) return;
+    if (_title.text.trim().length < 3 || _message.text.trim().length < 3)
+      return;
     setState(() => _sending = true);
     try {
       await _api.sendAnnouncement(_title.text.trim(), _message.text.trim());
@@ -68,9 +71,13 @@ class _AdminCommunicationsScreenState extends State<AdminCommunicationsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Communication'),
+        actions: const [HomeNavigationAction()],
         bottom: TabBar(
           controller: _tabs,
-          tabs: const [Tab(text: 'Announcement'), Tab(text: 'Student Chats')],
+          tabs: const [
+            Tab(text: 'Announcement'),
+            Tab(text: 'Student Chats'),
+          ],
         ),
       ),
       body: TabBarView(
@@ -112,10 +119,12 @@ class _AdminCommunicationsScreenState extends State<AdminCommunicationsScreen>
           RefreshIndicator(
             onRefresh: _loadConversations,
             child: _conversations.isEmpty
-                ? ListView(children: const [
-                    SizedBox(height: 180),
-                    Center(child: Text('No student conversations yet')),
-                  ])
+                ? ListView(
+                    children: const [
+                      SizedBox(height: 180),
+                      Center(child: Text('No student conversations yet')),
+                    ],
+                  )
                 : ListView.builder(
                     itemCount: _conversations.length,
                     itemBuilder: (context, index) {

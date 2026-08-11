@@ -141,6 +141,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 14),
               _featureCards(selectedExam),
+              if (!isAdmin) ...[
+                const SizedBox(height: 12),
+                _mobilePastPapersShortcut(selectedExam),
+              ],
               const SizedBox(height: 16),
               _performanceCard(),
               const SizedBox(height: 24),
@@ -157,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String selectedExam,
     required bool isAdmin,
   }) => Scaffold(
-    backgroundColor: const Color(0xFF020C18),
+    backgroundColor: _bg,
     body: SafeArea(
       child: Row(
         children: [
@@ -220,28 +224,28 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _desktopSidebar(bool isAdmin) => Container(
     width: 240,
     padding: const EdgeInsets.fromLTRB(14, 28, 14, 22),
-    decoration: const BoxDecoration(
-      color: Color(0xFF031021),
-      border: Border(right: BorderSide(color: Color(0xFF1C3853))),
+    decoration: BoxDecoration(
+      color: _cardBg,
+      border: Border(right: BorderSide(color: context.subtleBorderColor)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
-              Icon(Icons.psychology_outlined, color: _cyan, size: 36),
-              SizedBox(width: 8),
+              const Icon(Icons.psychology_outlined, color: _cyan, size: 36),
+              const SizedBox(width: 8),
               Text(
                 'Brain',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: _text,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              Text(
+              const Text(
                 'Boost',
                 style: TextStyle(
                   color: _cyan,
@@ -276,7 +280,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Icons.menu_book_outlined,
           isAdmin ? 'Communicate' : 'Past Papers',
           () => _openScreen(
-            isAdmin ? const AdminCommunicationsScreen() : const TestsScreen(),
+            isAdmin
+                ? const AdminCommunicationsScreen()
+                : const PastPapersScreen(),
           ),
         ),
         _desktopNavItem(
@@ -291,7 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
           () => _openScreen(const ServerSettingsScreen()),
         ),
         const Spacer(),
-        const Divider(color: Color(0xFF24405A)),
+        Divider(color: context.subtleBorderColor),
         _desktopNavItem(
           Icons.logout_rounded,
           'Logout',
@@ -310,12 +316,11 @@ class _HomeScreenState extends State<HomeScreen> {
     int badge = 0,
     Color? color,
   }) {
-    final foreground =
-        color ?? (active ? Colors.white : const Color(0xFFB9C5D4));
+    final foreground = color ?? (active ? _text : _muted);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: active ? const Color(0xFF0A4352) : Colors.transparent,
+        color: active ? _cyan.withOpacity(.14) : Colors.transparent,
         borderRadius: BorderRadius.circular(11),
         child: InkWell(
           onTap: onTap,
@@ -348,8 +353,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Text(
                       '$badge',
-                      style: const TextStyle(
-                        color: Color(0xFF031021),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -376,8 +381,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: _text,
             fontSize: 25,
             fontWeight: FontWeight.w800,
           ),
@@ -385,43 +390,29 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       SizedBox(width: 220, child: _categoryCard(exam, isAdmin)),
       const SizedBox(width: 18),
-      SizedBox(
-        width: 320,
-        child: TextField(
-          readOnly: true,
-          onTap: () => _openScreen(const TestsScreen()),
-          decoration: InputDecoration(
-            hintText: 'Search tests and topics...',
-            prefixIcon: const Icon(Icons.search_rounded),
-            filled: true,
-            fillColor: const Color(0xFF0A1728),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF29435F)),
-            ),
-          ),
-        ),
-      ),
-      const SizedBox(width: 12),
       IconButton(
         tooltip: 'Notifications',
         onPressed: _openAnnouncements,
         icon: Badge(
           isLabelVisible: _unreadAnnouncements > 0,
           label: Text('$_unreadAnnouncements'),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: Colors.white,
-          ),
+          child: Icon(Icons.notifications_none_rounded, color: _text),
         ),
       ),
       const SizedBox(width: 8),
-      CircleAvatar(
-        backgroundColor: _cyan.withOpacity(.18),
-        foregroundColor: _cyan,
-        child: Text(
-          username.isEmpty ? 'S' : username[0].toUpperCase(),
-          style: const TextStyle(fontWeight: FontWeight.w800),
+      Tooltip(
+        message: 'Open Settings',
+        child: InkWell(
+          onTap: () => _openScreen(const ServerSettingsScreen()),
+          customBorder: const CircleBorder(),
+          child: CircleAvatar(
+            backgroundColor: _cyan.withOpacity(.18),
+            foregroundColor: _cyan,
+            child: Text(
+              username.isEmpty ? 'S' : username[0].toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
         ),
       ),
     ],
@@ -432,17 +423,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _desktopPerformanceCard() => Container(
     padding: const EdgeInsets.all(22),
     decoration: BoxDecoration(
-      color: const Color(0xFF091829),
+      color: _cardBg,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFF24415D)),
+      border: Border.all(color: context.subtleBorderColor),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Performance Overview',
           style: TextStyle(
-            color: Colors.white,
+            color: _text,
             fontSize: 19,
             fontWeight: FontWeight.w700,
           ),
@@ -455,7 +446,11 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: SizedBox(
                 height: 180,
-                child: CustomPaint(painter: _ProgressChartPainter()),
+                child: CustomPaint(
+                  painter: _ProgressChartPainter(
+                    gridColor: context.subtleBorderColor,
+                  ),
+                ),
               ),
             ),
           ],
@@ -530,17 +525,17 @@ class _HomeScreenState extends State<HomeScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: const Color(0xFF091829),
+          color: _cardBg,
           borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: const Color(0xFF24415D)),
+          border: Border.all(color: context.subtleBorderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: _text,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
               ),
@@ -573,17 +568,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white60, fontSize: 12),
-              ),
+              Text(label, style: TextStyle(color: _muted, fontSize: 12)),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(color: _text, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -873,6 +862,57 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
+  Widget _mobilePastPapersShortcut(String exam) => InkWell(
+    onTap: () => _openScreen(const PastPapersScreen()),
+    borderRadius: BorderRadius.circular(18),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF7C5CFF).withOpacity(.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: const Color(0xFF7C5CFF).withOpacity(.14),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.history_edu_rounded,
+              color: Color(0xFF7C5CFF),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$exam Past Papers',
+                  style: TextStyle(
+                    color: _text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Browse and download past papers',
+                  style: TextStyle(color: _muted),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.arrow_forward_rounded, color: Color(0xFF7C5CFF)),
+        ],
+      ),
+    ),
+  );
 
   void _dailyChallenge(String exam) => Navigator.of(context).push(
     MaterialPageRoute(
@@ -1194,10 +1234,14 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _ProgressChartPainter extends CustomPainter {
+  const _ProgressChartPainter({required this.gridColor});
+
+  final Color gridColor;
+
   @override
   void paint(Canvas canvas, Size size) {
     final grid = Paint()
-      ..color = const Color(0xFF263F58)
+      ..color = gridColor
       ..strokeWidth = 1;
     for (var row = 0; row <= 4; row++) {
       final y = size.height * row / 4;
@@ -1246,5 +1290,6 @@ class _ProgressChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ProgressChartPainter oldDelegate) =>
+      oldDelegate.gridColor != gridColor;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
+import '../../widgets/home_navigation_action.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
@@ -33,34 +34,37 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Announcements')),
+      appBar: AppBar(
+        title: const Text('Announcements'),
+        actions: const [HomeNavigationAction()],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? const Center(child: Text('No announcements yet'))
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _items.length,
-                    itemBuilder: (context, index) {
-                      final item = _items[index];
-                      final created = DateTime.tryParse('${item['created_at']}');
-                      return Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.campaign_outlined),
-                          title: Text('${item['title']}'),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              '${item['message']}\n\n${created?.toLocal().toString().substring(0, 16) ?? ''}',
-                            ),
-                          ),
+          ? const Center(child: Text('No announcements yet'))
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length,
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  final created = DateTime.tryParse('${item['created_at']}');
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.campaign_outlined),
+                      title: Text('${item['title']}'),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          '${item['message']}\n\n${created?.toLocal().toString().substring(0, 16) ?? ''}',
                         ),
-                      );
-                    },
-                  ),
-                ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

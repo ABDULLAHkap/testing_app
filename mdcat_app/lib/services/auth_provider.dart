@@ -49,10 +49,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> login(String username, String password) async {
+  Future<bool> login(
+    String username,
+    String password, {
+    required bool rememberMe,
+  }) async {
     lastError = null;
     try {
-      await _api.login(username, password);
+      await _api.login(username, password, rememberMe: rememberMe);
       currentUser = await _api.getMe();
       status = AuthStatus.authenticated;
       _startHeartbeat();

@@ -28,6 +28,8 @@ class ApiClient {
 
   static const _storage = FlutterSecureStorage();
   static const _tokenKey = "auth_token";
+  static const _rememberLoginKey = "remember_login";
+  static String? _sessionToken;
 
   /// The backend URL currently in use. Change it at runtime via
   /// [setBaseUrl] (e.g. from a Server Settings screen) — no rebuild
@@ -46,16 +48,32 @@ class ApiClient {
     _cachedBaseUrl = cleaned;
   }
 
-  Future<void> _saveToken(String token) async {
-    await _storage.write(key: _tokenKey, value: token);
+  Future<void> _saveToken(String token, {required bool rememberMe}) async {
+    _sessionToken = token;
+    if (rememberMe) {
+      await _storage.write(key: _tokenKey, value: token);
+      await _storage.write(key: _rememberLoginKey, value: "true");
+    } else {
+      await _storage.delete(key: _tokenKey);
+      await _storage.delete(key: _rememberLoginKey);
+    }
   }
 
   Future<String?> getToken() async {
-    return _storage.read(key: _tokenKey);
+    if (_sessionToken != null) return _sessionToken;
+    final rememberLogin = await _storage.read(key: _rememberLoginKey);
+    if (rememberLogin != "true") {
+      await _storage.delete(key: _tokenKey);
+      return null;
+    }
+    _sessionToken = await _storage.read(key: _tokenKey);
+    return _sessionToken;
   }
 
   Future<void> clearToken() async {
+    _sessionToken = null;
     await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _rememberLoginKey);
   }
 
   Future<Map<String, String>> _authHeaders() async {
@@ -152,7 +170,11 @@ class ApiClient {
     _decodeOrThrow(resp);
   }
 
-  Future<void> login(String username, String password) async {
+  Future<void> login(
+    String username,
+    String password, {
+    required bool rememberMe,
+  }) async {
     final baseUrl = await getBaseUrl();
     final resp = await http.post(
       Uri.parse("$baseUrl/auth/login"),
@@ -160,7 +182,7 @@ class ApiClient {
       body: {"username": username, "password": password},
     );
     final data = _decodeOrThrow(resp);
-    await _saveToken(data["access_token"]);
+    await _saveToken(data["access_token"], rememberMe: rememberMe);
   }
 
   Future<UserModel> getMe() async {
