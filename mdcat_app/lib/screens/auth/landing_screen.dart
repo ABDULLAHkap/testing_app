@@ -2679,7 +2679,6 @@ class _ExamCloud extends StatelessWidget {
   final bool compact;
 
   const _ExamCloud({this.compact = false});
-  const _ExamCloud();
 
   @override
   Widget build(BuildContext context) {
