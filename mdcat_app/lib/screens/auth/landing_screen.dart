@@ -1532,32 +1532,36 @@ class _PhoneHeroCard extends StatelessWidget {
       child: Row(
         children: [
           const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Stay consistent,',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Stay consistent,',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-                Text(
-                  'achieve excellence',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
+                  Text(
+                    'achieve excellence',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Your next goal is ready',
-                  style: TextStyle(color: Color(0xFFB4CCCF), fontSize: 9),
-                ),
-              ],
+                  SizedBox(height: 8),
+                  Text(
+                    'Your next goal is ready',
+                    style: TextStyle(color: Color(0xFFB4CCCF), fontSize: 9),
+                  ),
+                ],
+              ),
             ),
           ),
           Container(
@@ -1596,19 +1600,23 @@ class _PhoneCountdown extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(.1)),
       ),
-      child: const Row(
-        children: [
-          Icon(Icons.hourglass_top_rounded, color: _cyan, size: 23),
-          SizedBox(width: 9),
-          Text(
-            'Exam starts in',
-            style: TextStyle(color: Color(0xFFB8C7D5), fontSize: 10),
-          ),
-          Spacer(),
-          _PhoneTimeValue(value: '24', label: 'DAYS'),
-          _PhoneTimeValue(value: '08', label: 'HRS'),
-          _PhoneTimeValue(value: '47', label: 'MIN'),
-        ],
+      child: const FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.hourglass_top_rounded, color: _cyan, size: 23),
+            SizedBox(width: 9),
+            Text(
+              'Exam starts in',
+              style: TextStyle(color: Color(0xFFB8C7D5), fontSize: 10),
+            ),
+            SizedBox(width: 7),
+            _PhoneTimeValue(value: '24', label: 'DAYS'),
+            _PhoneTimeValue(value: '08', label: 'HRS'),
+            _PhoneTimeValue(value: '47', label: 'MIN'),
+          ],
+        ),
       ),
     );
   }
