@@ -159,8 +159,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(
                       child: Center(
                         child: AnimatedHeroImage(
-                          asset: 'assets/images/login_knowledge.webp',
-                          height: compact ? 250 : 330,
+                          asset: 'assets/images/login_hero_reference.png',
+                          height: compact ? 260 : 350,
                         ),
                       ),
                     ),
