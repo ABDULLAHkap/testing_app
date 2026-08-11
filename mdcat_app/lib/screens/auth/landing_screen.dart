@@ -655,49 +655,75 @@ class _LandingScreenState extends State<LandingScreen> {
     return Container(
       key: _aboutKey,
       width: double.infinity,
-      color: _navy,
-      padding: const EdgeInsets.symmetric(vertical: 88, horizontal: 52),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF06152F), Color(0xFF0A2147), Color(0xFF121B3E)],
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 96, horizontal: 52),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1220),
-          child: Row(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: Column(
             children: [
-              Expanded(
-                flex: 11,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _Eyebrow(
-                      label: 'ABOUT BRAINBOOST',
-                      color: Color(0xFF73E2D7),
-                    ),
-                    const SizedBox(height: 17),
-                    const Text(
-                      'One platform for many exam journeys',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 42,
-                        height: 1.14,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'BrainBoost helps students organize preparation, practice '
-                      'consistently and understand results. Each account is '
-                      'personalized around the student’s selected exam category.',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(.72),
-                        fontSize: 18,
-                        height: 1.65,
-                      ),
-                    ),
-                  ],
+              const _Eyebrow(
+                label: 'ABOUT BRAINBOOST',
+                color: Color(0xFF73E2D7),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Built to make every exam journey smarter',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 44,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.1,
                 ),
               ),
-              const SizedBox(width: 70),
-              const Expanded(flex: 10, child: _ExamCloud()),
+              const SizedBox(height: 18),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 790),
+                child: Text(
+                  'BrainBoost brings guided learning, realistic exam practice and meaningful progress insights into one secure, student-friendly platform.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(.72),
+                    fontSize: 18,
+                    height: 1.65,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 48),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked = constraints.maxWidth < 1000;
+                  final story = _AboutStoryCard(onStart: _openLogin);
+                  const platform = _AboutPlatformCard();
+                  if (stacked) {
+                    return Column(
+                      children: [
+                        story,
+                        const SizedBox(height: 20),
+                        platform,
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 11, child: story),
+                      const SizedBox(width: 22),
+                      const Expanded(flex: 10, child: platform),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              const _DownloadAppsPanel(),
             ],
           ),
         ),
@@ -2193,7 +2219,466 @@ class _JourneyBenefit extends StatelessWidget {
   }
 }
 
+class _AboutStoryCard extends StatelessWidget {
+  final VoidCallback onStart;
+
+  const _AboutStoryCard({required this.onStart});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(34),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0x2219CBBB), Color(0x191575EA), Color(0x22934EF5)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0x5548DCCF)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3319CBBB),
+            blurRadius: 34,
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF19CBBB), Color(0xFF1575EA)],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: const [
+                BoxShadow(color: Color(0x6619CBBB), blurRadius: 24),
+              ],
+            ),
+            child: const Icon(
+              Icons.psychology_alt_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Preparation that adapts to you',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 27,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -.45,
+            ),
+          ),
+          const SizedBox(height: 13),
+          const Text(
+            'Students choose their exam category and BrainBoost organizes the experience around that goal—from a focused study plan to daily practice, mock tests, answer review and progress tracking.',
+            style: TextStyle(
+              color: Color(0xFFB7C7DA),
+              fontSize: 15,
+              height: 1.65,
+            ),
+          ),
+          const SizedBox(height: 27),
+          const Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _AboutMetric(value: '8+', label: 'Exam categories'),
+              _AboutMetric(value: '3', label: 'Free trial tests'),
+              _AboutMetric(value: '24/7', label: 'Tutor guidance'),
+            ],
+          ),
+          const SizedBox(height: 28),
+          Divider(color: Colors.white24, height: 1),
+          const SizedBox(height: 23),
+          const Row(
+            children: [
+              Expanded(
+                child: _AboutValue(
+                  icon: Icons.verified_user_rounded,
+                  title: 'Secure accounts',
+                  description: 'Protected access and verified email signup.',
+                ),
+              ),
+              SizedBox(width: 18),
+              Expanded(
+                child: _AboutValue(
+                  icon: Icons.school_rounded,
+                  title: 'Student focused',
+                  description: 'Clear tools built around real preparation needs.',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 26),
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: onStart,
+              icon: const Icon(Icons.arrow_forward_rounded, size: 19),
+              label: const Text('Start your preparation'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF73E2D7),
+                side: const BorderSide(color: Color(0xAA19CBBB)),
+                padding: const EdgeInsets.symmetric(horizontal: 23),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AboutPlatformCard extends StatelessWidget {
+  const _AboutPlatformCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.055),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withOpacity(.14)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Everything you need in one place',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -.35,
+            ),
+          ),
+          SizedBox(height: 23),
+          _AboutValue(
+            icon: Icons.auto_stories_rounded,
+            title: 'Learn and practise',
+            description: 'Daily quizzes, topic practice and exam-focused guidance.',
+          ),
+          SizedBox(height: 20),
+          _AboutValue(
+            icon: Icons.fact_check_rounded,
+            title: 'Test with confidence',
+            description: 'Past papers, repeated questions and realistic mock tests.',
+          ),
+          SizedBox(height: 20),
+          _AboutValue(
+            icon: Icons.insights_rounded,
+            title: 'Understand every result',
+            description: 'Review answers, identify weak topics and measure improvement.',
+          ),
+          SizedBox(height: 27),
+          Divider(color: Colors.white24, height: 1),
+          SizedBox(height: 25),
+          Text(
+            'PREPARATION FOR',
+            style: TextStyle(
+              color: Color(0xFF73E2D7),
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
+            ),
+          ),
+          SizedBox(height: 15),
+          _ExamCloud(compact: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _AboutMetric extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _AboutMetric({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.065),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF73E2D7),
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFB7C7DA),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AboutValue extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _AboutValue({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 43,
+          height: 43,
+          decoration: BoxDecoration(
+            color: const Color(0x2219CBBB),
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: const Color(0x5519CBBB)),
+          ),
+          child: Icon(icon, color: const Color(0xFF73E2D7), size: 22),
+        ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: Color(0xFF9FB0C7),
+                  fontSize: 12,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DownloadAppsPanel extends StatelessWidget {
+  const _DownloadAppsPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 26),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0D3152), Color(0xFF182957), Color(0xFF2A1F55)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x445EDBD3)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const intro = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _DownloadIcon(),
+              SizedBox(width: 18),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Take BrainBoost wherever you study',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Mobile store downloads are being prepared. The buttons will become active after release.',
+                      style: TextStyle(
+                        color: Color(0xFFAFC0D6),
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          const badges = Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _StoreBadge(
+                icon: Icons.play_arrow_rounded,
+                kicker: 'COMING SOON ON',
+                store: 'Google Play',
+                accent: Color(0xFF45E1D2),
+              ),
+              _StoreBadge(
+                icon: Icons.phone_iphone_rounded,
+                kicker: 'COMING SOON ON THE',
+                store: 'App Store',
+                accent: Color(0xFFA579FF),
+              ),
+            ],
+          );
+          if (constraints.maxWidth < 900) {
+            return const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [intro, SizedBox(height: 22), badges],
+            );
+          }
+          return const Row(
+            children: [
+              Expanded(child: intro),
+              SizedBox(width: 28),
+              badges,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DownloadIcon extends StatelessWidget {
+  const _DownloadIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 58,
+      height: 58,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF19CBBB), Color(0xFF7A58F5)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Icon(Icons.install_mobile_rounded, color: Colors.white),
+    );
+  }
+}
+
+class _StoreBadge extends StatelessWidget {
+  final IconData icon;
+  final String kicker;
+  final String store;
+  final Color accent;
+
+  const _StoreBadge({
+    required this.icon,
+    required this.kicker,
+    required this.store,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '$store download coming soon',
+      child: Container(
+        width: 190,
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xCC050D1D),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: accent.withOpacity(.55)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: accent.withOpacity(.14),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, color: accent, size: 25),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    kicker,
+                    style: const TextStyle(
+                      color: Color(0xFF8FA2BA),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .45,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    store,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ExamCloud extends StatelessWidget {
+  final bool compact;
+
+  const _ExamCloud({this.compact = false});
   const _ExamCloud();
 
   @override
@@ -2210,11 +2695,13 @@ class _ExamCloud extends StatelessWidget {
       'and more',
     ];
     return Container(
-      padding: const EdgeInsets.all(30),
+      padding: EdgeInsets.all(compact ? 0 : 30),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.06),
+        color: compact ? Colors.transparent : Colors.white.withOpacity(.06),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(.13)),
+        border: Border.all(
+          color: compact ? Colors.transparent : Colors.white.withOpacity(.13),
+        ),
       ),
       child: Wrap(
         spacing: 12,
