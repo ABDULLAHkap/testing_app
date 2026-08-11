@@ -158,9 +158,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(height: compact ? 12 : 20),
                     Expanded(
                       child: Center(
-                        child: AnimatedHeroImage(
-                          asset: 'assets/images/login_hero_reference.webp',
-                          height: compact ? 260 : 350,
+                        child: Transform.scale(
+                          scale: 1.18,
+                          child: AnimatedHeroImage(
+                            asset: 'assets/images/login_hero_reference.webp',
+                            height: compact ? 260 : 350,
+                          ),
                         ),
                       ),
                     ),
