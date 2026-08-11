@@ -23,10 +23,40 @@ class _LandingScreenState extends State<LandingScreen> {
   final _howItWorksKey = GlobalKey();
   final _aboutKey = GlobalKey();
   final _contactKey = GlobalKey();
+  String _activeNav = 'Home';
+  String? _hoveredNav;
 
-  void _scrollTo(GlobalKey key) {
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_syncActiveNavigation);
+  }
+
+  void _syncActiveNavigation() {
+    if (!mounted) return;
+    final sections = <(String, GlobalKey)>[
+      ('Home', _homeKey),
+      ('Features', _featuresKey),
+      ('How It Works', _howItWorksKey),
+      ('About', _aboutKey),
+      ('Contact', _contactKey),
+    ];
+    var nearest = 'Home';
+    for (final section in sections) {
+      final sectionContext = section.$2.currentContext;
+      if (sectionContext == null) continue;
+      final box = sectionContext.findRenderObject() as RenderBox?;
+      if (box != null && box.localToGlobal(Offset.zero).dy <= 150) {
+        nearest = section.$1;
+      }
+    }
+    if (nearest != _activeNav) setState(() => _activeNav = nearest);
+  }
+
+  void _scrollTo(String label, GlobalKey key) {
     final target = key.currentContext;
     if (target == null) return;
+    setState(() => _activeNav = label);
     Scrollable.ensureVisible(
       target,
       duration: const Duration(milliseconds: 650),
@@ -100,19 +130,49 @@ class _LandingScreenState extends State<LandingScreen> {
                       children: [
                         _LandingLogo(compact: compact),
                         const Spacer(),
-                        _navButton('Home', _homeKey, compact: compact),
-                        _navButton(
-                          'Features',
-                          _featuresKey,
-                          compact: compact,
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF2F6FD),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFFDCE7F7),
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x0D071A3D),
+                                blurRadius: 18,
+                                offset: Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _navButton('Home', _homeKey, compact: compact),
+                              _navButton(
+                                'Features',
+                                _featuresKey,
+                                compact: compact,
+                              ),
+                              _navButton(
+                                'How It Works',
+                                _howItWorksKey,
+                                compact: compact,
+                              ),
+                              _navButton(
+                                'About',
+                                _aboutKey,
+                                compact: compact,
+                              ),
+                              _navButton(
+                                'Contact',
+                                _contactKey,
+                                compact: compact,
+                              ),
+                            ],
+                          ),
                         ),
-                        _navButton(
-                          'How It Works',
-                          _howItWorksKey,
-                          compact: compact,
-                        ),
-                        _navButton('About', _aboutKey, compact: compact),
-                        _navButton('Contact', _contactKey, compact: compact),
                         SizedBox(width: compact ? 8 : 24),
                         OutlinedButton(
                           onPressed: _openLogin,
@@ -163,22 +223,55 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   Widget _navButton(String label, GlobalKey key, {required bool compact}) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 4),
-      child: TextButton(
-        onPressed: () => _scrollTo(key),
-        style: TextButton.styleFrom(
-          foregroundColor: _navy,
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 6 : 13,
-            vertical: 20,
-          ),
+    final active = _activeNav == label;
+    final hovered = _hoveredNav == label;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hoveredNav = label),
+      onExit: (_) {
+        if (_hoveredNav == label) setState(() => _hoveredNav = null);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          gradient: active
+              ? const LinearGradient(
+                  colors: [Color(0xFF1575EA), Color(0xFF19CBBB)],
+                )
+              : null,
+          color: !active && hovered ? Colors.white : null,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: active
+              ? const [
+                  BoxShadow(
+                    color: Color(0x331575EA),
+                    blurRadius: 14,
+                    offset: Offset(0, 5),
+                  ),
+                ]
+              : null,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: compact ? 12 : 14,
-            fontWeight: FontWeight.w700,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _scrollTo(label, key),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 7 : 15,
+                vertical: 11,
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: active ? Colors.white : _navy,
+                  fontSize: compact ? 12 : 14,
+                  fontWeight: active ? FontWeight.w800 : FontWeight.w700,
+                  letterSpacing: active ? .1 : 0,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -679,7 +772,7 @@ class _LandingScreenState extends State<LandingScreen> {
                 spacing: 26,
                 children: [
                   TextButton(
-                    onPressed: () => _scrollTo(_homeKey),
+                    onPressed: () => _scrollTo('Home', _homeKey),
                     child: const Text('Back to top'),
                   ),
                   Text(
