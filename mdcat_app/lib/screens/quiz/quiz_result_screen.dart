@@ -5,6 +5,7 @@ import '../../services/api_client.dart';
 import '../../services/file_saver.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/animated_hero_image.dart';
+import '../../widgets/home_navigation_action.dart';
 import '../home/home_screen.dart';
 import '../tutor/tutor_chat_screen.dart';
 
@@ -125,6 +126,7 @@ Please explain in four short parts:
         title: const Text("Test Results"),
         backgroundColor: _bg,
         centerTitle: true,
+        actions: const [HomeNavigationAction()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

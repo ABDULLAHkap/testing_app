@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/models.dart';
 import '../../services/api_client.dart';
+import '../../widgets/home_navigation_action.dart';
 import 'quiz_result_screen.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -132,7 +133,10 @@ class _QuizScreenState extends State<QuizScreen> {
     }
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text("Quiz")),
+        appBar: AppBar(
+          title: const Text("Quiz"),
+          actions: const [HomeNavigationAction()],
+        ),
         body: Center(child: Text("Couldn't start quiz: $_error")),
       );
     }
@@ -148,6 +152,7 @@ class _QuizScreenState extends State<QuizScreen> {
         appBar: AppBar(
           title: Text("Question ${_index + 1} of ${questions.length}"),
           actions: [
+            const HomeNavigationAction(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Center(

@@ -6,6 +6,7 @@ import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
 import '../../services/file_saver.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/home_navigation_action.dart';
 import 'past_paper_detail_screen.dart';
 import '../practice/practice_by_topic_screen.dart';
 import '../practice/mock_test_screen.dart';
@@ -27,7 +28,7 @@ class _TestsScreenState extends State<TestsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -44,6 +45,7 @@ class _TestsScreenState extends State<TestsScreen>
       backgroundColor: context.pageBackground,
       appBar: AppBar(
         title: Text("$exam Tests"),
+        actions: const [HomeNavigationAction()],
         backgroundColor: context.pageBackground,
         foregroundColor: context.primaryTextColor,
         elevation: 0,
@@ -55,18 +57,33 @@ class _TestsScreenState extends State<TestsScreen>
           tabs: const [
             Tab(text: "Offline Quizzes"),
             Tab(text: "Online Quizzes"),
-            Tab(text: "Past Papers"),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _OfflineQuizzesTab(),
-          _OnlineQuizzesTab(),
-          _PastPapersTab(),
-        ],
+        children: const [_OfflineQuizzesTab(), _OnlineQuizzesTab()],
       ),
+    );
+  }
+}
+
+class PastPapersScreen extends StatelessWidget {
+  const PastPapersScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final exam =
+        context.watch<AuthProvider>().currentUser?.targetExam ?? "Exam";
+    return Scaffold(
+      backgroundColor: context.pageBackground,
+      appBar: AppBar(
+        title: Text("$exam Past Papers"),
+        backgroundColor: context.pageBackground,
+        foregroundColor: context.primaryTextColor,
+        actions: const [HomeNavigationAction()],
+      ),
+      body: const _PastPapersTab(),
     );
   }
 }
@@ -318,7 +335,7 @@ class _OfflineQuizzesTabState extends State<_OfflineQuizzesTab> {
               ),
               const SizedBox(height: 8),
               Text(
-                "Generate a quiz from Online Quizzes or Past Papers first — "
+                "Generate a quiz from Online Quizzes or a Past Paper first — "
                 "it'll show up here so you can retake it anytime without "
                 "generating a new one.",
                 textAlign: TextAlign.center,

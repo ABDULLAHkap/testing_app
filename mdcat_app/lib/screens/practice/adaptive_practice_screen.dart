@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/home_navigation_action.dart';
 import '../quiz/quiz_screen.dart';
 import 'exam_format_screen.dart';
 
@@ -82,7 +83,10 @@ class _AdaptivePracticeScreenState extends State<AdaptivePracticeScreen> {
     final supportsMcqPractice = _format?.supportsFullMcqMock ?? true;
     return Scaffold(
       backgroundColor: context.pageBackground,
-      appBar: AppBar(title: const Text('Adaptive Practice')),
+      appBar: AppBar(
+        title: const Text('Adaptive Practice'),
+        actions: const [HomeNavigationAction()],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : !supportsMcqPractice

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/api_client.dart';
+import '../../widgets/home_navigation_action.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -140,9 +141,9 @@ class _AdminScreenState extends State<AdminScreen> {
       await _api.deleteStudent(user['id']);
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Student profile deleted')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Student profile deleted')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -219,9 +220,9 @@ class _AdminScreenState extends State<AdminScreen> {
       await _api.removeSubscription(user['id']);
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Subscription removed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Subscription removed')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +236,10 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin dashboard')),
+      appBar: AppBar(
+        title: const Text('Admin dashboard'),
+        actions: const [HomeNavigationAction()],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -270,75 +274,107 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text('Users', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  ..._users.map((user) => Card(
-                        child: ExpansionTile(
-                          leading: CircleAvatar(
-                            child: Text('${user['username']}'.substring(0, 1).toUpperCase()),
+                  const Text(
+                    'Users',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  ..._users.map(
+                    (user) => Card(
+                      child: ExpansionTile(
+                        leading: CircleAvatar(
+                          child: Text(
+                            '${user['username']}'.substring(0, 1).toUpperCase(),
                           ),
-                          title: Text('${user['username']} • ${user['target_exam']}'),
-                          subtitle: Text(
-                            '${user['email']}\n${user['phone'] ?? 'No phone'}\n${_lastActive(user)}',
-                            style: TextStyle(
-                              color: user['is_online'] == true ? Colors.green : null,
-                            ),
-                          ),
-                          trailing: user['is_admin'] == true
-                              ? const Chip(label: Text('Admin'))
-                              : const Icon(Icons.expand_more),
-                          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          children: [
-                            _detail('Email', user['email']),
-                            _detail('Phone', user['phone']),
-                            _detail('Gender', user['gender']),
-                            _detail('Exam category', user['target_exam']),
-                            _detail('Email verified', user['email_verified'] == true ? 'Yes' : 'No'),
-                            _detail('Tests completed', user['tests_done']),
-                            _detail('Average score', '${user['average_score']}%'),
-                            _detail('Best score', '${user['best_score']}%'),
-                            _detail('Free tests remaining', user['free_tests_remaining']),
-                            _detail('Exam date', user['exam_date'] ?? 'Not set'),
-                            _detail('Registered', user['created_at']),
-                            _detail('Last test', user['last_test_at'] ?? 'No test yet'),
-                            _detail('Activity status', _lastActive(user)),
-                            _detail('Subscription expires', user['subscription_expires_at'] ?? 'Not subscribed'),
-                            if (user['is_admin'] != true)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  alignment: WrapAlignment.end,
-                                  children: [
-                                    if (_hasActiveSubscription(user))
-                                      OutlinedButton.icon(
-                                        icon: const Icon(Icons.cancel_outlined),
-                                        label: const Text('Remove subscription'),
-                                        onPressed: _updatingUserId == user['id']
-                                            ? null
-                                            : () => _confirmRemoveSubscription(user),
-                                      ),
-                                    ElevatedButton.icon(
-                                      icon: const Icon(Icons.workspace_premium),
-                                      label: const Text('Add 30 days'),
-                                      onPressed: _updatingUserId == user['id']
-                                          ? null
-                                          : () => _addSubscription(user),
-                                    ),
-                                    OutlinedButton.icon(
-                                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                                      icon: const Icon(Icons.delete_forever),
-                                      label: const Text('Delete student'),
-                                      onPressed: _updatingUserId == user['id']
-                                          ? null
-                                          : () => _confirmDeleteStudent(user),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
                         ),
-                      )),
+                        title: Text(
+                          '${user['username']} • ${user['target_exam']}',
+                        ),
+                        subtitle: Text(
+                          '${user['email']}\n${user['phone'] ?? 'No phone'}\n${_lastActive(user)}',
+                          style: TextStyle(
+                            color: user['is_online'] == true
+                                ? Colors.green
+                                : null,
+                          ),
+                        ),
+                        trailing: user['is_admin'] == true
+                            ? const Chip(label: Text('Admin'))
+                            : const Icon(Icons.expand_more),
+                        childrenPadding: const EdgeInsets.fromLTRB(
+                          16,
+                          0,
+                          16,
+                          16,
+                        ),
+                        children: [
+                          _detail('Email', user['email']),
+                          _detail('Phone', user['phone']),
+                          _detail('Gender', user['gender']),
+                          _detail('Exam category', user['target_exam']),
+                          _detail(
+                            'Email verified',
+                            user['email_verified'] == true ? 'Yes' : 'No',
+                          ),
+                          _detail('Tests completed', user['tests_done']),
+                          _detail('Average score', '${user['average_score']}%'),
+                          _detail('Best score', '${user['best_score']}%'),
+                          _detail(
+                            'Free tests remaining',
+                            user['free_tests_remaining'],
+                          ),
+                          _detail('Exam date', user['exam_date'] ?? 'Not set'),
+                          _detail('Registered', user['created_at']),
+                          _detail(
+                            'Last test',
+                            user['last_test_at'] ?? 'No test yet',
+                          ),
+                          _detail('Activity status', _lastActive(user)),
+                          _detail(
+                            'Subscription expires',
+                            user['subscription_expires_at'] ?? 'Not subscribed',
+                          ),
+                          if (user['is_admin'] != true)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.end,
+                                children: [
+                                  if (_hasActiveSubscription(user))
+                                    OutlinedButton.icon(
+                                      icon: const Icon(Icons.cancel_outlined),
+                                      label: const Text('Remove subscription'),
+                                      onPressed: _updatingUserId == user['id']
+                                          ? null
+                                          : () => _confirmRemoveSubscription(
+                                              user,
+                                            ),
+                                    ),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.workspace_premium),
+                                    label: const Text('Add 30 days'),
+                                    onPressed: _updatingUserId == user['id']
+                                        ? null
+                                        : () => _addSubscription(user),
+                                  ),
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                    ),
+                                    icon: const Icon(Icons.delete_forever),
+                                    label: const Text('Delete student'),
+                                    onPressed: _updatingUserId == user['id']
+                                        ? null
+                                        : () => _confirmDeleteStudent(user),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -346,23 +382,31 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget _stat(String label, dynamic value) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(children: [Text('$value', style: const TextStyle(fontSize: 24)), Text(label)]),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Text('$value', style: const TextStyle(fontSize: 24)),
+          Text(label),
+        ],
+      ),
+    ),
+  );
 
   Widget _detail(String label, dynamic value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 150,
-              child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-            ),
-            Expanded(child: Text('${value ?? '-'}')),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 150,
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
-      );
+        Expanded(child: Text('${value ?? '-'}')),
+      ],
+    ),
+  );
 }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../services/api_client.dart';
 import '../../services/auth_provider.dart';
+import '../../widgets/home_navigation_action.dart';
 
 class SupportChatScreen extends StatefulWidget {
   final int? studentId;
@@ -28,7 +29,10 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   void initState() {
     super.initState();
     _load();
-    _timer = Timer.periodic(const Duration(seconds: 8), (_) => _load(silent: true));
+    _timer = Timer.periodic(
+      const Duration(seconds: 8),
+      (_) => _load(silent: true),
+    );
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -84,9 +88,12 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     final currentId = context.read<AuthProvider>().currentUser?.id;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.studentName == null
-            ? 'Chat with admins'
-            : 'Chat with ${widget.studentName}'),
+        title: Text(
+          widget.studentName == null
+              ? 'Chat with admins'
+              : 'Chat with ${widget.studentName}',
+        ),
+        actions: const [HomeNavigationAction()],
       ),
       body: Column(
         children: [
@@ -94,39 +101,43 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _messages.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'Send a message about an app problem or your test preparation.',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final item = _messages[index];
-                          final mine = item['sender_id'] == currentId;
-                          return Align(
-                            alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              padding: const EdgeInsets.all(12),
-                              constraints: const BoxConstraints(maxWidth: 300),
-                              decoration: BoxDecoration(
-                                color: mine
-                                    ? Theme.of(context).colorScheme.primaryContainer
-                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Text('${item['message']}'),
-                            ),
-                          );
-                        },
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Send a message about an app problem or your test preparation.',
+                        textAlign: TextAlign.center,
                       ),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scroll,
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final item = _messages[index];
+                      final mine = item['sender_id'] == currentId;
+                      return Align(
+                        alignment: mine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          padding: const EdgeInsets.all(12),
+                          constraints: const BoxConstraints(maxWidth: 300),
+                          decoration: BoxDecoration(
+                            color: mine
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text('${item['message']}'),
+                        ),
+                      );
+                    },
+                  ),
           ),
           SafeArea(
             top: false,

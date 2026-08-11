@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/models.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/home_navigation_action.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -58,7 +59,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.pageBackground,
-      appBar: AppBar(title: const Text('Performance Analytics')),
+      appBar: AppBar(
+        title: const Text('Performance Analytics'),
+        actions: const [HomeNavigationAction()],
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading

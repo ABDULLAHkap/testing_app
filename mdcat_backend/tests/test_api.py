@@ -231,6 +231,47 @@ class ApiTests(unittest.TestCase):
                 )
                 self.assertEqual(response.status_code, 422, response.text)
 
+    def test_registration_email_code_verifies_account(self):
+        with patch("app.routers.auth.secrets.randbelow", return_value=246810), patch(
+            "app.routers.auth.send_verification_email"
+        ) as send_email:
+            response = self.client.post(
+                "/auth/register",
+                json={
+                    "username": "otp_verified_student",
+                    "email": "otp-verified@example.com",
+                    "password": "secure-password",
+                    "gender": "Female",
+                    "phone": "03009998888",
+                    "target_exam": "ECAT",
+                },
+            )
+            self.assertEqual(response.status_code, 201, response.text)
+            send_email.assert_called_once_with(
+                "otp-verified@example.com", "246810"
+            )
+
+        response = self.client.post(
+            "/auth/verify-email",
+            json={"email": "otp-verified@example.com", "code": "246810"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+
+        response = self.client.post(
+            "/auth/login",
+            data={
+                "username": "otp-verified@example.com",
+                "password": "secure-password",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+
+        response = self.client.post(
+            "/auth/verify-email",
+            json={"email": "otp-verified@example.com", "code": "246810"},
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+
     def test_admin_updates_subscription_price_for_students(self):
         with SessionLocal() as db:
             from app.models.models import User

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_client.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/home_navigation_action.dart';
 
 const _cyan = Color(0xFF20D5C5);
 
@@ -78,7 +79,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final days = (plan['days'] as num?)?.toInt() ?? 30;
     return Scaffold(
       backgroundColor: _bg,
-      appBar: AppBar(title: const Text('Subscription'), backgroundColor: _bg),
+      appBar: AppBar(
+        title: const Text('Subscription'),
+        backgroundColor: _bg,
+        actions: const [HomeNavigationAction()],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
