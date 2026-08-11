@@ -528,6 +528,63 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   Widget _howItWorksSection() {
+    const journey = [
+      _JourneyStepData(
+        number: '01',
+        icon: Icons.verified_user_outlined,
+        title: 'Create a secure account',
+        description:
+            'Sign up with email verification. Your profile, preparation history and results stay connected to your private account.',
+        highlights: ['Email OTP', 'Private profile'],
+        color: Color(0xFF14B88F),
+      ),
+      _JourneyStepData(
+        number: '02',
+        icon: Icons.dashboard_customize_outlined,
+        title: 'Choose your entry test',
+        description:
+            'Select MDCAT, ECAT, NUST NET, IELTS, CSS, PMS, LAT, NTS or another category to receive relevant content.',
+        highlights: ['Exam-specific', 'Personalized'],
+        color: Color(0xFF2686E9),
+      ),
+      _JourneyStepData(
+        number: '03',
+        icon: Icons.school_outlined,
+        title: 'Plan with your tutor',
+        description:
+            'Ask the tutor what to study, where to begin and how to prepare. It can create a focused study plan and timetable for your test.',
+        highlights: ['Study plan', 'Timetable'],
+        color: Color(0xFF8B5CF6),
+      ),
+      _JourneyStepData(
+        number: '04',
+        icon: Icons.menu_book_rounded,
+        title: 'Learn and practise daily',
+        description:
+            'Build concepts with topic practice and daily quizzes. The student-friendly dashboard keeps every next step clear and easy to reach.',
+        highlights: ['Daily quiz', 'Topic practice'],
+        color: Color(0xFF16A7A0),
+      ),
+      _JourneyStepData(
+        number: '05',
+        icon: Icons.assignment_turned_in_outlined,
+        title: 'Prepare for the real exam',
+        description:
+            'Revise past papers and repeated questions, then attempt timed mock tests designed around your selected entry-test category.',
+        highlights: ['Past papers', 'Repeated questions', 'Mock tests'],
+        color: Color(0xFFF59E42),
+      ),
+      _JourneyStepData(
+        number: '06',
+        icon: Icons.query_stats_rounded,
+        title: 'Review, improve and repeat',
+        description:
+            'See correct and incorrect answers, understand mistakes, identify weak topics and follow your scores as preparation improves.',
+        highlights: ['Answer review', 'Weak topics', 'Progress'],
+        color: Color(0xFF3867E8),
+      ),
+    ];
+
     return Container(
       key: _howItWorksKey,
       width: double.infinity,
@@ -541,7 +598,7 @@ class _LandingScreenState extends State<LandingScreen> {
               const _Eyebrow(label: 'HOW IT WORKS'),
               const SizedBox(height: 15),
               const Text(
-                'Start learning in three simple steps',
+                'Your complete journey from signup to exam day',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _navy,
@@ -550,58 +607,43 @@ class _LandingScreenState extends State<LandingScreen> {
                   letterSpacing: -1,
                 ),
               ),
-              const SizedBox(height: 50),
-              const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _StepCard(
-                      number: '1',
-                      icon: Icons.grid_view_rounded,
-                      title: 'Choose your exam',
-                      description:
-                          'Select the category you want to prepare for when creating your account.',
-                    ),
-                  ),
-                  _StepConnector(),
-                  Expanded(
-                    child: _StepCard(
-                      number: '2',
-                      icon: Icons.edit_note_rounded,
-                      title: 'Practice and test',
-                      description:
-                          'Use daily quizzes, focused practice, past papers and full mock tests.',
-                    ),
-                  ),
-                  _StepConnector(),
-                  Expanded(
-                    child: _StepCard(
-                      number: '3',
-                      icon: Icons.trending_up_rounded,
-                      title: 'Review and improve',
-                      description:
-                          'Check answers, understand mistakes and use insights to improve weak areas.',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 44),
-              FilledButton.icon(
-                onPressed: _openLogin,
-                icon: const Icon(Icons.arrow_forward_rounded),
-                label: const Text('Start your preparation'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _blue,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 20,
-                  ),
-                  textStyle: const TextStyle(
+              const SizedBox(height: 14),
+              const ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 820),
+                child: Text(
+                  'BrainBoost is a secure, student-friendly preparation workspace built for entry tests. It guides each student from choosing an exam to planning, practice, revision and measurable improvement.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
                     fontSize: 17,
-                    fontWeight: FontWeight.w700,
+                    height: 1.6,
                   ),
                 ),
               ),
+              const SizedBox(height: 48),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 1080 ? 3 : 2;
+                  final spacing = columns == 3 ? 18.0 : 16.0;
+                  final cardWidth =
+                      (constraints.maxWidth - (spacing * (columns - 1))) /
+                          columns;
+                  return Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: journey
+                        .map(
+                          (step) => _JourneyStepCard(
+                            data: step,
+                            width: cardWidth,
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
+              const SizedBox(height: 30),
+              _TutorJourneyCallout(onStart: _openLogin),
             ],
           ),
         ),
@@ -1811,14 +1853,298 @@ class _PhoneNavItem extends StatelessWidget {
   }
 }
 
-class _StepCard extends StatelessWidget {
+class _JourneyStepData {
   final String number;
   final IconData icon;
   final String title;
   final String description;
+  final List<String> highlights;
+  final Color color;
 
-  const _StepCard({
+  const _JourneyStepData({
     required this.number,
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.highlights,
+    required this.color,
+  });
+}
+
+class _JourneyStepCard extends StatelessWidget {
+  final _JourneyStepData data;
+  final double width;
+
+  const _JourneyStepCard({required this.data, required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 310,
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: data.color.withOpacity(.18)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10071A3D),
+            blurRadius: 30,
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: data.color.withOpacity(.11),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(data.icon, color: data.color, size: 27),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F7FC),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'STEP ${data.number}',
+                  style: TextStyle(
+                    color: data.color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            data.title,
+            style: const TextStyle(
+              color: _navy,
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: Text(
+              data.description,
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 14,
+                height: 1.55,
+              ),
+            ),
+          ),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: data.highlights
+                .map(
+                  (label) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: data.color.withOpacity(.08),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: data.color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TutorJourneyCallout extends StatelessWidget {
+  final VoidCallback onStart;
+
+  const _TutorJourneyCallout({required this.onStart});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(36),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_navy, Color(0xFF0A2D58), Color(0xFF13245B)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x24071A3D),
+            blurRadius: 34,
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 900;
+          final introduction = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [_cyan, Color(0xFF7A5AF8)],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.psychology_alt_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'A tutor and preparation system in one place',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  height: 1.2,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Students can ask test-related questions, request a study plan or timetable and get guidance based on their selected exam. BrainBoost keeps learning focused, organized and easy to follow.',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(.72),
+                  fontSize: 15,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: onStart,
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Start your preparation'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _cyan,
+                  foregroundColor: _navy,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 18,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          );
+          const benefits = _JourneyBenefitsPanel();
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                introduction,
+                const SizedBox(height: 28),
+                benefits,
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(flex: 11, child: introduction),
+              const SizedBox(width: 48),
+              const Expanded(flex: 10, child: benefits),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _JourneyBenefitsPanel extends StatelessWidget {
+  const _JourneyBenefitsPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(.07),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withOpacity(.13)),
+      ),
+      child: const Column(
+        children: [
+          _JourneyBenefit(
+            icon: Icons.shield_outlined,
+            title: 'Secure accounts',
+            description: 'Verified access and protected student information',
+          ),
+          Divider(color: Color(0x24FFFFFF), height: 28),
+          _JourneyBenefit(
+            icon: Icons.sentiment_satisfied_alt_rounded,
+            title: 'Student friendly',
+            description: 'Clear navigation and a simple daily learning flow',
+          ),
+          Divider(color: Color(0x24FFFFFF), height: 28),
+          _JourneyBenefit(
+            icon: Icons.track_changes_rounded,
+            title: 'Entry-test focused',
+            description: 'Relevant practice for the exam category you choose',
+          ),
+          Divider(color: Color(0x24FFFFFF), height: 28),
+          _JourneyBenefit(
+            icon: Icons.devices_rounded,
+            title: 'Available anywhere',
+            description: 'Continue preparation across supported devices',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyBenefit extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _JourneyBenefit({
     required this.icon,
     required this.title,
     required this.description,
@@ -1826,81 +2152,43 @@ class _StepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(color: Color(0x1F146BE8), blurRadius: 28),
-                ],
-              ),
-              child: Icon(icon, color: _blue, size: 42),
-            ),
-            Positioned(
-              top: -7,
-              right: -5,
-              child: Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: _navy,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  number,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 22),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: _navy,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: const Color(0x2219CBBB),
+            borderRadius: BorderRadius.circular(13),
           ),
+          child: Icon(icon, color: _cyan, size: 22),
         ),
-        const SizedBox(height: 9),
-        Text(
-          description,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 14,
-            height: 1.5,
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: Color(0xFF9FB0C7),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _StepConnector extends StatelessWidget {
-  const _StepConnector();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 82,
-      height: 96,
-      child: Center(
-        child: Icon(Icons.arrow_forward_rounded, color: _blue, size: 30),
-      ),
     );
   }
 }
