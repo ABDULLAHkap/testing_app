@@ -94,40 +94,520 @@ class _HomeScreenState extends State<HomeScreen> {
         ? (_adminExamCategory ?? auth.currentUser?.targetExam ?? 'MDCAT')
         : (auth.currentUser?.targetExam ?? 'Exam');
 
-    return Scaffold(
-      backgroundColor: _bg,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _welcomeHeader(username),
-                const SizedBox(height: 16),
-                _categoryCard(selectedExam, auth.currentUser?.isAdmin == true),
-                const SizedBox(height: 16),
-                _heroBanner(),
-                const SizedBox(height: 16),
-                ExamCountdownCard(
-                  username: username,
-                  examDate: _stats?.examDate,
-                  onSetDate: _pickExamDate,
-                  examName: selectedExam,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 1100) {
+          return _desktopScaffold(
+            username: username,
+            selectedExam: selectedExam,
+            isAdmin: auth.currentUser?.isAdmin == true,
+          );
+        }
+        return _mobileScaffold(
+          username: username,
+          selectedExam: selectedExam,
+          isAdmin: auth.currentUser?.isAdmin == true,
+        );
+      },
+    );
+  }
+
+  Widget _mobileScaffold({
+    required String username,
+    required String selectedExam,
+    required bool isAdmin,
+  }) => Scaffold(
+    backgroundColor: _bg,
+    body: SafeArea(
+      child: RefreshIndicator(
+        onRefresh: _load,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _welcomeHeader(username),
+              const SizedBox(height: 16),
+              _categoryCard(selectedExam, isAdmin),
+              const SizedBox(height: 16),
+              _heroBanner(),
+              const SizedBox(height: 16),
+              ExamCountdownCard(
+                username: username,
+                examDate: _stats?.examDate,
+                onSetDate: _pickExamDate,
+                examName: selectedExam,
+              ),
+              const SizedBox(height: 14),
+              _featureCards(selectedExam),
+              const SizedBox(height: 16),
+              _performanceCard(),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    ),
+    bottomNavigationBar: _bottomNav(),
+  );
+
+  Widget _desktopScaffold({
+    required String username,
+    required String selectedExam,
+    required bool isAdmin,
+  }) => Scaffold(
+    backgroundColor: const Color(0xFF020C18),
+    body: SafeArea(
+      child: Row(
+        children: [
+          _desktopSidebar(isAdmin),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _load,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(28, 24, 28, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _desktopHeader(username, selectedExam, isAdmin),
+                    const SizedBox(height: 24),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _desktopHeroBanner(),
+                              const SizedBox(height: 18),
+                              _featureCards(selectedExam),
+                              const SizedBox(height: 18),
+                              _desktopPerformanceCard(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        SizedBox(
+                          width: 330,
+                          child: Column(
+                            children: [
+                              ExamCountdownCard(
+                                username: username,
+                                examDate: _stats?.examDate,
+                                onSetDate: _pickExamDate,
+                                examName: selectedExam,
+                              ),
+                              const SizedBox(height: 16),
+                              _desktopRecentResultsCard(),
+                              const SizedBox(height: 16),
+                              _desktopStudyPlanCard(selectedExam),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
-                _featureCards(selectedExam),
-                const SizedBox(height: 16),
-                _performanceCard(),
-                const SizedBox(height: 24),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _desktopSidebar(bool isAdmin) => Container(
+    width: 240,
+    padding: const EdgeInsets.fromLTRB(14, 28, 14, 22),
+    decoration: const BoxDecoration(
+      color: Color(0xFF031021),
+      border: Border(right: BorderSide(color: Color(0xFF1C3853))),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Icon(Icons.psychology_outlined, color: _cyan, size: 36),
+              SizedBox(width: 8),
+              Text(
+                'Brain',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                'Boost',
+                style: TextStyle(
+                  color: _cyan,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 34),
+        _desktopNavItem(Icons.home_rounded, 'Home', () {}, active: true),
+        _desktopNavItem(
+          Icons.description_outlined,
+          'Tests',
+          () => _openScreen(const TestsScreen()),
+        ),
+        _desktopNavItem(
+          Icons.query_stats_rounded,
+          isAdmin ? 'Admin Dashboard' : 'Progress',
+          () => _openScreen(
+            isAdmin ? const AdminScreen() : const ProgressScreen(),
+          ),
+        ),
+        if (!isAdmin)
+          _desktopNavItem(
+            Icons.school_outlined,
+            'Tutor',
+            () => _openScreen(const TutorChatScreen()),
+          ),
+        _desktopNavItem(
+          Icons.menu_book_outlined,
+          isAdmin ? 'Communicate' : 'Past Papers',
+          () => _openScreen(
+            isAdmin ? const AdminCommunicationsScreen() : const TestsScreen(),
+          ),
+        ),
+        _desktopNavItem(
+          Icons.notifications_none_rounded,
+          'Notifications',
+          () => _openAnnouncements(),
+          badge: _unreadAnnouncements,
+        ),
+        _desktopNavItem(
+          Icons.settings_outlined,
+          'Settings',
+          () => _openScreen(const ServerSettingsScreen()),
+        ),
+        const Spacer(),
+        const Divider(color: Color(0xFF24405A)),
+        _desktopNavItem(
+          Icons.logout_rounded,
+          'Logout',
+          _logout,
+          color: const Color(0xFFFF5B64),
+        ),
+      ],
+    ),
+  );
+
+  Widget _desktopNavItem(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    bool active = false,
+    int badge = 0,
+    Color? color,
+  }) {
+    final foreground =
+        color ?? (active ? Colors.white : const Color(0xFFB9C5D4));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: active ? const Color(0xFF0A4352) : Colors.transparent,
+        borderRadius: BorderRadius.circular(11),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(11),
+          hoverColor: _cyan.withOpacity(.09),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+            child: Row(
+              children: [
+                Icon(icon, color: active ? _cyan : foreground, size: 22),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: foreground,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (badge > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _cyan,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$badge',
+                      style: const TextStyle(
+                        color: Color(0xFF031021),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
       ),
-      bottomNavigationBar: _bottomNav(),
+    );
+  }
+
+  Widget _desktopHeader(String username, String exam, bool isAdmin) => Row(
+    children: [
+      Expanded(
+        child: Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Welcome back, '),
+              TextSpan(
+                text: username.isEmpty ? 'Student' : username,
+                style: const TextStyle(color: _cyan),
+              ),
+            ],
+          ),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 25,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      SizedBox(width: 220, child: _categoryCard(exam, isAdmin)),
+      const SizedBox(width: 18),
+      SizedBox(
+        width: 320,
+        child: TextField(
+          readOnly: true,
+          onTap: () => _openScreen(const TestsScreen()),
+          decoration: InputDecoration(
+            hintText: 'Search tests and topics...',
+            prefixIcon: const Icon(Icons.search_rounded),
+            filled: true,
+            fillColor: const Color(0xFF0A1728),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF29435F)),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 12),
+      IconButton(
+        tooltip: 'Notifications',
+        onPressed: _openAnnouncements,
+        icon: Badge(
+          isLabelVisible: _unreadAnnouncements > 0,
+          label: Text('$_unreadAnnouncements'),
+          child: const Icon(
+            Icons.notifications_none_rounded,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      CircleAvatar(
+        backgroundColor: _cyan.withOpacity(.18),
+        foregroundColor: _cyan,
+        child: Text(
+          username.isEmpty ? 'S' : username[0].toUpperCase(),
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+    ],
+  );
+
+  Widget _desktopHeroBanner() => _heroBanner(height: 310);
+
+  Widget _desktopPerformanceCard() => Container(
+    padding: const EdgeInsets.all(22),
+    decoration: BoxDecoration(
+      color: const Color(0xFF091829),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFF24415D)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Performance Overview',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 19,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            SizedBox(width: 240, child: _statsRow()),
+            const SizedBox(width: 22),
+            Expanded(
+              child: SizedBox(
+                height: 180,
+                child: CustomPaint(painter: _ProgressChartPainter()),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _desktopRecentResultsCard() => _desktopSideCard(
+    title: 'Recent Results',
+    child: Column(
+      children: [
+        _summaryMetric(
+          Icons.assignment_turned_in_outlined,
+          'Tests completed',
+          '${_stats?.testsDone ?? 0}',
+          _cyan,
+        ),
+        _summaryMetric(
+          Icons.show_chart_rounded,
+          'Average score',
+          '${_stats?.avgScore.toStringAsFixed(0) ?? '0'}%',
+          const Color(0xFF45A8FF),
+        ),
+        _summaryMetric(
+          Icons.emoji_events_outlined,
+          'Best score',
+          '${_stats?.bestScore.toStringAsFixed(0) ?? '0'}%',
+          const Color(0xFFE0A429),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => _openScreen(const ProgressScreen()),
+            child: const Text('View progress →'),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _desktopStudyPlanCard(String exam) => _desktopSideCard(
+    title: 'Study Plan',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _summaryMetric(
+          Icons.calendar_month_outlined,
+          "Today's goal",
+          'Complete 2 topics',
+          _cyan,
+        ),
+        _summaryMetric(
+          Icons.school_outlined,
+          'Selected exam',
+          exam,
+          const Color(0xFF45A8FF),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => _openScreen(PracticeByTopicScreen(examType: exam)),
+            child: const Text('Start practicing →'),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _desktopSideCard({required String title, required Widget child}) =>
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: const Color(0xFF091829),
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: const Color(0xFF24415D)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
+      );
+
+  Widget _summaryMetric(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+            color: color.withOpacity(.13),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  void _openScreen(Widget screen) =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+  Future<void> _openAnnouncements() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AnnouncementsScreen()));
+    if (mounted) _load();
+  }
+
+  Future<void> _logout() async {
+    await context.read<AuthProvider>().logout();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 
@@ -294,46 +774,53 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _heroBanner() => Stack(
-    children: [
-      ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Image.asset(
-          'assets/images/dashboard_knowledge.webp',
-          height: 190,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          alignment: Alignment.centerRight,
-          filterQuality: FilterQuality.high,
+  Widget _heroBanner({double height = 190}) => SizedBox(
+    height: height,
+    child: Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Image.asset(
+            'assets/images/dashboard_knowledge.webp',
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            alignment: Alignment.centerRight,
+            filterQuality: FilterQuality.high,
+          ),
         ),
-      ),
-      Positioned.fill(
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: const LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              stops: [0, .48, 1],
-              colors: [Color(0xF2061320), Color(0x99061320), Color(0x11061320)],
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              gradient: const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                stops: [0, .48, 1],
+                colors: [
+                  Color(0xF2061320),
+                  Color(0x99061320),
+                  Color(0x11061320),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      const Positioned(
-        left: 22,
-        top: 58,
-        child: Text(
-          'Stay Consistent,\nAchieve Excellence',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 23,
-            fontWeight: FontWeight.w700,
-            height: 1.15,
+        const Positioned(
+          left: 22,
+          top: 58,
+          child: Text(
+            'Stay Consistent,\nAchieve Excellence',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 23,
+              fontWeight: FontWeight.w700,
+              height: 1.15,
+            ),
           ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
 
   Widget _featureCards(String exam) {
@@ -379,9 +866,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'Mock Test',
             '$exam objective practice',
             () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => MockTestScreen(examType: exam),
-              ),
+              MaterialPageRoute(builder: (_) => MockTestScreen(examType: exam)),
             ),
           ),
         ),
@@ -706,4 +1191,60 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+class _ProgressChartPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final grid = Paint()
+      ..color = const Color(0xFF263F58)
+      ..strokeWidth = 1;
+    for (var row = 0; row <= 4; row++) {
+      final y = size.height * row / 4;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+    }
+
+    final values = <double>[.34, .47, .43, .62, .76, .68, .82];
+    final line = Path();
+    final fill = Path();
+    for (var index = 0; index < values.length; index++) {
+      final x = size.width * index / (values.length - 1);
+      final y = size.height * (1 - values[index]);
+      if (index == 0) {
+        line.moveTo(x, y);
+        fill.moveTo(x, size.height);
+        fill.lineTo(x, y);
+      } else {
+        line.lineTo(x, y);
+        fill.lineTo(x, y);
+      }
+    }
+    fill.lineTo(size.width, size.height);
+    fill.close();
+
+    canvas.drawPath(
+      fill,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x6620D5C5), Color(0x0020D5C5)],
+        ).createShader(Offset.zero & size),
+    );
+    canvas.drawPath(
+      line,
+      Paint()
+        ..color = _cyan
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke,
+    );
+    for (var index = 0; index < values.length; index++) {
+      final x = size.width * index / (values.length - 1);
+      final y = size.height * (1 - values[index]);
+      canvas.drawCircle(Offset(x, y), 4.5, Paint()..color = _cyan);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
