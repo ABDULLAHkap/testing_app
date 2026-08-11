@@ -608,9 +608,9 @@ class _LandingScreenState extends State<LandingScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              const ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 820),
-                child: Text(
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 820),
+                child: const Text(
                   'BrainBoost is a secure, student-friendly preparation workspace built for entry tests. It guides each student from choosing an exam to planning, practice, revision and measurable improvement.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
