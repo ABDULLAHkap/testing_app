@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/auth_provider.dart';
+import 'auth/landing_screen.dart';
 import 'auth/login_screen.dart';
 import 'home/home_screen.dart';
 
@@ -33,7 +34,14 @@ class _AuthGateState extends State<AuthGate> {
       case AuthStatus.authenticated:
         return const HomeScreen();
       case AuthStatus.unauthenticated:
-        return const LoginScreen();
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth >= 900) {
+              return const LandingScreen();
+            }
+            return const LoginScreen();
+          },
+        );
     }
   }
 }
