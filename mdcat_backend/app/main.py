@@ -6,8 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.routers import (
     auth, upload, mcqs, quiz, progress, dashboard, admin, subscriptions,
-    communications,
-    tutor,
+    communications, tutor, category,
 )
 from app.bootstrap import ensure_admin
 from app.migrations import apply_compatibility_migrations
@@ -39,6 +38,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(category.router)
 app.include_router(upload.router)
 app.include_router(mcqs.router)
 app.include_router(quiz.router)
