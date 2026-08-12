@@ -6,14 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.routers import (
     auth, upload, mcqs, quiz, progress, dashboard, admin, subscriptions,
-    communications,
-    tutor,
+    communications, tutor, account,
 )
 from app.bootstrap import ensure_admin
 from app.migrations import apply_compatibility_migrations
 
-# Creates tables on first run. For schema changes later, switch to
-# Alembic migrations instead of relying on create_all.
 Base.metadata.create_all(bind=engine)
 apply_compatibility_migrations()
 ensure_admin()
@@ -39,6 +36,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(account.router)
 app.include_router(upload.router)
 app.include_router(mcqs.router)
 app.include_router(quiz.router)

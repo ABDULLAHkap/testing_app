@@ -9,6 +9,7 @@ import '../../services/notification_service.dart';
 import '../../widgets/home_navigation_action.dart';
 import '../communications/support_chat_screen.dart';
 import '../subscription/subscription_screen.dart';
+import 'exam_category_screen.dart';
 
 class ServerSettingsScreen extends StatefulWidget {
   const ServerSettingsScreen({super.key});
@@ -19,12 +20,9 @@ class ServerSettingsScreen extends StatefulWidget {
 
 class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
   final ApiClient _api = ApiClient();
-
-  // Account
   final _usernameController = TextEditingController();
   bool _savingUsername = false;
   bool _changingEmail = false;
-
   bool _loading = true;
   bool _enablingNotifications = false;
   Map<String, dynamic>? _notificationStatus;
@@ -52,8 +50,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
 
   Future<void> _enableNotifications() async {
     setState(() => _enablingNotifications = true);
-    final enabled = await NotificationService.instance
-        .registerForSignedInUser();
+    final enabled = await NotificationService.instance.registerForSignedInUser();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -72,21 +69,20 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
   Future<void> _saveUsername() async {
     final newName = _usernameController.text.trim();
     if (newName.isEmpty) return;
-
     setState(() => _savingUsername = true);
     try {
       await _api.updateUsername(newName);
       if (!mounted) return;
       await context.read<AuthProvider>().refreshUser();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Username updated")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Username updated")),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Couldn't update username: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Couldn't update username: $e")),
+      );
     } finally {
       if (mounted) setState(() => _savingUsername = false);
     }
@@ -103,9 +99,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "The confirmation code will be sent to your current email: $currentEmail",
-            ),
+            Text("The confirmation code will be sent to your current email: $currentEmail"),
             const SizedBox(height: 16),
             TextField(
               controller: newEmailController,
@@ -120,8 +114,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
             child: const Text("Cancel"),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, newEmailController.text.trim()),
+            onPressed: () => Navigator.pop(dialogContext, newEmailController.text.trim()),
             child: const Text("Send code"),
           ),
         ],
@@ -150,9 +143,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                 controller: codeController,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                decoration: const InputDecoration(
-                  labelText: "Verification code",
-                ),
+                decoration: const InputDecoration(labelText: "Verification code"),
               ),
             ],
           ),
@@ -162,8 +153,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
               child: const Text("Cancel"),
             ),
             FilledButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, codeController.text.trim()),
+              onPressed: () => Navigator.pop(dialogContext, codeController.text.trim()),
               child: const Text("Verify and change"),
             ),
           ],
@@ -180,9 +170,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Could not change email: $error")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Could not change email: $error")),
+      );
     } finally {
       if (mounted) setState(() => _changingEmail = false);
     }
@@ -196,9 +186,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
     );
     if (!await launchUrl(uri)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Please email $email")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please email $email")),
+      );
     }
   }
 
@@ -211,9 +201,11 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
-    final signedIn = context.watch<AuthProvider>().currentUser != null;
-    final isAdmin = context.watch<AuthProvider>().currentUser?.isAdmin ?? false;
-    final currentEmail = context.watch<AuthProvider>().currentUser?.email ?? "";
+    final user = context.watch<AuthProvider>().currentUser;
+    final signedIn = user != null;
+    final isAdmin = user?.isAdmin ?? false;
+    final currentEmail = user?.email ?? "";
+    final currentExam = user?.targetExam ?? "MDCAT";
 
     return Scaffold(
       appBar: AppBar(
@@ -242,10 +234,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                         ? const SizedBox(
                             height: 18,
                             width: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
                         : const Text("Save Username"),
                   ),
@@ -256,11 +245,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                     OutlinedButton.icon(
                       onPressed: _changingEmail ? null : _changeEmail,
                       icon: const Icon(Icons.alternate_email),
-                      label: Text(
-                        _changingEmail
-                            ? "Changing email..."
-                            : "Change Email Address",
-                      ),
+                      label: Text(_changingEmail ? "Changing email..." : "Change Email Address"),
                     ),
                     const SizedBox(height: 6),
                     const Text(
@@ -271,20 +256,36 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                   const SizedBox(height: 32),
                 ],
                 if (signedIn && !isAdmin) ...[
+                  _sectionHeader("Exam Preparation"),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.school_outlined),
+                    title: const Text("Exam Category"),
+                    subtitle: Text("Current: $currentExam • Tap to switch"),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ExamCategoryScreen()),
+                      );
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                  const Text(
+                    "Your 3 free tests are shared across the whole account. Paid access is separate for each exam category.",
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 24),
                   _sectionHeader("Subscription"),
                   const SizedBox(height: 8),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.workspace_premium_outlined),
-                    title: const Text("30-Day Unlimited Access"),
-                    subtitle: const Text(
-                      "View current price • Pay securely with Safepay",
-                    ),
+                    title: Text("30-Day $currentExam Access"),
+                    subtitle: const Text("View current price • Pay securely with Safepay"),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SubscriptionScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -299,9 +300,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                           ? "Enabled for announcements and reminders"
                           : "Receive announcements, countdowns and expiry alerts",
                     ),
-                    trailing:
-                        (_notificationStatus?['active_devices'] as int? ?? 0) >
-                            0
+                    trailing: (_notificationStatus?['active_devices'] as int? ?? 0) > 0
                         ? const Icon(Icons.check_circle, color: Colors.green)
                         : null,
                     onTap: _enablingNotifications ? null : _enableNotifications,
@@ -333,8 +332,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "White makes every screen white, Black makes every screen "
-                  "black, and Default restores the original navy design.",
+                  "White makes every screen white, Black makes every screen black, and Default restores the original navy design.",
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 32),
@@ -346,14 +344,10 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.chat_bubble_outline),
                     title: const Text("Chat with admins"),
-                    subtitle: const Text(
-                      "Discuss app problems or test-related questions",
-                    ),
+                    subtitle: const Text("Discuss app problems or test-related questions"),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SupportChatScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const SupportChatScreen()),
                     ),
                   ),
                 ListTile(
@@ -394,9 +388,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
       value: mode,
       groupValue: current,
       onChanged: (value) {
-        if (value != null) {
-          context.read<ThemeProvider>().setAppearance(value);
-        }
+        if (value != null) context.read<ThemeProvider>().setAppearance(value);
       },
       title: Row(
         children: [

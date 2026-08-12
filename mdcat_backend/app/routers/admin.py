@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.auth import require_admin
@@ -19,6 +20,11 @@ from app.models.models import (
     User,
 )
 from app.services.app_settings import get_subscription_price, set_subscription_price
+from app.services.category_subscriptions import (
+    extend_subscription,
+    subscription_expiry,
+    subscription_map,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -83,6 +89,13 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
         average = round(sum(attempt.percentage for attempt in finished) / tests_done, 1) if tests_done else 0.0
         best = round(max((attempt.percentage for attempt in finished), default=0.0), 1)
         last_test = max((attempt.finished_at for attempt in finished), default=None)
+        category_subscriptions = {} if user.is_admin else {
+            exam: expires.isoformat() if expires else None
+            for exam, expires in subscription_map(db, user.id).items()
+        }
+        selected_expiry = None if user.is_admin else subscription_expiry(
+            db, user.id, user.target_exam
+        )
         result.append({
             "id": user.id,
             "username": user.username,
@@ -93,7 +106,8 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
             "email_verified": user.email_verified,
             "is_admin": user.is_admin,
             "free_tests_remaining": user.free_tests_remaining,
-            "subscription_expires_at": user.subscription_expires_at,
+            "subscription_expires_at": selected_expiry,
+            "category_subscriptions": category_subscriptions,
             "created_at": user.created_at,
             "exam_date": user.exam_date,
             "tests_done": tests_done,
@@ -142,6 +156,7 @@ def delete_user(
     db.query(EmailVerificationCode).filter(EmailVerificationCode.user_id == user.id).delete(synchronize_session=False)
     db.query(QuizAttempt).filter(QuizAttempt.user_id == user.id).delete(synchronize_session=False)
     db.query(QuizSet).filter(QuizSet.user_id == user.id).delete(synchronize_session=False)
+    db.execute(text("DELETE FROM exam_subscriptions WHERE user_id = :user_id"), {"user_id": user.id})
     if authored_announcement_ids:
         db.query(Announcement).filter(Announcement.id.in_(authored_announcement_ids)).delete(
             synchronize_session=False
@@ -161,15 +176,15 @@ def grant_subscription(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, detail="User not found")
-    now = datetime.now(timezone.utc)
-    start = user.subscription_expires_at or now
-    if start.tzinfo is None:
-        start = start.replace(tzinfo=timezone.utc)
-    if start < now:
-        start = now
-    user.subscription_expires_at = start + timedelta(days=payload.days)
+    if user.is_admin:
+        raise HTTPException(400, detail="Administrators already have unlimited access")
+    expires = extend_subscription(db, user.id, user.target_exam, payload.days)
     db.commit()
-    return {"message": "Subscription activated", "expires_at": user.subscription_expires_at}
+    return {
+        "message": f"{user.target_exam} subscription activated",
+        "exam_type": user.target_exam,
+        "expires_at": expires,
+    }
 
 
 @router.delete("/users/{user_id}/subscription")
@@ -184,9 +199,16 @@ def remove_subscription(
     if user.is_admin:
         raise HTTPException(400, detail="An administrator's access cannot be removed")
 
-    user.subscription_expires_at = None
+    db.execute(
+        text(
+            "DELETE FROM exam_subscriptions "
+            "WHERE user_id = :user_id AND exam_type = :exam_type"
+        ),
+        {"user_id": user.id, "exam_type": user.target_exam},
+    )
     db.commit()
     return {
-        "message": "Subscription removed",
+        "message": f"{user.target_exam} subscription removed",
+        "exam_type": user.target_exam,
         "free_tests_remaining": user.free_tests_remaining,
     }
