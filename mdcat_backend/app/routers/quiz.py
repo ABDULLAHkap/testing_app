@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user
+from app.auth import get_current_user, require_test_access
 from app.database import get_db
 from app.models.models import User, QuizSet, QuizAttempt
 from app.schemas import AttemptResult, SubmitAnswersRequest
@@ -116,7 +116,7 @@ def _grade(quiz_set: QuizSet, answers: dict[str, str]) -> dict:
 def start_attempt(
     quiz_set_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_test_access),
 ):
     quiz_set = (
         db.query(QuizSet)
@@ -125,6 +125,11 @@ def start_attempt(
     )
     if not quiz_set:
         raise HTTPException(404, detail="Quiz set not found")
+    if not current_user.is_admin and quiz_set.exam_type != current_user.target_exam:
+        raise HTTPException(
+            403,
+            detail="Switch back to this quiz's exam category before starting it.",
+        )
 
     attempt = QuizAttempt(
         quiz_set_id=quiz_set.id,
