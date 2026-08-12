@@ -178,6 +178,10 @@ def _complete_payment(payment_id: int, tracker: str, signature: str, db: Session
             subscription.expires_at = new_expiry
         else:
             db.add(ExamSubscription(user_id=user.id, exam_type=exam_type, expires_at=new_expiry))
+        if user.target_exam == exam_type:
+            # Compatibility mirror for older app/admin code. Real authorization
+            # is always based on ExamSubscription for the selected category.
+            user.subscription_expires_at = new_expiry
         payment.status = "paid"
         payment.completed_at = now
         payment.provider_response = {
