@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_admin
 from app.database import get_db
+from app.exam_catalog import ensure_exam
+from app.models.exam_subscription import ExamSubscription
 from app.models.models import (
     Announcement,
     AnnouncementRead,
@@ -25,10 +27,28 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 class SubscriptionGrant(BaseModel):
     days: int = Field(default=30, ge=1, le=366)
+    exam_type: str | None = Field(default=None, min_length=2, max_length=30)
 
 
 class SubscriptionPriceUpdate(BaseModel):
     price_pkr: int = Field(ge=1, le=1_000_000)
+
+
+def _aware(value: datetime | None) -> datetime | None:
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _selected_subscription(db: Session, user: User) -> ExamSubscription | None:
+    return (
+        db.query(ExamSubscription)
+        .filter(
+            ExamSubscription.user_id == user.id,
+            ExamSubscription.exam_type == user.target_exam,
+        )
+        .first()
+    )
 
 
 @router.get("/subscription-settings")
@@ -83,6 +103,16 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
         average = round(sum(attempt.percentage for attempt in finished) / tests_done, 1) if tests_done else 0.0
         best = round(max((attempt.percentage for attempt in finished), default=0.0), 1)
         last_test = max((attempt.finished_at for attempt in finished), default=None)
+        subscriptions = (
+            db.query(ExamSubscription)
+            .filter(ExamSubscription.user_id == user.id)
+            .order_by(ExamSubscription.exam_type.asc())
+            .all()
+        )
+        selected = next(
+            (item for item in subscriptions if item.exam_type == user.target_exam),
+            None,
+        )
         result.append({
             "id": user.id,
             "username": user.username,
@@ -93,7 +123,11 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
             "email_verified": user.email_verified,
             "is_admin": user.is_admin,
             "free_tests_remaining": user.free_tests_remaining,
-            "subscription_expires_at": user.subscription_expires_at,
+            "subscription_expires_at": selected.expires_at if selected else None,
+            "category_subscriptions": [
+                {"exam_type": item.exam_type, "expires_at": item.expires_at}
+                for item in subscriptions
+            ],
             "created_at": user.created_at,
             "exam_date": user.exam_date,
             "tests_done": tests_done,
@@ -137,6 +171,7 @@ def delete_user(
         (SupportMessage.student_id == user.id) | (SupportMessage.sender_id == user.id)
     ).delete(synchronize_session=False)
     db.query(Payment).filter(Payment.user_id == user.id).delete(synchronize_session=False)
+    db.query(ExamSubscription).filter(ExamSubscription.user_id == user.id).delete(synchronize_session=False)
     db.query(EmailChangeCode).filter(EmailChangeCode.user_id == user.id).delete(synchronize_session=False)
     db.query(PasswordResetCode).filter(PasswordResetCode.user_id == user.id).delete(synchronize_session=False)
     db.query(EmailVerificationCode).filter(EmailVerificationCode.user_id == user.id).delete(synchronize_session=False)
@@ -161,20 +196,45 @@ def grant_subscription(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, detail="User not found")
+    try:
+        exam_type = ensure_exam(payload.exam_type or user.target_exam)
+    except ValueError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
+
+    subscription = (
+        db.query(ExamSubscription)
+        .filter(
+            ExamSubscription.user_id == user.id,
+            ExamSubscription.exam_type == exam_type,
+        )
+        .first()
+    )
     now = datetime.now(timezone.utc)
-    start = user.subscription_expires_at or now
-    if start.tzinfo is None:
-        start = start.replace(tzinfo=timezone.utc)
-    if start < now:
-        start = now
-    user.subscription_expires_at = start + timedelta(days=payload.days)
+    current_expiry = _aware(subscription.expires_at) if subscription else None
+    start = current_expiry if current_expiry and current_expiry > now else now
+    expires_at = start + timedelta(days=payload.days)
+    if subscription:
+        subscription.expires_at = expires_at
+    else:
+        db.add(
+            ExamSubscription(
+                user_id=user.id,
+                exam_type=exam_type,
+                expires_at=expires_at,
+            )
+        )
     db.commit()
-    return {"message": "Subscription activated", "expires_at": user.subscription_expires_at}
+    return {
+        "message": "Subscription activated",
+        "exam_type": exam_type,
+        "expires_at": expires_at,
+    }
 
 
 @router.delete("/users/{user_id}/subscription")
 def remove_subscription(
     user_id: int,
+    exam_type: str | None = None,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
@@ -183,10 +243,18 @@ def remove_subscription(
         raise HTTPException(404, detail="User not found")
     if user.is_admin:
         raise HTTPException(400, detail="An administrator's access cannot be removed")
+    try:
+        selected_exam = ensure_exam(exam_type or user.target_exam)
+    except ValueError as exc:
+        raise HTTPException(422, detail=str(exc)) from exc
 
-    user.subscription_expires_at = None
+    db.query(ExamSubscription).filter(
+        ExamSubscription.user_id == user.id,
+        ExamSubscription.exam_type == selected_exam,
+    ).delete(synchronize_session=False)
     db.commit()
     return {
         "message": "Subscription removed",
+        "exam_type": selected_exam,
         "free_tests_remaining": user.free_tests_remaining,
     }

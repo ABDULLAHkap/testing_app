@@ -7,6 +7,7 @@ import '../../services/auth_provider.dart';
 import '../../services/theme_provider.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/home_navigation_action.dart';
+import '../../widgets/student_exam_category_tile.dart';
 import '../communications/support_chat_screen.dart';
 import '../subscription/subscription_screen.dart';
 
@@ -267,6 +268,8 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                       "For security, the verification code is sent to your current email address.",
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
+                    const SizedBox(height: 18),
+                    const StudentExamCategoryTile(),
                   ],
                   const SizedBox(height: 32),
                 ],
@@ -278,7 +281,7 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
                     leading: const Icon(Icons.workspace_premium_outlined),
                     title: const Text("30-Day Unlimited Access"),
                     subtitle: const Text(
-                      "View current price • Pay securely with Safepay",
+                      "For the selected exam category • Pay securely with Safepay",
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(

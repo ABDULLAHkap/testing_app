@@ -10,6 +10,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.exam_subscription import ExamSubscription
 from app.models.models import User
 
 load_dotenv()
@@ -66,16 +67,68 @@ def get_current_user(
     return user
 
 
-def require_test_access(current_user: User = Depends(get_current_user)) -> User:
+def _as_aware(value: datetime | None) -> datetime | None:
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _active_exam_subscription(db: Session, user: User) -> ExamSubscription | None:
     now = datetime.now(timezone.utc)
-    expires = current_user.subscription_expires_at
-    if expires is not None and expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
-    if (expires and expires > now) or current_user.free_tests_remaining > 0 or current_user.is_admin:
+    subscription = (
+        db.query(ExamSubscription)
+        .filter(
+            ExamSubscription.user_id == user.id,
+            ExamSubscription.exam_type == user.target_exam,
+        )
+        .first()
+    )
+    if subscription and _as_aware(subscription.expires_at) > now:
+        return subscription
+    return None
+
+
+def _migrate_legacy_subscription(db: Session, user: User) -> ExamSubscription | None:
+    """Move an old global subscription into the student's current category once."""
+    now = datetime.now(timezone.utc)
+    legacy_expiry = _as_aware(user.subscription_expires_at)
+    if not legacy_expiry or legacy_expiry <= now:
+        return None
+
+    existing = db.query(ExamSubscription).filter(ExamSubscription.user_id == user.id).count()
+    if existing:
+        return None
+
+    subscription = ExamSubscription(
+        user_id=user.id,
+        exam_type=user.target_exam,
+        expires_at=legacy_expiry,
+    )
+    db.add(subscription)
+    user.subscription_expires_at = None
+    db.commit()
+    db.refresh(subscription)
+    return subscription
+
+
+def require_test_access(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    if current_user.is_admin:
+        return current_user
+    if current_user.free_tests_remaining > 0:
+        return current_user
+    if _active_exam_subscription(db, current_user):
+        return current_user
+    if _migrate_legacy_subscription(db, current_user):
         return current_user
     raise HTTPException(
         status_code=status.HTTP_402_PAYMENT_REQUIRED,
-        detail="Your 3 free tests are complete. Please subscribe to continue.",
+        detail=(
+            f"Your 3 free tests are complete. Please subscribe to "
+            f"{current_user.target_exam} to continue."
+        ),
     )
 
 

@@ -37,10 +37,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final status = await _api.getSubscriptionStatus();
       if (mounted) setState(() => _status = status);
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not load subscription: $error')),
         );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -55,10 +56,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         throw Exception('Could not open Safepay checkout');
       }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Checkout could not start: $error')),
         );
+      }
     } finally {
       if (mounted) setState(() => _openingCheckout = false);
     }
@@ -66,7 +68,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   String _expiryText() {
     final raw = _status?['subscription_expires_at'];
-    if (raw == null) return 'Not subscribed';
+    if (raw == null) return 'Not subscribed for this category';
     return 'Active until ${DateFormat.yMMMd().format(DateTime.parse(raw).toLocal())}';
   }
 
@@ -77,6 +79,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final price = (plan['price_pkr'] as num?)?.toInt() ?? 2000;
     final priceText = NumberFormat.decimalPattern().format(price);
     final days = (plan['days'] as num?)?.toInt() ?? 30;
+    final exam = _status?['target_exam']?.toString() ?? 'selected exam';
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -108,7 +111,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          plan['name']?.toString() ?? '30-Day Unlimited Access',
+                          '$exam ${plan['name']?.toString() ?? '30-Day Unlimited Access'}',
                           style: TextStyle(
                             color: _text,
                             fontSize: 22,
@@ -125,10 +128,15 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           ),
                         ),
                         Text('for $days days', style: TextStyle(color: _muted)),
+                        const SizedBox(height: 10),
+                        Text(
+                          'This payment unlocks only $exam. If you switch to another exam category, that category needs its own subscription.',
+                          style: TextStyle(color: _muted, fontSize: 12),
+                        ),
                         const SizedBox(height: 22),
-                        const _Benefit('Unlimited practice tests'),
-                        const _Benefit('Unlimited full mock tests'),
-                        const _Benefit('All features for your selected exam'),
+                        _Benefit('Unlimited $exam practice tests'),
+                        _Benefit('Unlimited $exam mock tests'),
+                        const _Benefit('All features for this exam category'),
                         const _Benefit('Secure checkout through Safepay'),
                         const SizedBox(height: 22),
                         SizedBox(
@@ -141,7 +149,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                             label: Text(
                               _openingCheckout
                                   ? 'Opening Safepay...'
-                                  : 'Pay PKR $priceText',
+                                  : 'Pay PKR $priceText for $exam',
                             ),
                           ),
                         ),
@@ -155,9 +163,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       borderRadius: BorderRadius.circular(14),
                     ),
                     leading: const Icon(Icons.verified_outlined, color: _cyan),
-                    title: Text(_expiryText(), style: TextStyle(color: _text)),
+                    title: Text(
+                      '$exam: ${_expiryText()}',
+                      style: TextStyle(color: _text),
+                    ),
                     subtitle: Text(
-                      '${_status?['free_tests_remaining'] ?? 0} free tests remaining',
+                      '${_status?['free_tests_remaining'] ?? 0} of 3 free tests remaining across your whole account',
                       style: TextStyle(color: _muted),
                     ),
                     trailing: IconButton(

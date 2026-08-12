@@ -125,7 +125,15 @@ def start_attempt(
     )
     if not quiz_set:
         raise HTTPException(404, detail="Quiz set not found")
+    if not current_user.is_admin and quiz_set.exam_type != current_user.target_exam:
+        raise HTTPException(
+            403,
+            detail="Switch back to this quiz's exam category before starting it.",
+        )
 
+    # Access is checked when the quiz is generated/downloaded. A quiz already
+    # created while the student had access remains startable, but it can only
+    # be started in the category it belongs to.
     attempt = QuizAttempt(
         quiz_set_id=quiz_set.id,
         user_id=current_user.id,

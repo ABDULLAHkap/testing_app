@@ -23,6 +23,7 @@ def get_progress(
         .filter(
             QuizAttempt.user_id == current_user.id,
             QuizAttempt.finished_at.isnot(None),
+            QuizSet.exam_type == current_user.target_exam,
         )
         .order_by(QuizAttempt.finished_at.asc())
         .all()
