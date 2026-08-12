@@ -23,6 +23,7 @@ def get_progress(
         .filter(
             QuizAttempt.user_id == current_user.id,
             QuizAttempt.finished_at.isnot(None),
+            QuizSet.exam_type == current_user.target_exam,
         )
         .order_by(QuizAttempt.finished_at.asc())
         .all()
@@ -49,4 +50,4 @@ def get_advanced_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return advanced_analytics(db, current_user)
+    return advanced_analytics(db, current_user, exam_type=current_user.target_exam)
