@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, require_test_access
+from app.auth import get_current_user
 from app.database import get_db
 from app.models.models import User, QuizSet, QuizAttempt
 from app.schemas import AttemptResult, SubmitAnswersRequest
@@ -116,7 +116,7 @@ def _grade(quiz_set: QuizSet, answers: dict[str, str]) -> dict:
 def start_attempt(
     quiz_set_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_test_access),
+    current_user: User = Depends(get_current_user),
 ):
     quiz_set = (
         db.query(QuizSet)
@@ -131,6 +131,9 @@ def start_attempt(
             detail="Switch back to this quiz's exam category before starting it.",
         )
 
+    # Access is checked when the quiz is generated/downloaded. A quiz already
+    # created while the student had access remains startable, but it can only
+    # be started in the category it belongs to.
     attempt = QuizAttempt(
         quiz_set_id=quiz_set.id,
         user_id=current_user.id,
