@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
+from app.models.exam_subscription import ExamSubscription
 from app.models.models import Payment, User
 from app.services.app_settings import get_subscription_price
 
@@ -51,6 +52,23 @@ def _frontend_url() -> str:
     return os.getenv("FRONTEND_URL", "https://exam-preparation-app.onrender.com").rstrip("/")
 
 
+def _aware(value: datetime | None) -> datetime | None:
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
+def _exam_subscription(db: Session, user_id: int, exam_type: str) -> ExamSubscription | None:
+    return (
+        db.query(ExamSubscription)
+        .filter(
+            ExamSubscription.user_id == user_id,
+            ExamSubscription.exam_type == exam_type,
+        )
+        .first()
+    )
+
+
 @router.get("/plans")
 def plans(db: Session = Depends(get_db)):
     return [_plan(db)]
@@ -61,9 +79,21 @@ def status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    current = _exam_subscription(db, current_user.id, current_user.target_exam)
+    all_subscriptions = (
+        db.query(ExamSubscription)
+        .filter(ExamSubscription.user_id == current_user.id)
+        .order_by(ExamSubscription.exam_type.asc())
+        .all()
+    )
     return {
         "free_tests_remaining": current_user.free_tests_remaining,
-        "subscription_expires_at": current_user.subscription_expires_at,
+        "target_exam": current_user.target_exam,
+        "subscription_expires_at": current.expires_at if current else None,
+        "category_subscriptions": [
+            {"exam_type": item.exam_type, "expires_at": item.expires_at}
+            for item in all_subscriptions
+        ],
         "payment_provider": "Safepay",
         "checkout_configured": bool(os.getenv("SAFEPAY_PUBLIC_KEY") and os.getenv("SAFEPAY_SECRET_KEY")),
         "plan": _plan(db),
@@ -80,6 +110,7 @@ def checkout(plan_id: str, db: Session = Depends(get_db), current_user: User = D
     public_key, _secret_key = _credentials()
     environment = _environment()
     plan = _plan(db)
+    exam_type = current_user.target_exam
     try:
         response = httpx.post(
             f"{_api_base(environment)}/order/v1/init",
@@ -95,7 +126,12 @@ def checkout(plan_id: str, db: Session = Depends(get_db), current_user: User = D
     payment = Payment(
         user_id=current_user.id, provider="safepay", transaction_ref=tracker,
         amount_pkr=plan["price_pkr"], status="pending",
-        provider_response={"order_id": order_id, "environment": environment, "plan_id": PLAN["id"]},
+        provider_response={
+            "order_id": order_id,
+            "environment": environment,
+            "plan_id": PLAN["id"],
+            "exam_type": exam_type,
+        },
     )
     db.add(payment)
     db.commit()
@@ -109,7 +145,13 @@ def checkout(plan_id: str, db: Session = Depends(get_db), current_user: User = D
         "redirect_url": f"{backend_url}/subscriptions/safepay/return?payment_id={payment.id}",
         "source": "custom", "webhooks": "false",
     })
-    return {"checkout_url": f"{_checkout_base(environment)}?{query}", "payment_id": payment.id, "amount_pkr": plan["price_pkr"], "days": PLAN["days"]}
+    return {
+        "checkout_url": f"{_checkout_base(environment)}?{query}",
+        "payment_id": payment.id,
+        "amount_pkr": plan["price_pkr"],
+        "days": PLAN["days"],
+        "exam_type": exam_type,
+    }
 
 
 def _complete_payment(payment_id: int, tracker: str, signature: str, db: Session):
@@ -126,15 +168,23 @@ def _complete_payment(payment_id: int, tracker: str, signature: str, db: Session
         user = db.query(User).filter(User.id == payment.user_id).first()
         if not user:
             raise HTTPException(404, detail="Student account not found")
+        exam_type = str((payment.provider_response or {}).get("exam_type") or user.target_exam)
         now = datetime.now(timezone.utc)
-        current_expiry = user.subscription_expires_at
-        if current_expiry is not None and current_expiry.tzinfo is None:
-            current_expiry = current_expiry.replace(tzinfo=timezone.utc)
+        subscription = _exam_subscription(db, user.id, exam_type)
+        current_expiry = _aware(subscription.expires_at) if subscription else None
         start = current_expiry if current_expiry and current_expiry > now else now
-        user.subscription_expires_at = start + timedelta(days=PLAN["days"])
+        new_expiry = start + timedelta(days=PLAN["days"])
+        if subscription:
+            subscription.expires_at = new_expiry
+        else:
+            db.add(ExamSubscription(user_id=user.id, exam_type=exam_type, expires_at=new_expiry))
         payment.status = "paid"
         payment.completed_at = now
-        payment.provider_response = {**(payment.provider_response or {}), "verified": True}
+        payment.provider_response = {
+            **(payment.provider_response or {}),
+            "verified": True,
+            "exam_type": exam_type,
+        }
         db.commit()
     return payment
 
