@@ -48,6 +48,21 @@ def apply_compatibility_migrations() -> None:
         statements.append(
             "ALTER TABLE quiz_attempts ADD COLUMN question_times JSON"
         )
+    statements.append(
+        "CREATE TABLE IF NOT EXISTS exam_subscriptions ("
+        "id SERIAL PRIMARY KEY, "
+        "user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, "
+        "exam_type VARCHAR(30) NOT NULL, "
+        "expires_at TIMESTAMP WITH TIME ZONE NOT NULL, "
+        "created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), "
+        "updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(), "
+        "UNIQUE(user_id, exam_type)"
+        ")"
+    )
+    statements.append(
+        "CREATE INDEX IF NOT EXISTS ix_exam_subscriptions_user_id "
+        "ON exam_subscriptions(user_id)"
+    )
     if statements:
         with engine.begin() as connection:
             for statement in statements:
