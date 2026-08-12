@@ -28,10 +28,6 @@ def update_exam_category(
     except ValueError as exc:
         raise HTTPException(422, detail=str(exc)) from exc
 
-    current_user.target_exam = target_exam
-    db.commit()
-    db.refresh(current_user)
-
     subscription = (
         db.query(ExamSubscription)
         .filter(
@@ -40,6 +36,15 @@ def update_exam_category(
         )
         .first()
     )
+    current_user.target_exam = target_exam
+    # Keep the legacy field as a mirror of the currently selected category.
+    # Access checks use ExamSubscription, so this never unlocks other exams.
+    current_user.subscription_expires_at = (
+        subscription.expires_at if subscription else None
+    )
+    db.commit()
+    db.refresh(current_user)
+
     return {
         "message": "Exam category updated",
         "target_exam": current_user.target_exam,
