@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.models import User
+from app.services.category_subscriptions import has_active_subscription
 
 load_dotenv()
 
@@ -20,7 +21,7 @@ if not SECRET_KEY:
         "JWT_SECRET_KEY is required. Copy .env.example to .env for local use."
     )
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days, good for a mobile app
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -35,6 +36,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    from datetime import datetime, timezone
+
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -66,16 +69,22 @@ def get_current_user(
     return user
 
 
-def require_test_access(current_user: User = Depends(get_current_user)) -> User:
-    now = datetime.now(timezone.utc)
-    expires = current_user.subscription_expires_at
-    if expires is not None and expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
-    if (expires and expires > now) or current_user.free_tests_remaining > 0 or current_user.is_admin:
+def require_test_access(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    if current_user.is_admin:
+        return current_user
+    if current_user.free_tests_remaining > 0:
+        return current_user
+    if has_active_subscription(db, current_user.id, current_user.target_exam):
         return current_user
     raise HTTPException(
         status_code=status.HTTP_402_PAYMENT_REQUIRED,
-        detail="Your 3 free tests are complete. Please subscribe to continue.",
+        detail=(
+            f"Your 3 account-wide free tests are complete. "
+            f"Please subscribe to {current_user.target_exam} to continue."
+        ),
     )
 
 
