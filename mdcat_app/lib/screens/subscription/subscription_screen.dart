@@ -37,10 +37,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final status = await _api.getSubscriptionStatus();
       if (mounted) setState(() => _status = status);
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not load subscription: $error')),
         );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -55,32 +56,34 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         throw Exception('Could not open Safepay checkout');
       }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Checkout could not start: $error')),
         );
+      }
     } finally {
       if (mounted) setState(() => _openingCheckout = false);
     }
   }
 
-  String _expiryText() {
+  String _expiryText(String exam) {
     final raw = _status?['subscription_expires_at'];
-    if (raw == null) return 'Not subscribed';
-    return 'Active until ${DateFormat.yMMMd().format(DateTime.parse(raw).toLocal())}';
+    if (raw == null) return '$exam: Not subscribed';
+    return '$exam active until ${DateFormat.yMMMd().format(DateTime.parse(raw).toLocal())}';
   }
 
   @override
   Widget build(BuildContext context) {
     final plan = Map<String, dynamic>.from(_status?['plan'] ?? const {});
     final configured = _status?['checkout_configured'] == true;
+    final exam = _status?['selected_exam']?.toString() ?? 'Selected exam';
     final price = (plan['price_pkr'] as num?)?.toInt() ?? 2000;
     final priceText = NumberFormat.decimalPattern().format(price);
     final days = (plan['days'] as num?)?.toInt() ?? 30;
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        title: const Text('Subscription'),
+        title: Text('$exam Subscription'),
         backgroundColor: _bg,
         actions: const [HomeNavigationAction()],
       ),
@@ -101,14 +104,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.workspace_premium,
-                          color: _cyan,
-                          size: 42,
-                        ),
+                        const Icon(Icons.workspace_premium, color: _cyan, size: 42),
                         const SizedBox(height: 16),
                         Text(
-                          plan['name']?.toString() ?? '30-Day Unlimited Access',
+                          '$exam ${plan['name']?.toString() ?? '30-Day Unlimited Access'}',
                           style: TextStyle(
                             color: _text,
                             fontSize: 22,
@@ -125,23 +124,26 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           ),
                         ),
                         Text('for $days days', style: TextStyle(color: _muted)),
+                        const SizedBox(height: 10),
+                        Text(
+                          'This payment unlocks $exam only. Other exam categories require their own subscription.',
+                          style: TextStyle(color: _muted, fontSize: 12),
+                        ),
                         const SizedBox(height: 22),
                         const _Benefit('Unlimited practice tests'),
                         const _Benefit('Unlimited full mock tests'),
-                        const _Benefit('All features for your selected exam'),
+                        _Benefit('All available features for $exam'),
                         const _Benefit('Secure checkout through Safepay'),
                         const SizedBox(height: 22),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: configured && !_openingCheckout
-                                ? _subscribe
-                                : null,
+                            onPressed: configured && !_openingCheckout ? _subscribe : null,
                             icon: const Icon(Icons.lock_outline),
                             label: Text(
                               _openingCheckout
                                   ? 'Opening Safepay...'
-                                  : 'Pay PKR $priceText',
+                                  : 'Pay PKR $priceText for $exam',
                             ),
                           ),
                         ),
@@ -151,13 +153,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   const SizedBox(height: 18),
                   ListTile(
                     tileColor: _card,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     leading: const Icon(Icons.verified_outlined, color: _cyan),
-                    title: Text(_expiryText(), style: TextStyle(color: _text)),
+                    title: Text(_expiryText(exam), style: TextStyle(color: _text)),
                     subtitle: Text(
-                      '${_status?['free_tests_remaining'] ?? 0} free tests remaining',
+                      '${_status?['free_tests_remaining'] ?? 0} account-wide free tests remaining',
                       style: TextStyle(color: _muted),
                     ),
                     trailing: IconButton(
@@ -168,7 +168,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Sandbox mode uses test payments only. Access is activated only after Safepay sends a valid signed confirmation.',
+                    'Your free-test allowance is shared across all categories. Sandbox mode uses test payments only; access is activated only after a valid Safepay confirmation.',
                     style: TextStyle(color: _muted, fontSize: 12),
                   ),
                 ],
@@ -190,10 +190,7 @@ class _Benefit extends StatelessWidget {
         const Icon(Icons.check_circle, color: _cyan, size: 19),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(color: context.secondaryTextColor),
-          ),
+          child: Text(text, style: TextStyle(color: context.secondaryTextColor)),
         ),
       ],
     ),
