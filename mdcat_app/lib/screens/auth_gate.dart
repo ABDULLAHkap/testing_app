@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../services/auth_provider.dart';
 import 'auth/landing_screen.dart';
-import 'auth/login_screen.dart';
+import 'auth/mobile_auth_flow.dart';
 import 'home/home_screen.dart';
 
 /// Shown briefly on app start while we check whether a saved token
-/// is still valid, then routes to Login or Home accordingly.
+/// is still valid, then routes to the signed-out experience or Home.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -39,7 +39,7 @@ class _AuthGateState extends State<AuthGate> {
             if (constraints.maxWidth >= 900) {
               return const LandingScreen();
             }
-            return const LoginScreen();
+            return const MobileAuthFlow();
           },
         );
     }
