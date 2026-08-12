@@ -63,6 +63,13 @@ def apply_compatibility_migrations() -> None:
         "CREATE INDEX IF NOT EXISTS ix_exam_subscriptions_user_id "
         "ON exam_subscriptions(user_id)"
     )
+    statements.append(
+        "INSERT INTO exam_subscriptions "
+        "(user_id, exam_type, expires_at, created_at, updated_at) "
+        "SELECT id, target_exam, subscription_expires_at, NOW(), NOW() FROM users "
+        "WHERE subscription_expires_at IS NOT NULL AND subscription_expires_at > NOW() "
+        "ON CONFLICT (user_id, exam_type) DO NOTHING"
+    )
     if statements:
         with engine.begin() as connection:
             for statement in statements:
