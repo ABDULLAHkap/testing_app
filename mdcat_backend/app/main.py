@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.routers import (
     auth, upload, mcqs, quiz, progress, dashboard, admin, subscriptions,
-    communications, tutor, category,
+    communications, tutor, category, category_quizzes,
 )
 from app.bootstrap import ensure_admin
 from app.migrations import apply_compatibility_migrations
@@ -40,6 +40,9 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(category.router)
 app.include_router(upload.router)
+# Register the exact GET /mcqs category-history route before the legacy
+# /mcqs router so saved student quizzes never mix exam categories.
+app.include_router(category_quizzes.router)
 app.include_router(mcqs.router)
 app.include_router(quiz.router)
 app.include_router(progress.router)
