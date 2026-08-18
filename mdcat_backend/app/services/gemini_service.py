@@ -24,6 +24,7 @@ def _generate_content(
     temperature: float,
     max_output_tokens: int,
     json_mode: bool = False,
+    response_schema: dict | None = None,
 ) -> str:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
@@ -35,6 +36,8 @@ def _generate_content(
     }
     if json_mode:
         generation_config["responseMimeType"] = "application/json"
+        if response_schema:
+            generation_config["responseJsonSchema"] = response_schema
 
     request = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
@@ -108,12 +111,54 @@ Return only this JSON shape:
 {material}
 """.strip()
 
+    response_schema = {
+        "type": "object",
+        "required": ["questions"],
+        "properties": {
+            "questions": {
+                "type": "array",
+                "minItems": number,
+                "maxItems": number,
+                "items": {
+                    "type": "object",
+                    "required": [
+                        "question", "options", "correct_option", "explanation"
+                    ],
+                    "properties": {
+                        "question": {"type": "string"},
+                        "options": {
+                            "type": "array",
+                            "minItems": 4,
+                            "maxItems": 4,
+                            "items": {"type": "string"},
+                        },
+                        "correct_option": {
+                            "type": "string",
+                            "enum": ["A", "B", "C", "D"],
+                        },
+                        "explanation": {"type": "string"},
+                        "option_explanations": {
+                            "type": "object",
+                            "properties": {
+                                letter: {"type": "string"}
+                                for letter in ("A", "B", "C", "D")
+                            },
+                        },
+                        "subject": {"type": "string"},
+                        "topic": {"type": "string"},
+                        "concept": {"type": "string"},
+                    },
+                },
+            }
+        },
+    }
     raw = _generate_content(
         system_prompt=system_prompt,
         contents=[{"role": "user", "parts": [{"text": prompt}]}],
         temperature=0.8,
         max_output_tokens=max(4096, number * 700),
         json_mode=True,
+        response_schema=response_schema,
     )
     raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.I)
     try:
