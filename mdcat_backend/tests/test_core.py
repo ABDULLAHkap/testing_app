@@ -309,6 +309,47 @@ class CoreTests(unittest.TestCase):
             {"Question one", "Question two", "Question three"},
         )
 
+    @patch("app.services.batch_generator.generate_mcqs")
+    def test_large_mock_sections_use_safe_ten_question_batches(self, mocked):
+        counter = {"value": 0}
+
+        def generated(*, number, **_kwargs):
+            questions = []
+            for _ in range(number):
+                counter["value"] += 1
+                questions.append(_question(f"Generated question {counter['value']}"))
+            return questions
+
+        mocked.side_effect = generated
+        questions = generate_large_mcqs(81, "Biology", "Medium")
+
+        self.assertEqual(len(questions), 81)
+        self.assertEqual(mocked.call_count, 9)
+        self.assertTrue(
+            all(call.kwargs["number"] <= 10 for call in mocked.call_args_list)
+        )
+
+    @patch("app.routers.mcqs._offline_download_questions")
+    @patch("app.routers.mcqs.generate_large_mcqs")
+    def test_complete_provider_result_is_not_mixed_with_fallbacks(
+        self, generated, offline
+    ):
+        clear_question_pool()
+        generated.return_value = [
+            _question(f"API question {index}") for index in range(25)
+        ]
+
+        questions = _generate_resilient_questions(
+            total_questions=25,
+            subject="Biology",
+            difficulty="Medium",
+            exam_type="MDCAT",
+        )
+
+        self.assertEqual(len(questions), 25)
+        self.assertTrue(all(item["question"].startswith("API question") for item in questions))
+        offline.assert_not_called()
+
     @patch("app.services.batch_generator.generate_mcqs", return_value=[])
     def test_generation_stops_after_empty_provider_response(self, mocked):
         self.assertEqual(generate_large_mcqs(10, "Biology", "Medium"), [])
