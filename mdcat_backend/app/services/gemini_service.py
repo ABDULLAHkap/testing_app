@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
+FALLBACK_MODEL_NAMES = ("gemini-3.5-flash-lite", "gemini-2.5-flash")
 _BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 _provider_slots = BoundedSemaphore(
     max(1, int(os.getenv("QUESTION_PROVIDER_CONCURRENCY", "4")))
@@ -44,35 +45,53 @@ def _generate_content(
         "contents": contents,
         "generationConfig": generation_config,
     }
-    url = f"{_BASE_URL}/models/{MODEL_NAME}:generateContent"
-
     with _provider_slots:
-        for attempt in range(3):
-            try:
-                response = httpx.post(
-                    url,
-                    headers={
-                        "Content-Type": "application/json",
-                        "x-goog-api-key": api_key,
-                    },
-                    json=request,
-                    timeout=httpx.Timeout(25, connect=5),
-                )
-                if response.status_code == 429 or response.status_code >= 500:
+        model_names = tuple(dict.fromkeys((MODEL_NAME, *FALLBACK_MODEL_NAMES)))
+        last_error: Exception | None = None
+        for model_name in model_names:
+            url = f"{_BASE_URL}/models/{model_name}:generateContent"
+            for attempt in range(3):
+                try:
+                    response = httpx.post(
+                        url,
+                        headers={
+                            "Content-Type": "application/json",
+                            "x-goog-api-key": api_key,
+                        },
+                        json=request,
+                        timeout=httpx.Timeout(25, connect=5),
+                    )
+                    # A configured model can be unavailable to a particular
+                    # API key/project. Try the supported fallback models rather
+                    # than silently replacing the requested quiz with offline
+                    # syllabus placeholders.
+                    if response.status_code == 404:
+                        response.raise_for_status()
+                    if response.status_code == 429 or response.status_code >= 500:
+                        response.raise_for_status()
                     response.raise_for_status()
-                response.raise_for_status()
-                payload = response.json()
-                parts = payload["candidates"][0]["content"]["parts"]
-                text = "".join(str(part.get("text", "")) for part in parts).strip()
-                if not text:
-                    raise RuntimeError("Gemini returned an empty response")
-                return text
-            except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
-                if attempt == 2:
-                    raise
-                time.sleep(0.6 * (2 ** attempt))
+                    payload = response.json()
+                    parts = payload["candidates"][0]["content"]["parts"]
+                    text = "".join(
+                        str(part.get("text", "")) for part in parts
+                    ).strip()
+                    if not text:
+                        raise RuntimeError("Gemini returned an empty response")
+                    return text
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    if exc.response.status_code == 404:
+                        break
+                    if attempt == 2:
+                        raise
+                    time.sleep(0.6 * (2 ** attempt))
+                except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+                    last_error = exc
+                    if attempt == 2:
+                        raise
+                    time.sleep(0.6 * (2 ** attempt))
 
-    raise RuntimeError("Gemini generation failed")
+    raise RuntimeError("No configured Gemini model is available") from last_error
 
 
 def generate_mcqs(
