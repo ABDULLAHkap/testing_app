@@ -138,7 +138,9 @@ class QuizSet(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    subject = Column(String(50), nullable=False)
+    # Past-paper display titles include the authority, year and paper ID and
+    # can legitimately exceed the original 50-character limit.
+    subject = Column(String(255), nullable=False)
     exam_type = Column(String(30), default="MDCAT", nullable=False)
     difficulty = Column(String(20), nullable=False)
     quiz_minutes = Column(Integer, default=30)
