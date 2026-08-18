@@ -185,6 +185,9 @@ class SubmitAnswersRequest(BaseModel):
     # keys are question index as string, values are the chosen option letter "A"/"B"/"C"/"D"
     answers: dict[str, str]
     time_spent_seconds: dict[str, int] = Field(default_factory=dict)
+    # Only the countdown timer may intentionally submit unanswered items.
+    # Normal navigation must answer every question before finishing.
+    auto_submit: bool = False
 
     @field_validator("answers")
     @classmethod

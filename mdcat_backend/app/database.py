@@ -20,20 +20,42 @@ if DATABASE_URL.startswith("postgresql://"):
         "postgresql://", "postgresql+psycopg://", 1
     )
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+is_sqlite = DATABASE_URL.startswith("sqlite")
+connect_args = (
+    {"check_same_thread": False, "timeout": 30}
+    if is_sqlite
+    else {}
+)
+
+engine_options = {
+    "connect_args": connect_args,
+    "pool_pre_ping": True,
+}
+if not is_sqlite:
+    # Generation requests can be longer than ordinary API requests.  Keep
+    # enough short-lived overflow capacity so 10-15 concurrent students do
+    # not starve login, OTP, heartbeat, or quiz-submission requests.
+    engine_options.update(
+        pool_size=max(5, int(os.getenv("DB_POOL_SIZE", "10"))),
+        max_overflow=max(10, int(os.getenv("DB_MAX_OVERFLOW", "20"))),
+        pool_timeout=30,
+        pool_recycle=1800,
+    )
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True,
+    **engine_options,
 )
 
 
-if DATABASE_URL.startswith("sqlite"):
+if is_sqlite:
     @event.listens_for(engine, "connect")
     def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
         cursor.close()
 
 

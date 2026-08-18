@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth import create_access_token, hash_password, verify_password, get_current_user
@@ -82,8 +83,11 @@ def _issue_email_change_otp(user: User, new_email: str, db: Session) -> None:
 
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
+    email = str(payload.email).strip().lower()
+    username = payload.username.strip()
     existing = db.query(User).filter(
-        (User.username == payload.username) | (User.email == payload.email)
+        (func.lower(User.username) == username.lower())
+        | (func.lower(User.email) == email)
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username or email already registered")
@@ -94,8 +98,8 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     user = User(
-        username=payload.username,
-        email=payload.email,
+        username=username,
+        email=email,
         hashed_password=hash_password(payload.password),
         gender=payload.gender,
         phone=payload.phone,
@@ -103,7 +107,14 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         email_verified=False,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Username or email already registered",
+        ) from exc
     db.refresh(user)
     try:
         _issue_otp(user, db)
@@ -116,7 +127,8 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/verify-email", response_model=UserOut)
 def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    email = str(payload.email).strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
     if not user:
         raise HTTPException(404, detail="Account not found")
     record = (
@@ -126,6 +138,7 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
             EmailVerificationCode.used_at.is_(None),
         )
         .order_by(EmailVerificationCode.created_at.desc())
+        .with_for_update()
         .first()
     )
     now = datetime.now(timezone.utc)
@@ -142,19 +155,25 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
 
 @router.post("/resend-otp", response_model=RegistrationResponse)
 def resend_otp(payload: ResendOtpRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    email = str(payload.email).strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
     if not user:
         raise HTTPException(404, detail="Account not found")
     if user.email_verified:
         raise HTTPException(409, detail="Email is already verified")
-    _issue_otp(user, db)
+    try:
+        _issue_otp(user, db)
+    except Exception as exc:
+        raise HTTPException(503, detail="Verification code could not be sent") from exc
     return RegistrationResponse(message="Verification code sent", email=user.email)
 
 
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    credential = form_data.username.strip()
     user = db.query(User).filter(
-        (User.username == form_data.username) | (User.email == form_data.username)
+        (User.username == credential)
+        | (func.lower(User.email) == credential.lower())
     ).first()
 
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -173,7 +192,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @router.post("/forgot-password", response_model=MessageResponse)
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    email = str(payload.email).strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
     if user:
         try:
             _issue_password_reset_otp(user, db)
@@ -188,7 +208,8 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 
 @router.post("/reset-password", response_model=MessageResponse)
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    email = str(payload.email).strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
     record = None
     if user:
         record = (
@@ -198,6 +219,7 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
                 PasswordResetCode.used_at.is_(None),
             )
             .order_by(PasswordResetCode.created_at.desc())
+            .with_for_update()
             .first()
         )
 
@@ -310,6 +332,7 @@ def confirm_email_change(
             EmailChangeCode.used_at.is_(None),
         )
         .order_by(EmailChangeCode.created_at.desc())
+        .with_for_update()
         .first()
     )
     now = datetime.now(timezone.utc)

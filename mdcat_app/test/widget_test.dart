@@ -4,10 +4,17 @@ import 'package:provider/provider.dart';
 
 import 'package:mdcat_app/screens/auth/login_screen.dart';
 import 'package:mdcat_app/screens/auth/landing_screen.dart';
+import 'package:mdcat_app/screens/quiz/quiz_screen.dart';
 import 'package:mdcat_app/services/auth_provider.dart';
 import 'package:mdcat_app/services/theme_provider.dart';
 
 void main() {
+  test('quiz cannot advance until the current question is answered', () {
+    expect(canAdvanceQuizQuestion(<int, String>{}, 0), isFalse);
+    expect(canAdvanceQuizQuestion(<int, String>{0: 'B'}, 0), isTrue);
+    expect(canAdvanceQuizQuestion(<int, String>{0: 'B'}, 1), isFalse);
+  });
+
   testWidgets('login screen renders', (WidgetTester tester) async {
     await tester.pumpWidget(
       MultiProvider(

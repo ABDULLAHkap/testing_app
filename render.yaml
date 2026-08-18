@@ -21,10 +21,16 @@ services:
         fromDatabase:
           name: mdcat-database
           property: connectionString
+      - key: DB_POOL_SIZE
+        value: "10"
+      - key: DB_MAX_OVERFLOW
+        value: "20"
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: GROQ_API_KEY
         sync: false
+      - key: QUESTION_PROVIDER_CONCURRENCY
+        value: "4"
       - key: CORS_ORIGINS
         value: "*"
       - key: ADMIN_EMAIL
@@ -48,6 +54,8 @@ services:
       - key: SMTP_FROM
         sync: false
       - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
         sync: false
       - key: EMAIL_FROM_NAME
         value: Exam Preparation

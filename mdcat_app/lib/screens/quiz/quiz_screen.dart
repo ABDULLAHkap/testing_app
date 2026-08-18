@@ -6,6 +6,9 @@ import '../../services/api_client.dart';
 import '../../widgets/home_navigation_action.dart';
 import 'quiz_result_screen.dart';
 
+bool canAdvanceQuizQuestion(Map<int, String> answers, int questionIndex) =>
+    answers[questionIndex] != null;
+
 class QuizScreen extends StatefulWidget {
   final QuizSet quizSet;
   const QuizScreen({super.key, required this.quizSet});
@@ -79,6 +82,7 @@ class _QuizScreenState extends State<QuizScreen> {
         _attemptId!,
         _answers,
         _questionTimes,
+        autoSubmit: auto,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -238,42 +242,61 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (_index > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => setState(() => _index--),
-                        child: const Text("Previous"),
+                  if (!canAdvanceQuizQuestion(_answers, _index)) ...[
+                    Text(
+                      'Select one answer to continue.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  if (_index > 0) const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _submitting
-                          ? null
-                          : () {
-                              if (_index < questions.length - 1) {
-                                setState(() => _index++);
-                              } else {
-                                _submit();
-                              }
-                            },
-                      child: _submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              _index < questions.length - 1
-                                  ? "Next"
-                                  : "Finish Quiz",
-                            ),
-                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Row(
+                    children: [
+                      if (_index > 0)
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => setState(() => _index--),
+                            child: const Text("Previous"),
+                          ),
+                        ),
+                      if (_index > 0) const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed:
+                              _submitting ||
+                                  !canAdvanceQuizQuestion(_answers, _index)
+                              ? null
+                              : () {
+                                  if (_index < questions.length - 1) {
+                                    setState(() => _index++);
+                                  } else {
+                                    _submit();
+                                  }
+                                },
+                          child: _submitting
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _index < questions.length - 1
+                                      ? "Next"
+                                      : "Finish Quiz",
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
