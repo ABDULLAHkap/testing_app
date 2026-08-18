@@ -1,6 +1,6 @@
 # Multi-Exam Preparation App
 
-A Flutter study app backed by FastAPI, Groq-generated MCQs, JWT authentication,
+A Flutter study app backed by FastAPI, Gemini-generated MCQs, JWT authentication,
 and PostgreSQL. The Flutter client talks to the API; it never connects directly
 to the database.
 
@@ -19,13 +19,12 @@ These steps create one shared online PostgreSQL database. Users on different
 devices can then register, log in, and access their own saved quizzes and
 progress.
 
-1. Create a new Groq API key. The key that was present in the original project
-   archive must be treated as exposed and rotated. Never commit a real key.
+1. Create a Gemini API key in Google AI Studio. Never commit a real key.
 2. Sign in to [Render](https://dashboard.render.com/) and choose
    **New > Blueprint**.
 3. Connect this GitHub repository and select the `main` branch. Render reads
    `render.yaml` and creates both `mdcat-backend` and `mdcat-database`.
-4. When Render asks for `GROQ_API_KEY`, enter the new key. `JWT_SECRET_KEY` is
+4. When Render asks for `GEMINI_API_KEY`, enter the new key. `JWT_SECRET_KEY` is
    generated automatically and `DATABASE_URL` is connected automatically.
 5. Wait for the deployment to become live, then open:
    `https://YOUR-SERVICE.onrender.com/health`. The response should be
@@ -98,7 +97,7 @@ cp .env.example .env
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Set a real `GROQ_API_KEY` and a long random `JWT_SECRET_KEY` in the local
+Set a real `GEMINI_API_KEY` and a long random `JWT_SECRET_KEY` in the local
 `.env`. Local development uses SQLite unless `DATABASE_URL` is changed.
 
 ## Security and data behavior

@@ -2,7 +2,7 @@ import math
 import re
 from difflib import SequenceMatcher
 
-from app.services.groq_service import generate_mcqs
+from app.services.gemini_service import generate_mcqs
 
 
 def _normalized_question(text: str) -> str:
@@ -32,7 +32,7 @@ def generate_large_mcqs(
     exam_type: str = "MDCAT",
 ) -> list[dict]:
     """
-    Groq (like most LLM APIs) gets less reliable generating very large
+    Gemini (like most LLM APIs) gets less reliable generating very large
     batches of structured items in one call, so we batch in chunks of 20
     and concatenate the resulting lists.
     """

@@ -27,14 +27,16 @@ services:
         value: "20"
       - key: JWT_SECRET_KEY
         generateValue: true
-      - key: GROQ_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash-lite
       - key: QUESTION_PROVIDER_CONCURRENCY
         value: "4"
       - key: CORS_ORIGINS
         value: "*"
       - key: ADMIN_EMAIL
-        value: choudrymnouman@gmail.com
+        sync: false
       - key: ADMIN_PASSWORD
         sync: false
       - key: ADMIN_2_EMAIL
