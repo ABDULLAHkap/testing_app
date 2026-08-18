@@ -36,7 +36,10 @@ def generate_large_mcqs(
     batches of structured items in one call, so we batch in chunks of 20
     and concatenate the resulting lists.
     """
-    batch_size = 20
+    # Ten-question structured responses are accepted reliably by the Gemini
+    # API. Larger 20-question schemas can be rejected with HTTP 400, most
+    # visibly when a full 180-question mock requests its larger sections.
+    batch_size = 10
     # One repair call is enough; route-level fallbacks fill any remainder.
     # The previous three extra calls could keep a web request open until the
     # Flutter client timed out when the provider returned empty JSON.
