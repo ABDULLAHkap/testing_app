@@ -21,6 +21,7 @@ from app.routers.mcqs import (
     _past_paper_patterns_for,
 )
 from app.schemas import QuizSetOut
+from app.models.models import QuizSet
 from app.services.batch_generator import generate_large_mcqs
 from app.services.pdf_report import create_practice_paper_pdf
 from app.services.email_service import _send_with_brevo
@@ -41,6 +42,9 @@ def _question(text: str) -> dict:
 
 
 class CoreTests(unittest.TestCase):
+    def test_quiz_subject_column_accepts_full_past_paper_titles(self):
+        self.assertEqual(QuizSet.__table__.c.subject.type.length, 255)
+
     def test_gemini_uses_supported_fallback_when_configured_model_is_missing(self):
         missing = Mock(status_code=404)
         missing.raise_for_status.side_effect = httpx.HTTPStatusError(
