@@ -73,6 +73,12 @@ class CoreTests(unittest.TestCase):
             post.call_args.kwargs["headers"]["x-goog-api-key"],
             "test-placeholder",
         )
+        generation_config = post.call_args.kwargs["json"]["generationConfig"]
+        self.assertEqual(generation_config["responseMimeType"], "application/json")
+        self.assertEqual(
+            generation_config["responseJsonSchema"]["properties"]["questions"]["minItems"],
+            1,
+        )
 
     def test_brevo_retries_temporary_rate_limit_for_any_email_domain(self):
         rate_limited = Mock(status_code=429)
