@@ -182,6 +182,12 @@ def submit_attempt(
     if invalid_time_indexes:
         raise HTTPException(422, detail="One or more question-time indexes are invalid")
 
+    if not payload.auto_submit and len(payload.answers) != len(quiz_set.questions):
+        raise HTTPException(
+            422,
+            detail="Answer every question before finishing the quiz.",
+        )
+
     started_at = attempt.started_at
     if started_at.tzinfo is None:
         started_at = started_at.replace(tzinfo=timezone.utc)

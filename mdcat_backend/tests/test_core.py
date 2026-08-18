@@ -1,7 +1,10 @@
 import os
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+
+import httpx
 
 os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
@@ -19,6 +22,8 @@ from app.routers.mcqs import (
 from app.schemas import QuizSetOut
 from app.services.batch_generator import generate_large_mcqs
 from app.services.pdf_report import create_practice_paper_pdf
+from app.services.email_service import _send_with_brevo
+from app.services.question_pool import clear_question_pool, question_fingerprint
 
 
 def _question(text: str) -> dict:
@@ -31,6 +36,34 @@ def _question(text: str) -> dict:
 
 
 class CoreTests(unittest.TestCase):
+    def test_brevo_retries_temporary_rate_limit_for_any_email_domain(self):
+        rate_limited = Mock(status_code=429)
+        rate_limited.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "rate limited",
+            request=httpx.Request("POST", "https://api.brevo.com/v3/smtp/email"),
+            response=httpx.Response(429),
+        )
+        accepted = Mock(status_code=201)
+        accepted.raise_for_status.return_value = None
+
+        with patch(
+            "app.services.email_service.httpx.post",
+            side_effect=[rate_limited, accepted],
+        ) as post, patch("app.services.email_service.time.sleep"):
+            _send_with_brevo(
+                "Student@Yahoo.com",
+                "123456",
+                "test-api-key",
+                "verified@example.com",
+                "verification",
+            )
+
+        self.assertEqual(post.call_count, 2)
+        self.assertEqual(
+            post.call_args.kwargs["json"]["to"],
+            [{"email": "student@yahoo.com"}],
+        )
+
     def test_past_papers_match_selected_exam(self):
         ielts_patterns = _past_paper_patterns_for("IELTS")
         self.assertEqual(len(ielts_patterns), 3)
@@ -88,7 +121,10 @@ class CoreTests(unittest.TestCase):
         )
         self.assertEqual(len(questions), 25)
         self.assertTrue(all(len(item["options"]) == 4 for item in questions))
-        self.assertTrue(all(item["correct_option"] == "A" for item in questions))
+        self.assertEqual(
+            len({question_fingerprint(item) for item in questions}),
+            25,
+        )
 
     def test_practice_pdf_renders_multiple_paragraphs(self):
         questions = _offline_download_questions(
@@ -127,6 +163,43 @@ class CoreTests(unittest.TestCase):
                     all(len(question["options"]) == 4 for question in questions),
                     f"{exam_type}: {subject}",
                 )
+                self.assertEqual(
+                    len({question_fingerprint(item) for item in questions}),
+                    10,
+                    f"{exam_type}: {subject}",
+                )
+                self.assertTrue(
+                    all(question["subject"] == subject for question in questions),
+                    f"{exam_type}: {subject}",
+                )
+
+    @patch("app.routers.mcqs.generate_large_mcqs", side_effect=RuntimeError("quota"))
+    def test_fifteen_concurrent_generations_are_complete_and_unique(self, _generate):
+        clear_question_pool()
+
+        def generate(_index):
+            return _generate_resilient_questions(
+                total_questions=10,
+                subject="Biology",
+                difficulty="Medium",
+                exam_type="MDCAT",
+            )
+
+        with ThreadPoolExecutor(max_workers=15) as executor:
+            quizzes = list(executor.map(generate, range(15)))
+
+        for quiz in quizzes:
+            self.assertEqual(len(quiz), 10)
+            self.assertEqual(
+                len({question_fingerprint(question) for question in quiz}),
+                10,
+            )
+            self.assertTrue(all(question["subject"] == "Biology" for question in quiz))
+        signatures = {
+            tuple(question_fingerprint(question) for question in quiz)
+            for quiz in quizzes
+        }
+        self.assertGreater(len(signatures), 1)
 
     def test_public_quiz_schema_hides_answers(self):
         quiz = QuizSetOut.model_validate(

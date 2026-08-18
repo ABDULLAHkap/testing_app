@@ -490,6 +490,7 @@ class ApiClient {
     int attemptId,
     Map<int, String> answers,
     Map<int, int> questionTimes,
+    {bool autoSubmit = false},
   ) async {
     final baseUrl = await getBaseUrl();
     final answersJson = answers.map((k, v) => MapEntry(k.toString(), v));
@@ -500,6 +501,7 @@ class ApiClient {
       body: jsonEncode({
         "answers": answersJson,
         "time_spent_seconds": timesJson,
+        "auto_submit": autoSubmit,
       }),
     );
     final data = _decodeOrThrow(resp);

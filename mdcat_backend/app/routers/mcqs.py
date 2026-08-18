@@ -1,9 +1,11 @@
 import logging
 import math
 import os
+import random
 import time
 import uuid
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from typing import List
 
@@ -28,6 +30,13 @@ from app.schemas import (
 from app.services.analytics_service import learning_breakdown
 from app.services.batch_generator import generate_large_mcqs
 from app.services.pdf_report import create_practice_paper_pdf
+from app.services.question_pool import (
+    add_to_pool,
+    cached_questions,
+    generation_key,
+    lock_for,
+    question_fingerprint,
+)
 
 router = APIRouter(prefix="/mcqs", tags=["mcqs"])
 logger = logging.getLogger(__name__)
@@ -91,6 +100,21 @@ def _require_exact_questions(questions: list[dict], expected: int) -> None:
                 f"instead of {expected}. Please try again."
             ),
         )
+    fingerprints = [question_fingerprint(question) for question in questions]
+    if len(set(fingerprints)) != expected:
+        raise HTTPException(502, detail="The question service returned duplicate questions")
+    for question in questions:
+        options = question.get("options")
+        correct = question.get("correct_option")
+        if not isinstance(options, list) or len(options) != 4:
+            raise HTTPException(502, detail="A generated question has invalid options")
+        option_bodies = set()
+        for option in options:
+            raw_option = str(option).strip()
+            body = raw_option[2:].strip() if len(raw_option) > 2 else raw_option
+            option_bodies.add(" ".join(body.casefold().split()))
+        if len(option_bodies) != 4 or correct not in {"A", "B", "C", "D"}:
+            raise HTTPException(502, detail="A generated question has invalid options")
 
 
 def _allocate_mock_questions(total: int) -> dict[str, int]:
@@ -178,45 +202,122 @@ def _compact_download_breakdown(subject_breakdown: dict[str, int]) -> dict[str, 
 def _offline_download_questions(
     *, exam_type: str, subject: str, count: int, start_index: int = 0,
     topic_override: str | None = None,
+    avoid_fingerprints: set[str] | None = None,
 ) -> list[dict]:
-    """Return honest, deterministic revision checks when the model is unavailable.
+    """Return unique syllabus-grounded checks when the provider is unavailable.
 
     A downloadable file must not fail merely because the question provider is
-    rate-limited.  These are deliberately labelled revision checkpoints rather
-    than being presented as official past-paper questions.
+    rate-limited. These questions use the selected exam's syllabus taxonomy and
+    past-paper-style wording, but are deliberately original rather than copied
+    from an official paper.
     """
+    avoid = set(avoid_fingerprints or ())
     topics = (
         [topic_override]
         if topic_override
         else get_exam_topics(exam_type).get(subject) or [subject]
     )
+    all_topics = [
+        item
+        for section_topics in get_exam_topics(exam_type).values()
+        for item in section_topics
+    ]
+    other_subjects = [item for item in EXAM_CATALOG[exam_type] if item != subject]
+    prompt_templates = (
+        "Which option is a syllabus-aligned focus for {exam} {subject}?",
+        "A {exam} past-paper-style {subject} practice set should include which area?",
+        "Which topic belongs in a focused {subject} revision plan for {exam}?",
+        "For {exam} preparation, which item is academically relevant to {subject}?",
+        "Which area should a student revise under the {subject} section of {exam}?",
+        "Choose the valid {exam} {subject} syllabus area from the options.",
+        "Which option best matches the scope of {subject} preparation for {exam}?",
+        "A student is planning {exam} {subject} revision. Which topic should be included?",
+        "Which listed area can appear in a syllabus-based {subject} question for {exam}?",
+        "Identify the {subject} learning focus that is relevant to {exam}.",
+        "Which option is suitable for an original {exam} {subject} practice question?",
+        "Select the syllabus topic connected with {exam} {subject} preparation.",
+    )
+    administrative_distractors = [
+        "Test-centre administration",
+        "Fee voucher processing",
+        "Application form printing",
+        "Candidate seating management",
+        "Admission portal maintenance",
+        "Identity-card verification workflow",
+    ]
+
+    def build_options(correct_text: str, distractor_values: list[str]) -> tuple[list[str], str]:
+        unique = []
+        for value in distractor_values + administrative_distractors:
+            if value != correct_text and value not in unique:
+                unique.append(value)
+            if len(unique) == 3:
+                break
+        values = [correct_text, *unique]
+        random.SystemRandom().shuffle(values)
+        letters = ("A", "B", "C", "D")
+        correct_letter = letters[values.index(correct_text)]
+        return [f"{letter}) {value}" for letter, value in zip(letters, values)], correct_letter
+
     questions: list[dict] = []
-    for offset in range(count):
-        topic = topics[(start_index + offset) % len(topics)]
-        questions.append(
-            {
-                "question": (
-                    f"Revision checkpoint: Which listed area belongs to the "
-                    f"{subject} preparation section for {exam_type}?"
-                ),
-                "options": [
-                    f"A. {topic}",
-                    "B. Payment account setup",
-                    "C. Application form printing",
-                    "D. Test-centre administration",
-                ],
-                "correct_option": "A",
-                "explanation": (
-                    f"{topic} is included in the app's {subject} preparation "
-                    f"outline for {exam_type}. Revise this topic before attempting "
-                    "a timed test."
-                ),
-                "subject": subject,
-                "topic": topic,
-                "concept": topic,
-                "section": subject,
-            }
+    candidate_index = start_index
+    max_candidates = max(100, count * 20)
+    while len(questions) < count and candidate_index < start_index + max_candidates:
+        topic = topics[candidate_index % len(topics)]
+        template_index = candidate_index % len(prompt_templates)
+        cycle = candidate_index // len(prompt_templates)
+        question_text = prompt_templates[template_index].format(
+            exam=exam_type,
+            subject=subject,
         )
+        if len(topics) == 1 or cycle:
+            question_text = f"{question_text} Focus: {topic}; practice variation {cycle + 1}."
+
+        if candidate_index % 3 == 1 and other_subjects:
+            correct_text = subject
+            distractors = other_subjects
+            question_text = (
+                f"In the {exam_type} syllabus, {topic} is primarily practised "
+                f"under which section? Practice variation {cycle + 1}."
+            )
+        else:
+            correct_text = topic
+            distractors = [item for item in all_topics if item != topic]
+
+        options, correct_letter = build_options(correct_text, distractors)
+        option_explanations = {
+            letter: (
+                f"{correct_text} is the syllabus-aligned answer for this "
+                f"{exam_type} {subject} checkpoint."
+                if letter == correct_letter
+                else "This option does not match the syllabus relationship tested here."
+            )
+            for letter in ("A", "B", "C", "D")
+        }
+        question = {
+            "question": question_text,
+            "options": options,
+            "correct_option": correct_letter,
+            "explanation": (
+                f"{correct_text} is connected with {subject} preparation in the "
+                f"selected {exam_type} syllabus."
+            ),
+            "option_explanations": option_explanations,
+            "subject": subject,
+            "topic": topic,
+            "concept": topic,
+            "section": subject,
+            "source_type": "syllabus_fallback",
+        }
+        fingerprint = question_fingerprint(question)
+        candidate_index += 1
+        if fingerprint in avoid:
+            continue
+        avoid.add(fingerprint)
+        questions.append(question)
+
+    if len(questions) != count:
+        raise RuntimeError("Could not build enough unique syllabus questions")
     return questions
 
 
@@ -228,44 +329,205 @@ def _generate_resilient_questions(
     exam_type: str,
     topic: str | None = None,
     text: str | None = None,
+    exclude_fingerprints: set[str] | None = None,
 ) -> list[dict]:
     """Generate a complete test without exposing provider failures to users.
 
-    At most 20 questions are requested from Groq in one route operation. Large
-    tests are completed with deterministic syllabus revision checks, avoiding
-    proxy/client timeouts while preserving the requested question count.
+    The first request for an exam/subject populates a shared pool. Concurrent
+    requests for the same key wait for that one generation instead of flooding
+    the provider, and then receive independently shuffled samples. Any missing
+    items are filled with unique syllabus-grounded checks.
     """
-    provider_count = min(total_questions, 20)
-    generated: list[dict] = []
-    try:
-        generated = generate_large_mcqs(
-            total_questions=provider_count,
-            subject=subject,
-            difficulty=difficulty,
-            topic=topic,
-            text=text,
-            exam_type=exam_type,
-        )
-    except Exception:
-        logger.warning(
-            "Question provider unavailable for %s / %s",
-            exam_type,
-            subject,
-            exc_info=True,
-        )
-    generated = generated[:total_questions]
-    missing = total_questions - len(generated)
-    if missing:
-        generated.extend(
+    excluded = set(exclude_fingerprints or ())
+    selected: list[dict] = []
+    key = generation_key(
+        exam_type=exam_type,
+        subject=subject,
+        difficulty=difficulty,
+        topic=topic,
+    )
+
+    # Uploaded material may be private, so it is never added to the shared pool.
+    if text:
+        try:
+            selected = generate_large_mcqs(
+                total_questions=min(total_questions, 20),
+                subject=subject,
+                difficulty=difficulty,
+                topic=topic,
+                text=text,
+                exam_type=exam_type,
+            )
+        except Exception:
+            logger.warning("Grounded question provider unavailable", exc_info=True)
+    else:
+        selected = cached_questions(key, exclude=excluded, limit=total_questions)
+        if len(selected) < total_questions:
+            key_lock = lock_for(key)
+            acquired = key_lock.acquire(timeout=20)
+            try:
+                if acquired:
+                    # Another request may have populated the pool while this
+                    # request was waiting for the same key lock.
+                    selected = cached_questions(
+                        key, exclude=excluded, limit=total_questions
+                    )
+                    if len(selected) < total_questions:
+                        provider_count = min(
+                            20,
+                            max(10, (total_questions - len(selected)) * 2),
+                        )
+                        generated: list[dict] = []
+                        try:
+                            generated = generate_large_mcqs(
+                                total_questions=provider_count,
+                                subject=subject,
+                                difficulty=difficulty,
+                                topic=topic,
+                                exam_type=exam_type,
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "Question provider unavailable for %s / %s: %s",
+                                exam_type,
+                                subject,
+                                exc,
+                            )
+                        add_to_pool(key, generated)
+
+                        pool_target = min(120, max(20, total_questions * 2))
+                        current_pool = cached_questions(key)
+                        if len(current_pool) < pool_target:
+                            fallback = _offline_download_questions(
+                                exam_type=exam_type,
+                                subject=subject,
+                                count=pool_target - len(current_pool),
+                                start_index=len(current_pool),
+                                topic_override=topic,
+                                avoid_fingerprints={
+                                    question_fingerprint(item)
+                                    for item in current_pool
+                                },
+                            )
+                            add_to_pool(key, fallback)
+                        selected = cached_questions(
+                            key, exclude=excluded, limit=total_questions
+                        )
+            finally:
+                if acquired:
+                    key_lock.release()
+
+    # A student who has exhausted every cached variation still receives a
+    # complete unique quiz; old questions are never duplicated inside one set.
+    seen = excluded | {question_fingerprint(item) for item in selected}
+    if len(selected) < total_questions:
+        selected.extend(
             _offline_download_questions(
                 exam_type=exam_type,
                 subject=subject,
-                count=missing,
-                start_index=len(generated),
+                count=total_questions - len(selected),
+                start_index=len(seen),
                 topic_override=topic,
+                avoid_fingerprints=seen,
             )
         )
-    return generated
+
+    for question in selected:
+        # Cache contents are never trusted for routing metadata. This also
+        # keeps older cached entries safe after a code deployment.
+        question["subject"] = subject
+        question["section"] = subject
+        question["topic"] = str(topic or question.get("topic") or subject)
+        question["concept"] = str(
+            question.get("concept") or question["topic"]
+        )
+    random.SystemRandom().shuffle(selected)
+    return selected[:total_questions]
+
+
+def _recent_question_fingerprints(
+    db: Session,
+    *,
+    user_id: int,
+    exam_type: str,
+    limit_sets: int = 30,
+) -> set[str]:
+    """Avoid recently served questions for the same account and category."""
+    recent_sets = (
+        db.query(QuizSet)
+        .filter(QuizSet.user_id == user_id, QuizSet.exam_type == exam_type)
+        .order_by(QuizSet.created_at.desc())
+        .limit(limit_sets)
+        .all()
+    )
+    return {
+        question_fingerprint(question)
+        for quiz_set in recent_sets
+        for question in (quiz_set.questions or [])
+        if question.get("question")
+    }
+
+
+def _generate_question_plan(
+    *,
+    plan: list[tuple[str, str | None, int]],
+    difficulty: str,
+    exam_type: str,
+    exclude_fingerprints: set[str] | None = None,
+) -> list[dict]:
+    """Generate independent syllabus sections concurrently and merge safely."""
+    active_plan = [item for item in plan if item[2] > 0]
+    if not active_plan:
+        return []
+    excluded = set(exclude_fingerprints or ())
+    results: list[list[dict] | None] = [None] * len(active_plan)
+
+    def generate(index: int, subject: str, topic: str | None, count: int) -> None:
+        results[index] = _generate_resilient_questions(
+            total_questions=count,
+            subject=subject,
+            topic=topic,
+            difficulty=difficulty,
+            exam_type=exam_type,
+            exclude_fingerprints=excluded,
+        )
+
+    with ThreadPoolExecutor(max_workers=min(4, len(active_plan))) as executor:
+        futures = [
+            executor.submit(generate, index, subject, topic, count)
+            for index, (subject, topic, count) in enumerate(active_plan)
+        ]
+        for future in futures:
+            future.result()
+
+    combined: list[dict] = []
+    seen = set(excluded)
+    for (subject, topic, expected), questions in zip(active_plan, results):
+        questions = questions or []
+        unique = []
+        for question in questions:
+            fingerprint = question_fingerprint(question)
+            if fingerprint in seen:
+                continue
+            seen.add(fingerprint)
+            unique.append(question)
+        if len(unique) < expected:
+            unique.extend(
+                _offline_download_questions(
+                    exam_type=exam_type,
+                    subject=subject,
+                    count=expected - len(unique),
+                    start_index=len(seen),
+                    topic_override=topic,
+                    avoid_fingerprints=seen,
+                )
+            )
+        seen.update(question_fingerprint(question) for question in unique)
+        _require_exact_questions(unique, expected)
+        combined.extend(unique)
+
+    random.SystemRandom().shuffle(combined)
+    return combined
 
 
 def _build_download_questions(
@@ -284,12 +546,12 @@ def _build_download_questions(
                 difficulty="Medium",
                 exam_type=exam_type,
             )
-        except Exception:
+        except Exception as exc:
             logger.warning(
-                "Question provider unavailable for %s download section %s",
+                "Question provider unavailable for %s download section %s: %s",
                 exam_type,
                 subject,
-                exc_info=True,
+                exc,
             )
         questions.extend(generated[:count])
         missing = count - min(len(generated), count)
@@ -545,6 +807,9 @@ def generate_mcqs_endpoint(
 
     exam_type = _exam_for_request(current_user, payload.exam_type)
     _require_objective_section(exam_type, payload.subject)
+    recent = _recent_question_fingerprints(
+        db, user_id=current_user.id, exam_type=exam_type
+    )
     questions = _generate_resilient_questions(
         total_questions=payload.number_of_questions,
         subject=payload.subject,
@@ -552,6 +817,7 @@ def generate_mcqs_endpoint(
         topic=payload.topic,
         text=text,
         exam_type=exam_type,
+        exclude_fingerprints=recent,
     )
 
     _require_exact_questions(questions, payload.number_of_questions)
@@ -632,15 +898,14 @@ def generate_mock_test(
         quiz_minutes = payload.quiz_minutes
         counts = _allocate_exam_practice_questions(exam_type, expected_total)
 
-    # A single mixed provider operation prevents daily and full mocks from
-    # making sequential calls for every subject. The resilient helper fills
-    # any missing portion locally and always returns the requested count.
-    subjects = ", ".join(counts)
-    all_questions = _generate_resilient_questions(
-        total_questions=expected_total,
-        subject=f"Mixed sections: {subjects}",
+    recent = _recent_question_fingerprints(
+        db, user_id=current_user.id, exam_type=exam_type
+    )
+    all_questions = _generate_question_plan(
+        plan=[(subject, None, count) for subject, count in counts.items()],
         difficulty=payload.difficulty,
         exam_type=exam_type,
+        exclude_fingerprints=recent,
     )
 
     _require_exact_questions(all_questions, expected_total)
@@ -678,14 +943,6 @@ def generate_adaptive_practice(
 ):
     """Generate a test weighted toward weak topics and away from mastered ones."""
     exam_type = current_user.target_exam
-    if not get_exam_format(exam_type)["supports_full_mcq_mock"]:
-        raise HTTPException(
-            422,
-            detail=(
-                f"Adaptive MCQ practice is not available for {exam_type}. "
-                "Open Exam Format for skill-specific practice."
-            ),
-        )
     topic_catalog = get_exam_topics(exam_type)
     analysis = learning_breakdown(db, current_user)
     measured = analysis["topic_scores"]
@@ -709,23 +966,28 @@ def generate_adaptive_practice(
         raise HTTPException(422, detail="No syllabus topics are available for this exam")
 
     allocation = Counter()
+    selector = random.SystemRandom()
     for index in range(payload.number_of_questions):
-        item = candidates[index % len(candidates)]
+        item = selector.choice(candidates)
         allocation[(item["subject"], item["topic"])] += 1
 
-    questions: list[dict] = []
-    plan = []
-    for (subject, topic), count in allocation.items():
-        generated = _generate_resilient_questions(
-            total_questions=count,
-            subject=subject,
-            topic=topic,
-            difficulty=payload.difficulty,
-            exam_type=exam_type,
-        )
-        _require_exact_questions(generated, count)
-        questions.extend(generated)
-        plan.append({"subject": subject, "topic": topic, "questions": count})
+    recent = _recent_question_fingerprints(
+        db, user_id=current_user.id, exam_type=exam_type
+    )
+    question_plan = [
+        (subject, topic, count)
+        for (subject, topic), count in allocation.items()
+    ]
+    questions = _generate_question_plan(
+        plan=question_plan,
+        difficulty=payload.difficulty,
+        exam_type=exam_type,
+        exclude_fingerprints=recent,
+    )
+    plan = [
+        {"subject": subject, "topic": topic, "questions": count}
+        for subject, topic, count in question_plan
+    ]
 
     _require_exact_questions(questions, payload.number_of_questions)
     quiz_set = QuizSet(
@@ -867,7 +1129,7 @@ def get_past_paper_detail(
 def generate_from_past_paper(
     paper_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_test_access),
 ):
     """
     Generates a fresh AI practice test following the exact subject
@@ -880,18 +1142,18 @@ def generate_from_past_paper(
     if paper.get("is_official"):
         raise HTTPException(422, detail="Open the official source instead of generating it")
 
-    all_questions: list[dict] = []
-    for subject, count in paper["subject_breakdown"].items():
-        if count <= 0:
-            continue
-        questions = _generate_resilient_questions(
-            total_questions=count,
-            subject=subject,
-            difficulty="Medium",
-            exam_type=exam_type,
-        )
-        _require_exact_questions(questions, count)
-        all_questions.extend(questions)
+    recent = _recent_question_fingerprints(
+        db, user_id=current_user.id, exam_type=exam_type
+    )
+    all_questions = _generate_question_plan(
+        plan=[
+            (subject, None, count)
+            for subject, count in paper["subject_breakdown"].items()
+        ],
+        difficulty="Medium",
+        exam_type=exam_type,
+        exclude_fingerprints=recent,
+    )
 
     _require_exact_questions(all_questions, paper["total_questions"])
 

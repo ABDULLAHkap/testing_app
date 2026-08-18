@@ -1,5 +1,6 @@
 import os
 import smtplib
+import time
 from email.message import EmailMessage
 
 import httpx
@@ -30,25 +31,44 @@ def _send_with_brevo(
     email: str, code: str, api_key: str, sender: str, purpose: str
 ) -> None:
     subject, content = _email_content(code, purpose)
-    response = httpx.post(
-        "https://api.brevo.com/v3/smtp/email",
-        headers={
+    request = {
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "headers": {
             "accept": "application/json",
             "api-key": api_key,
             "content-type": "application/json",
         },
-        json={
+        "json": {
             "sender": {
-                "name": os.getenv("EMAIL_FROM_NAME", "Exam Preparation"),
+                "name": os.getenv("EMAIL_FROM_NAME", "BrainBoost"),
                 "email": sender,
             },
-            "to": [{"email": email}],
+            "to": [{"email": email.strip().lower()}],
             "subject": subject,
             "textContent": content,
         },
-        timeout=20,
-    )
-    response.raise_for_status()
+        "timeout": httpx.Timeout(20, connect=5),
+    }
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            response = httpx.post(**request)
+            if response.status_code == 429 or response.status_code >= 500:
+                response.raise_for_status()
+            response.raise_for_status()
+            return
+        except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as exc:
+            last_error = exc
+            retryable_status = (
+                not isinstance(exc, httpx.HTTPStatusError)
+                or exc.response.status_code == 429
+                or exc.response.status_code >= 500
+            )
+            if not retryable_status or attempt == 2:
+                raise
+            time.sleep(0.25 * (2 ** attempt))
+    if last_error:
+        raise last_error
 
 
 def send_verification_email(
@@ -57,7 +77,9 @@ def send_verification_email(
     host = os.getenv("SMTP_HOST")
     username = os.getenv("SMTP_USERNAME")
     password = os.getenv("SMTP_PASSWORD")
-    sender = os.getenv("SMTP_FROM", username or "")
+    sender = os.getenv("BREVO_SENDER_EMAIL") or os.getenv(
+        "SMTP_FROM", username or ""
+    )
     port = int(os.getenv("SMTP_PORT", "587"))
     brevo_api_key = os.getenv("BREVO_API_KEY")
 

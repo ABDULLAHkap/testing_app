@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock, patch
 
 os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
@@ -271,6 +272,168 @@ class ApiTests(unittest.TestCase):
             json={"email": "otp-verified@example.com", "code": "246810"},
         )
         self.assertEqual(response.status_code, 400, response.text)
+
+    def test_gmail_and_yahoo_signup_receive_and_verify_codes(self):
+        addresses = ("Student.One@Gmail.com", "student.two@yahoo.com")
+        for index, address in enumerate(addresses):
+            code = 310000 + index
+            with self.subTest(email=address), patch(
+                "app.routers.auth.secrets.randbelow", return_value=code
+            ), patch("app.routers.auth.send_verification_email") as send_email:
+                response = self.client.post(
+                    "/auth/register",
+                    json={
+                        "username": f"mail_provider_student_{index}",
+                        "email": address,
+                        "password": "secure-password",
+                        "gender": "Prefer not to say",
+                        "phone": f"0300999000{index}",
+                        "target_exam": "MDCAT",
+                    },
+                )
+                self.assertEqual(response.status_code, 201, response.text)
+                normalized = address.lower()
+                self.assertEqual(response.json()["email"], normalized)
+                send_email.assert_called_once_with(normalized, f"{code:06d}")
+
+                verified = self.client.post(
+                    "/auth/verify-email",
+                    json={"email": address, "code": f"{code:06d}"},
+                )
+                self.assertEqual(verified.status_code, 200, verified.text)
+                login = self.client.post(
+                    "/auth/login",
+                    data={"username": address.upper(), "password": "secure-password"},
+                )
+                self.assertEqual(login.status_code, 200, login.text)
+
+    def test_fifteen_users_can_login_concurrently(self):
+        with SessionLocal() as db:
+            from app.models.models import User
+
+            user = User(
+                username="concurrent_login_user",
+                email="concurrent-login@gmail.com",
+                hashed_password=hash_password("secure-password"),
+                email_verified=True,
+                phone="03008887777",
+                target_exam="MDCAT",
+            )
+            db.add(user)
+            db.commit()
+
+        def login(_index):
+            client = TestClient(app)
+            return client.post(
+                "/auth/login",
+                data={
+                    "username": "concurrent-login@gmail.com",
+                    "password": "secure-password",
+                },
+            )
+
+        with ThreadPoolExecutor(max_workers=15) as executor:
+            responses = list(executor.map(login, range(15)))
+        self.assertTrue(all(response.status_code == 200 for response in responses))
+
+    def test_fifteen_users_generate_category_quizzes_concurrently(self):
+        from app.auth import create_access_token
+        from app.exam_catalog import EXAM_CATALOG, get_exam_format
+        from app.models.models import User
+        from app.services.question_pool import clear_question_pool
+
+        clear_question_pool()
+        password_hash = hash_password("secure-password")
+        users = []
+        with SessionLocal() as db:
+            for index, (exam_type, subjects) in enumerate(
+                list(EXAM_CATALOG.items()) * 2
+            ):
+                if index == 15:
+                    break
+                user = User(
+                    username=f"load_student_{index}",
+                    email=f"load-student-{index}@gmail.com",
+                    hashed_password=password_hash,
+                    email_verified=True,
+                    phone=f"031000000{index:02d}",
+                    target_exam=exam_type,
+                )
+                db.add(user)
+                db.flush()
+                objective_subjects = [
+                    section["name"]
+                    for section in get_exam_format(exam_type)["sections"]
+                    if section["kind"] == "mcq" and section["name"] in subjects
+                ]
+                users.append(
+                    (
+                        user.id,
+                        exam_type,
+                        objective_subjects[0] if objective_subjects else None,
+                    )
+                )
+            db.commit()
+
+        def generate(user_data):
+            user_id, exam_type, subject = user_data
+            client = TestClient(app)
+            headers = {
+                "Authorization": f"Bearer {create_access_token({'sub': str(user_id)})}"
+            }
+            if subject is None:
+                response = client.post(
+                    "/mcqs/mock-test",
+                    headers=headers,
+                    json={
+                        "total_questions": 10,
+                        "difficulty": "Medium",
+                        "quiz_minutes": 15,
+                    },
+                )
+            else:
+                response = client.post(
+                    "/mcqs/generate",
+                    headers=headers,
+                    json={
+                        "number_of_questions": 10,
+                        "subject": subject,
+                        "difficulty": "Medium",
+                        "quiz_minutes": 15,
+                    },
+                )
+            return response, exam_type, subject
+
+        with patch(
+            "app.routers.mcqs.generate_large_mcqs",
+            side_effect=RuntimeError("provider busy"),
+        ), ThreadPoolExecutor(max_workers=15) as executor:
+            results = list(executor.map(generate, users))
+
+        for response, exam_type, subject in results:
+            self.assertEqual(response.status_code, 200, response.text)
+            payload = response.json()
+            self.assertEqual(payload["exam_type"], exam_type)
+            self.assertEqual(len(payload["questions"]), 10)
+            self.assertEqual(
+                len({question["question"] for question in payload["questions"]}),
+                10,
+            )
+            if subject is not None:
+                self.assertTrue(
+                    all(
+                        question["subject"] == subject
+                        for question in payload["questions"]
+                    )
+                )
+            else:
+                self.assertTrue(
+                    all(
+                        question["subject"]
+                        in get_exam_format(exam_type)["mock_breakdown"]
+                        for question in payload["questions"]
+                    )
+                )
 
     def test_admin_updates_subscription_price_for_students(self):
         with SessionLocal() as db:
@@ -581,6 +744,51 @@ class ApiTests(unittest.TestCase):
             headers=self.headers,
         )
         self.assertEqual(response.status_code, 409)
+
+    def test_quiz_requires_every_answer_unless_timer_auto_submits(self):
+        with SessionLocal() as db:
+            user_id = self.client.get("/auth/me", headers=self.headers).json()["id"]
+            quiz = QuizSet(
+                user_id=user_id,
+                exam_type="MDCAT",
+                subject="Biology",
+                difficulty="Medium",
+                quiz_minutes=10,
+                questions=[
+                    {
+                        "question": "First required question?",
+                        "options": ["A) One", "B) Two", "C) Three", "D) Four"],
+                        "correct_option": "A",
+                    },
+                    {
+                        "question": "Second required question?",
+                        "options": ["A) One", "B) Two", "C) Three", "D) Four"],
+                        "correct_option": "B",
+                    },
+                ],
+            )
+            db.add(quiz)
+            db.commit()
+            db.refresh(quiz)
+            quiz_id = quiz.id
+
+        started = self.client.post(f"/quiz/{quiz_id}/start", headers=self.headers)
+        attempt_id = started.json()["id"]
+        partial = self.client.post(
+            f"/quiz/attempts/{attempt_id}/submit",
+            headers=self.headers,
+            json={"answers": {"0": "A"}},
+        )
+        self.assertEqual(partial.status_code, 422, partial.text)
+        self.assertIn("Answer every question", partial.json()["detail"])
+
+        timed = self.client.post(
+            f"/quiz/attempts/{attempt_id}/submit",
+            headers=self.headers,
+            json={"answers": {"0": "A"}, "auto_submit": True},
+        )
+        self.assertEqual(timed.status_code, 200, timed.text)
+        self.assertEqual(timed.json()["total"], 2)
 
     def test_question_explanations_analytics_adaptive_formats_and_devices(self):
         with SessionLocal() as db:
