@@ -373,10 +373,13 @@ def _generate_resilient_questions(
                         key, exclude=excluded, limit=total_questions
                     )
                     if len(selected) < total_questions:
-                        provider_count = min(
-                            20,
-                            max(10, (total_questions - len(selected)) * 2),
-                        )
+                        # Generate the complete requested section through the
+                        # provider. generate_large_mcqs splits it into safe
+                        # ten-question calls. Previously this was capped at 20,
+                        # so most of a 180-question mock was always replaced by
+                        # syllabus fallback placeholders even when Gemini was
+                        # healthy.
+                        provider_count = total_questions - len(selected)
                         generated: list[dict] = []
                         try:
                             generated = generate_large_mcqs(
@@ -395,7 +398,11 @@ def _generate_resilient_questions(
                             )
                         add_to_pool(key, generated)
 
-                        pool_target = min(120, max(20, total_questions * 2))
+                        # Do not pad a successful Gemini result with fallback
+                        # placeholders. Fallback questions are added only when
+                        # the provider returned fewer items than this request
+                        # actually needs.
+                        pool_target = total_questions
                         current_pool = cached_questions(key)
                         if len(current_pool) < pool_target:
                             fallback = _offline_download_questions(
