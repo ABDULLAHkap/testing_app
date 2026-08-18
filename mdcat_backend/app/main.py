@@ -10,12 +10,14 @@ from app.routers import (
 )
 from app.bootstrap import ensure_admin
 from app.migrations import apply_compatibility_migrations
+from app.services.question_bank import backfill_from_recent_quizzes
 
 # Creates tables on first run. For schema changes later, switch to
 # Alembic migrations instead of relying on create_all.
 Base.metadata.create_all(bind=engine)
 apply_compatibility_migrations()
 ensure_admin()
+backfill_from_recent_quizzes()
 
 app = FastAPI(
     title="Exam Preparation API",
