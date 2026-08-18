@@ -25,7 +25,10 @@ from app.services.batch_generator import generate_large_mcqs
 from app.services.pdf_report import create_practice_paper_pdf
 from app.services.email_service import _send_with_brevo
 from app.services.question_pool import clear_question_pool, question_fingerprint
-from app.services.gemini_service import generate_mcqs as generate_gemini_mcqs
+from app.services.gemini_service import (
+    _generate_content,
+    generate_mcqs as generate_gemini_mcqs,
+)
 
 
 def _question(text: str) -> dict:
@@ -38,6 +41,35 @@ def _question(text: str) -> dict:
 
 
 class CoreTests(unittest.TestCase):
+    def test_gemini_uses_supported_fallback_when_configured_model_is_missing(self):
+        missing = Mock(status_code=404)
+        missing.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "model missing",
+            request=httpx.Request("POST", "https://example.invalid"),
+            response=httpx.Response(404),
+        )
+        accepted = Mock(status_code=200)
+        accepted.raise_for_status.return_value = None
+        accepted.json.return_value = {
+            "candidates": [{"content": {"parts": [{"text": "working"}]}}]
+        }
+
+        with patch(
+            "app.services.gemini_service.MODEL_NAME", "gemini-missing"
+        ), patch(
+            "app.services.gemini_service.httpx.post", side_effect=[missing, accepted]
+        ) as post:
+            result = _generate_content(
+                system_prompt="test",
+                contents=[{"role": "user", "parts": [{"text": "test"}]}],
+                temperature=0,
+                max_output_tokens=20,
+            )
+
+        self.assertEqual(result, "working")
+        self.assertEqual(post.call_count, 2)
+        self.assertIn("gemini-3.5-flash-lite", post.call_args.args[0])
+
     def test_gemini_json_response_is_validated_and_category_scoped(self):
         response = Mock(status_code=200)
         response.raise_for_status.return_value = None
