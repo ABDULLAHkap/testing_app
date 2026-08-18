@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -21,11 +22,12 @@ from app.routers.mcqs import (
     _past_paper_patterns_for,
 )
 from app.schemas import QuizSetOut
-from app.models.models import QuizSet
+from app.models.models import QuestionBankItem, QuizSet
 from app.services.batch_generator import generate_large_mcqs
 from app.services.pdf_report import create_practice_paper_pdf
 from app.services.email_service import _send_with_brevo
 from app.services.question_pool import clear_question_pool, question_fingerprint
+from app.services.question_bank import select_questions, store_questions
 from app.services.gemini_service import (
     _generate_content,
     generate_mcqs as generate_gemini_mcqs,
@@ -42,6 +44,67 @@ def _question(text: str) -> dict:
 
 
 class CoreTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from app.database import Base, engine
+        Base.metadata.create_all(bind=engine)
+
+    def test_question_bank_is_randomized_versioned_and_respects_recent_exclusions(self):
+        from app.database import SessionLocal
+
+        with SessionLocal() as db:
+            db.query(QuestionBankItem).delete()
+            db.commit()
+        questions = []
+        for index in range(12):
+            item = _question(f"Biology concept {index}: distinct syllabus check")
+            item.update({
+                "source_type": "gemini_generated",
+                "topic": "Cell Biology",
+            })
+            questions.append(item)
+        self.assertEqual(store_questions(
+            questions,
+            exam_type="MDCAT",
+            subject="Biology",
+            difficulty="Medium",
+            format_version="current-test-version",
+            topic="Cell Biology",
+        ), 12)
+
+        first = select_questions(
+            count=5,
+            exam_type="MDCAT",
+            subject="Biology",
+            difficulty="Medium",
+            format_version="current-test-version",
+            topic="Cell Biology",
+        )
+        recent = {question_fingerprint(item) for item in first}
+        second = select_questions(
+            count=5,
+            exam_type="MDCAT",
+            subject="Biology",
+            difficulty="Medium",
+            format_version="current-test-version",
+            topic="Cell Biology",
+            exclude_fingerprints=recent,
+        )
+
+        self.assertEqual(len(first), 5)
+        self.assertEqual(len(second), 5)
+        self.assertTrue(recent.isdisjoint(
+            {question_fingerprint(item) for item in second}
+        ))
+        self.assertEqual(select_questions(
+            count=5,
+            exam_type="MDCAT",
+            subject="Biology",
+            difficulty="Medium",
+            format_version="old-version",
+            topic="Cell Biology",
+        ), [])
+
     def test_quiz_subject_column_accepts_full_past_paper_titles(self):
         self.assertEqual(QuizSet.__table__.c.subject.type.length, 255)
 
@@ -321,7 +384,10 @@ class CoreTests(unittest.TestCase):
             questions = []
             for _ in range(number):
                 counter["value"] += 1
-                questions.append(_question(f"Generated question {counter['value']}"))
+                digest = hashlib.sha256(
+                    str(counter["value"]).encode("ascii")
+                ).hexdigest()
+                questions.append(_question(digest))
             return questions
 
         mocked.side_effect = generated
