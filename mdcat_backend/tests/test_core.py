@@ -1,3 +1,4 @@
+import json
 import os
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -6,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import httpx
 
-os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
+os.environ.setdefault("GEMINI_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 
 from app.routers.mcqs import (
@@ -24,6 +25,7 @@ from app.services.batch_generator import generate_large_mcqs
 from app.services.pdf_report import create_practice_paper_pdf
 from app.services.email_service import _send_with_brevo
 from app.services.question_pool import clear_question_pool, question_fingerprint
+from app.services.gemini_service import generate_mcqs as generate_gemini_mcqs
 
 
 def _question(text: str) -> dict:
@@ -36,6 +38,42 @@ def _question(text: str) -> dict:
 
 
 class CoreTests(unittest.TestCase):
+    def test_gemini_json_response_is_validated_and_category_scoped(self):
+        response = Mock(status_code=200)
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "candidates": [{
+                "content": {"parts": [{"text": json.dumps({
+                    "questions": [{
+                        "question": "Which organelle produces most cellular ATP?",
+                        "options": [
+                            "A) Nucleus", "B) Mitochondrion",
+                            "C) Ribosome", "D) Golgi apparatus",
+                        ],
+                        "correct_option": "B",
+                        "explanation": "Oxidative phosphorylation occurs in mitochondria.",
+                        "topic": "Cell Biology",
+                        "concept": "Cellular respiration",
+                    }]
+                })}]}
+            }]
+        }
+        with patch("app.services.gemini_service.httpx.post", return_value=response) as post:
+            questions = generate_gemini_mcqs(
+                number=1,
+                subject="Biology",
+                difficulty="Medium",
+                exam_type="MDCAT",
+            )
+
+        self.assertEqual(len(questions), 1)
+        self.assertEqual(questions[0]["subject"], "Biology")
+        self.assertEqual(questions[0]["source_type"], "gemini_generated")
+        self.assertEqual(
+            post.call_args.kwargs["headers"]["x-goog-api-key"],
+            "test-placeholder",
+        )
+
     def test_brevo_retries_temporary_rate_limit_for_any_email_domain(self):
         rate_limited = Mock(status_code=429)
         rate_limited.raise_for_status.side_effect = httpx.HTTPStatusError(

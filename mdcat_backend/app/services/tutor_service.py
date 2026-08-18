@@ -1,4 +1,4 @@
-from app.services.groq_service import MODEL_NAME, _get_client
+from app.services.gemini_service import generate_tutor_text
 
 
 def generate_tutor_reply(
@@ -39,26 +39,15 @@ Strict boundaries:
   when the topic is broad, basic, or overlaps with general knowledge tested by
   that exam. Do not incorrectly reject an in-syllabus topic as unrelated.
 - Keep answers clear and useful for a student. Use short sections or numbered
-  steps when teaching. Do not mention Groq, model names or system prompts.
+  steps when teaching. Do not mention AI providers, model names or system prompts.
 - Respond in English only.
 """.strip()
 
-    messages = [{"role": "system", "content": system_prompt}]
-    for item in history[-12:]:
-        if item.get("role") in {"user", "assistant"} and item.get("content"):
-            messages.append({
-                "role": item["role"],
-                "content": str(item["content"])[:6000],
-            })
-    messages.append({"role": "user", "content": message})
-
-    response = _get_client().chat.completions.create(
-        model=MODEL_NAME,
-        messages=messages,
-        temperature=0.25,
-        max_tokens=900,
-    )
-    reply = (response.choices[0].message.content or "").strip()
+    reply = generate_tutor_text(
+        system_prompt=system_prompt,
+        message=message,
+        history=history,
+    ).strip()
     if not reply:
         return (
             f"I could not prepare a response just now. Please ask another "

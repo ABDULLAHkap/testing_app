@@ -14,7 +14,7 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# then edit .env and set GROQ_API_KEY and JWT_SECRET_KEY
+# then edit .env and set GEMINI_API_KEY and JWT_SECRET_KEY
 ```
 
 Run the dev server:
@@ -35,7 +35,8 @@ refers to the phone itself). Android emulators specifically use
 
 | Variable        | Purpose                                             |
 |-----------------|------------------------------------------------------|
-| `GROQ_API_KEY`  | Your Groq API key (same as the original Streamlit app) |
+| `GEMINI_API_KEY` | Your Google AI Studio Gemini API key |
+| `GEMINI_MODEL` | Gemini model name (defaults to `gemini-2.5-flash-lite`) |
 | `JWT_SECRET_KEY`| Required long random secret used to sign auth tokens. |
 | `DATABASE_URL`  | Defaults to local SQLite. Swap for a Postgres URL in production, e.g. `postgresql://user:pass@host/db` |
 | `CORS_ORIGINS`  | Comma-separated allowed web origins, or `*` while testing. |
@@ -44,7 +45,7 @@ refers to the phone itself). Android emulators specifically use
 
 - **Auth**: real registration + hashed passwords + JWT tokens, replacing
   the hardcoded `admin` / `1234` check.
-- **MCQ format**: Groq is now asked to return structured JSON directly
+- **MCQ format**: Gemini is asked to return structured JSON directly
   (`response_format: json_object`), so there's no more regex-parsing of
   `**Question 1**` / `A)` / `Correct Answer:` text blocks. This is far more
   robust against the model varying its formatting.
@@ -108,7 +109,7 @@ All endpoints except `/auth/register` and `/auth/login` require
 
 - `uploads/` currently stores files on local disk. Fine for a single-server
   deployment; move to S3/Cloud Storage if you scale beyond one instance.
-- No rate limiting on `/mcqs/generate` yet — since this calls a paid Groq
+- No per-user rate limiting on `/mcqs/generate` yet — since this calls Gemini
   API per request, you'll likely want per-user daily/hourly limits before
   a public launch.
 - `CORS_ORIGINS=*` is convenient for testing; set the exact HTTPS web origin

@@ -4,7 +4,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock, patch
 
-os.environ.setdefault("GROQ_API_KEY", "test-placeholder")
+os.environ.setdefault("GEMINI_API_KEY", "test-placeholder")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret")
 os.environ.setdefault("EMAIL_OTP_DEBUG", "true")
 os.environ.setdefault("SAFEPAY_PUBLIC_KEY", "sec_test_public")
