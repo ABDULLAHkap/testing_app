@@ -490,7 +490,7 @@ class ApiClient {
     int attemptId,
     Map<int, String> answers,
     Map<int, int> questionTimes,
-    {bool autoSubmit = false},
+    {bool autoSubmit = false,}
   ) async {
     final baseUrl = await getBaseUrl();
     final answersJson = answers.map((k, v) => MapEntry(k.toString(), v));
