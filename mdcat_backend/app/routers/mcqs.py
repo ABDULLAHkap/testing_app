@@ -37,6 +37,11 @@ from app.services.question_pool import (
     lock_for,
     question_fingerprint,
 )
+from app.services.question_bank import (
+    schedule_refill,
+    select_questions as select_bank_questions,
+    store_questions as store_bank_questions,
+)
 
 router = APIRouter(prefix="/mcqs", tags=["mcqs"])
 logger = logging.getLogger(__name__)
@@ -330,6 +335,7 @@ def _generate_resilient_questions(
     topic: str | None = None,
     text: str | None = None,
     exclude_fingerprints: set[str] | None = None,
+    format_version: str | None = None,
 ) -> list[dict]:
     """Generate a complete test without exposing provider failures to users.
 
@@ -340,6 +346,7 @@ def _generate_resilient_questions(
     """
     excluded = set(exclude_fingerprints or ())
     selected: list[dict] = []
+    version = str(format_version or get_exam_format(exam_type)["version"])
     key = generation_key(
         exam_type=exam_type,
         subject=subject,
@@ -361,7 +368,27 @@ def _generate_resilient_questions(
         except Exception:
             logger.warning("Grounded question provider unavailable", exc_info=True)
     else:
-        selected = cached_questions(key, exclude=excluded, limit=total_questions)
+        # PostgreSQL is the fast primary source once a category has been
+        # warmed. Exact exam/subject/topic/difficulty/version filtering keeps
+        # every returned item aligned with the currently configured syllabus.
+        selected = select_bank_questions(
+            count=total_questions,
+            exam_type=exam_type,
+            subject=subject,
+            difficulty=difficulty,
+            format_version=version,
+            topic=topic,
+            exclude_fingerprints=excluded,
+        )
+        bank_seen = excluded | {
+            question_fingerprint(item) for item in selected
+        }
+        if len(selected) < total_questions:
+            selected.extend(cached_questions(
+                key,
+                exclude=bank_seen,
+                limit=total_questions - len(selected),
+            ))
         if len(selected) < total_questions:
             key_lock = lock_for(key)
             acquired = key_lock.acquire(timeout=20)
@@ -369,9 +396,14 @@ def _generate_resilient_questions(
                 if acquired:
                     # Another request may have populated the pool while this
                     # request was waiting for the same key lock.
-                    selected = cached_questions(
-                        key, exclude=excluded, limit=total_questions
-                    )
+                    current_seen = excluded | {
+                        question_fingerprint(item) for item in selected
+                    }
+                    selected.extend(cached_questions(
+                        key,
+                        exclude=current_seen,
+                        limit=total_questions - len(selected),
+                    ))
                     if len(selected) < total_questions:
                         # Generate the complete requested section through the
                         # provider. generate_large_mcqs splits it into safe
@@ -396,6 +428,14 @@ def _generate_resilient_questions(
                                 subject,
                                 exc,
                             )
+                        store_bank_questions(
+                            generated,
+                            exam_type=exam_type,
+                            subject=subject,
+                            difficulty=difficulty,
+                            format_version=version,
+                            topic=topic,
+                        )
                         add_to_pool(key, generated)
 
                         # Do not pad a successful Gemini result with fallback
@@ -417,9 +457,14 @@ def _generate_resilient_questions(
                                 },
                             )
                             add_to_pool(key, fallback)
-                        selected = cached_questions(
-                            key, exclude=excluded, limit=total_questions
-                        )
+                        selected_seen = excluded | {
+                            question_fingerprint(item) for item in selected
+                        }
+                        selected.extend(cached_questions(
+                            key,
+                            exclude=selected_seen,
+                            limit=total_questions - len(selected),
+                        ))
             finally:
                 if acquired:
                     key_lock.release()
@@ -449,6 +494,15 @@ def _generate_resilient_questions(
             question.get("concept") or question["topic"]
         )
     random.SystemRandom().shuffle(selected)
+    if not text:
+        schedule_refill(
+            exam_type=exam_type,
+            subject=subject,
+            difficulty=difficulty,
+            format_version=version,
+            topic=topic,
+            target=min(240, max(60, total_questions * 2)),
+        )
     return selected[:total_questions]
 
 
@@ -481,6 +535,7 @@ def _generate_question_plan(
     difficulty: str,
     exam_type: str,
     exclude_fingerprints: set[str] | None = None,
+    format_version: str | None = None,
 ) -> list[dict]:
     """Generate independent syllabus sections concurrently and merge safely."""
     active_plan = [item for item in plan if item[2] > 0]
@@ -497,6 +552,7 @@ def _generate_question_plan(
             difficulty=difficulty,
             exam_type=exam_type,
             exclude_fingerprints=excluded,
+            format_version=format_version,
         )
 
     with ThreadPoolExecutor(max_workers=min(4, len(active_plan))) as executor:
@@ -825,6 +881,7 @@ def generate_mcqs_endpoint(
         text=text,
         exam_type=exam_type,
         exclude_fingerprints=recent,
+        format_version=get_exam_format(exam_type)["version"],
     )
 
     _require_exact_questions(questions, payload.number_of_questions)
@@ -913,6 +970,7 @@ def generate_mock_test(
         difficulty=payload.difficulty,
         exam_type=exam_type,
         exclude_fingerprints=recent,
+        format_version=profile["version"],
     )
 
     _require_exact_questions(all_questions, expected_total)
@@ -990,6 +1048,7 @@ def generate_adaptive_practice(
         difficulty=payload.difficulty,
         exam_type=exam_type,
         exclude_fingerprints=recent,
+        format_version=get_exam_format(exam_type)["version"],
     )
     plan = [
         {"subject": subject, "topic": topic, "questions": count}
@@ -1160,6 +1219,7 @@ def generate_from_past_paper(
         difficulty="Medium",
         exam_type=exam_type,
         exclude_fingerprints=recent,
+        format_version=get_exam_format(exam_type)["version"],
     )
 
     _require_exact_questions(all_questions, paper["total_questions"])
