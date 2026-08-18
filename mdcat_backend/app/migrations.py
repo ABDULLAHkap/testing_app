@@ -12,11 +12,19 @@ def apply_compatibility_migrations() -> None:
         return
     inspector = inspect(engine)
     user_columns = {column["name"] for column in inspector.get_columns("users")}
-    quiz_columns = {column["name"] for column in inspector.get_columns("quiz_sets")}
+    quiz_column_info = {
+        column["name"]: column for column in inspector.get_columns("quiz_sets")
+    }
+    quiz_columns = set(quiz_column_info)
     attempt_columns = {
         column["name"] for column in inspector.get_columns("quiz_attempts")
     }
     statements = []
+    subject_type = quiz_column_info.get("subject", {}).get("type")
+    if subject_type is not None and (getattr(subject_type, "length", 0) or 0) < 255:
+        statements.append(
+            "ALTER TABLE quiz_sets ALTER COLUMN subject TYPE VARCHAR(255)"
+        )
     additions = {
         "gender": "VARCHAR(20)",
         "phone": "VARCHAR(30)",
