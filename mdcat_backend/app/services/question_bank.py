@@ -164,8 +164,13 @@ def schedule_refill(
                 format_version=format_version,
                 topic=topic,
             )
-        except Exception:
-            logger.warning("Question-bank refill failed for %s / %s", exam_type, subject, exc_info=True)
+        except Exception as exc:
+            # Refills are non-blocking. Students can still receive matching
+            # stored questions, so avoid filling Render logs with tracebacks.
+            logger.warning(
+                "Question-bank refill paused for %s / %s: %s",
+                exam_type, subject, exc,
+            )
         finally:
             with _pending_guard:
                 _pending.discard(key)
