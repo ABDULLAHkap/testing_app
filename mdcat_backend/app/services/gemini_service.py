@@ -4,6 +4,7 @@ import re
 import secrets
 import time
 from threading import BoundedSemaphore
+from contextvars import ContextVar
 
 import httpx
 from dotenv import load_dotenv
@@ -16,6 +17,12 @@ _BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 _provider_slots = BoundedSemaphore(
     max(1, int(os.getenv("QUESTION_PROVIDER_CONCURRENCY", "4")))
 )
+_generation_source: ContextVar[str] = ContextVar("generation_source", default="gemini_generated")
+
+
+def current_generation_source() -> str:
+    """The provider used by the most recent generation in this request."""
+    return _generation_source.get()
 
 
 def _generate_content(
@@ -25,6 +32,31 @@ def _generate_content(
     temperature: float,
     max_output_tokens: int,
     json_mode: bool = False,
+    response_schema: dict | None = None,
+) -> str:
+    """Try providers in order: Gemini, Groq, then a private Ollama server."""
+    errors: list[Exception] = []
+    for generator, source in (
+        (_generate_with_gemini, "gemini_generated"),
+        (_generate_with_groq, "groq_generated"),
+        (_generate_with_ollama, "ollama_generated"),
+    ):
+        try:
+            result = generator(
+                system_prompt=system_prompt, contents=contents,
+                temperature=temperature, max_output_tokens=max_output_tokens,
+                json_mode=json_mode, response_schema=response_schema,
+            )
+            _generation_source.set(source)
+            return result
+        except RuntimeError as exc:
+            errors.append(exc)
+    raise RuntimeError("All configured question providers are unavailable") from (errors[-1] if errors else None)
+
+
+def _generate_with_gemini(
+    *, system_prompt: str, contents: list[dict], temperature: float,
+    max_output_tokens: int, json_mode: bool = False,
     response_schema: dict | None = None,
 ) -> str:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
@@ -92,6 +124,86 @@ def _generate_content(
                     time.sleep(0.6 * (2 ** attempt))
 
     raise RuntimeError("No configured Gemini model is available") from last_error
+
+
+def _plain_prompt(system_prompt: str, contents: list[dict]) -> str:
+    message = "\n".join(
+        str(part.get("text", ""))
+        for item in contents for part in item.get("parts", [])
+    )
+    return f"{system_prompt}\n\n{message}"
+
+
+def _generate_with_groq(
+    *, system_prompt: str, contents: list[dict], temperature: float,
+    max_output_tokens: int, json_mode: bool = False,
+    response_schema: dict | None = None,
+) -> str:
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured")
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
+    request: dict = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": _plain_prompt("", contents)},
+        ],
+        "temperature": temperature,
+        "max_tokens": max_output_tokens,
+    }
+    if json_mode:
+        request["response_format"] = {"type": "json_object"}
+    try:
+        with _provider_slots:
+            response = httpx.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=request, timeout=httpx.Timeout(30, connect=5),
+            )
+            response.raise_for_status()
+            text = str(response.json()["choices"][0]["message"]["content"] or "").strip()
+            if not text:
+                raise RuntimeError("Groq returned an empty response")
+            return text
+    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+        raise RuntimeError("Groq question provider failed") from exc
+
+
+def _generate_with_ollama(
+    *, system_prompt: str, contents: list[dict], temperature: float,
+    max_output_tokens: int, json_mode: bool = False,
+    response_schema: dict | None = None,
+) -> str:
+    base_url = os.getenv("OLLAMA_API_URL", "").strip().rstrip("/")
+    if not base_url:
+        raise RuntimeError("OLLAMA_API_URL is not configured")
+    model = os.getenv("OLLAMA_MODEL", "llama3.1:8b").strip()
+    request: dict = {
+        "model": model,
+        "prompt": _plain_prompt(system_prompt, contents),
+        "stream": False,
+        "options": {"temperature": temperature, "num_predict": max_output_tokens},
+    }
+    if json_mode:
+        request["format"] = response_schema or "json"
+    headers = {"Content-Type": "application/json"}
+    token = os.getenv("OLLAMA_API_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    try:
+        with _provider_slots:
+            response = httpx.post(
+                f"{base_url}/api/generate", headers=headers, json=request,
+                timeout=httpx.Timeout(90, connect=8),
+            )
+            response.raise_for_status()
+            text = str(response.json().get("response", "")).strip()
+            if not text:
+                raise RuntimeError("Ollama returned an empty response")
+            return text
+    except (httpx.HTTPError, TypeError, ValueError) as exc:
+        raise RuntimeError("Ollama question provider failed") from exc
 
 
 def generate_mcqs(
@@ -236,7 +348,7 @@ Return only this JSON shape:
             "topic": str(topic or question.get("topic") or subject),
             "concept": str(question.get("concept") or topic or subject),
             "section": subject,
-            "source_type": "gemini_generated",
+            "source_type": current_generation_source(),
         })
         seen.add(normalized)
         valid.append(question)
