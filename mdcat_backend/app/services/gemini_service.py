@@ -33,14 +33,20 @@ def _generate_content(
     max_output_tokens: int,
     json_mode: bool = False,
     response_schema: dict | None = None,
+    allow_cerebras: bool = False,
 ) -> str:
-    """Try providers in order: Gemini, Groq, then a private Ollama server."""
+    """Try configured providers; Cerebras is allowed only for MCQ generation."""
     errors: list[Exception] = []
-    for generator, source in (
+    providers = [
         (_generate_with_gemini, "gemini_generated"),
         (_generate_with_groq, "groq_generated"),
         (_generate_with_ollama, "ollama_generated"),
-    ):
+    ]
+    if allow_cerebras:
+        # Tutor conversations can contain personal student content. Cerebras is
+        # intentionally restricted to the explicitly requested MCQ fallback.
+        providers.insert(2, (_generate_with_cerebras, "cerebras_generated"))
+    for generator, source in providers:
         try:
             result = generator(
                 system_prompt=system_prompt, contents=contents,
@@ -170,6 +176,45 @@ def _generate_with_groq(
         raise RuntimeError("Groq question provider failed") from exc
 
 
+def _generate_with_cerebras(
+    *, system_prompt: str, contents: list[dict], temperature: float,
+    max_output_tokens: int, json_mode: bool = False,
+    response_schema: dict | None = None,
+) -> str:
+    """Generate through Cerebras' OpenAI-compatible chat-completions API."""
+    api_key = os.getenv("CEREBRAS_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("CEREBRAS_API_KEY is not configured")
+    model = os.getenv("CEREBRAS_MODEL", "gpt-oss-120b").strip()
+    request: dict = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": _plain_prompt("", contents)},
+        ],
+        "temperature": temperature,
+        "max_tokens": max_output_tokens,
+    }
+    if json_mode:
+        # Cerebras supports OpenAI-compatible JSON-object responses. The app
+        # still validates every returned question before it is stored or shown.
+        request["response_format"] = {"type": "json_object"}
+    try:
+        with _provider_slots:
+            response = httpx.post(
+                "https://api.cerebras.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=request, timeout=httpx.Timeout(30, connect=5),
+            )
+            response.raise_for_status()
+            text = str(response.json()["choices"][0]["message"]["content"] or "").strip()
+            if not text:
+                raise RuntimeError("Cerebras returned an empty response")
+            return text
+    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+        raise RuntimeError("Cerebras question provider failed") from exc
+
+
 def _generate_with_ollama(
     *, system_prompt: str, contents: list[dict], temperature: float,
     max_output_tokens: int, json_mode: bool = False,
@@ -290,6 +335,7 @@ Return only this JSON shape:
         max_output_tokens=max(4096, number * 700),
         json_mode=True,
         response_schema=response_schema,
+        allow_cerebras=True,
     )
     raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.I)
     try:
