@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import secrets
@@ -11,13 +12,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
-FALLBACK_MODEL_NAMES = ("gemini-3.5-flash-lite", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite").strip()
+FALLBACK_MODEL_NAMES = ("gemini-2.5-flash-lite", "gemini-2.5-flash")
 _BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 _provider_slots = BoundedSemaphore(
     max(1, int(os.getenv("QUESTION_PROVIDER_CONCURRENCY", "4")))
 )
 _generation_source: ContextVar[str] = ContextVar("generation_source", default="gemini_generated")
+logger = logging.getLogger(__name__)
 
 
 def current_generation_source() -> str:
@@ -54,6 +56,7 @@ def _generate_content(
                 json_mode=json_mode, response_schema=response_schema,
             )
             _generation_source.set(source)
+            logger.info("MCQ provider succeeded: %s", source)
             return result
         except RuntimeError as exc:
             errors.append(exc)
@@ -148,7 +151,7 @@ def _generate_with_groq(
     api_key = os.getenv("GROQ_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("GROQ_API_KEY is not configured")
-    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
+    model = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
     request: dict = {
         "model": model,
         "messages": [
