@@ -27,6 +27,17 @@ def current_generation_source() -> str:
     return _generation_source.get()
 
 
+def _provider_is_configured(source: str) -> bool:
+    """Avoid calling disabled fallbacks and reporting them as real failures."""
+    variable = {
+        "gemini_generated": "GEMINI_API_KEY",
+        "groq_generated": "GROQ_API_KEY",
+        "cerebras_generated": "CEREBRAS_API_KEY",
+        "ollama_generated": "OLLAMA_API_URL",
+    }[source]
+    return bool(os.getenv(variable, "").strip())
+
+
 def _generate_content(
     *,
     system_prompt: str,
@@ -49,6 +60,8 @@ def _generate_content(
         # intentionally restricted to the explicitly requested MCQ fallback.
         providers.insert(2, (_generate_with_cerebras, "cerebras_generated"))
     for generator, source in providers:
+        if not _provider_is_configured(source):
+            continue
         try:
             result = generator(
                 system_prompt=system_prompt, contents=contents,
@@ -58,9 +71,13 @@ def _generate_content(
             _generation_source.set(source)
             logger.info("MCQ provider succeeded: %s", source)
             return result
-        except RuntimeError as exc:
+        except (RuntimeError, httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
             errors.append(exc)
-    raise RuntimeError("All configured question providers are unavailable") from (errors[-1] if errors else None)
+            # The message contains provider/status details only, never an API key.
+            logger.warning("MCQ provider unavailable: %s — %s", source, exc)
+    if not errors:
+        raise RuntimeError("No MCQ provider is configured")
+    raise RuntimeError("All configured question providers are unavailable") from errors[-1]
 
 
 def _generate_with_gemini(
