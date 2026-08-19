@@ -35,6 +35,10 @@ services:
         sync: false
       - key: GROQ_MODEL
         value: llama-3.3-70b-versatile
+      - key: CEREBRAS_API_KEY
+        sync: false
+      - key: CEREBRAS_MODEL
+        value: gpt-oss-120b
       - key: OLLAMA_API_URL
         sync: false
       - key: OLLAMA_MODEL
