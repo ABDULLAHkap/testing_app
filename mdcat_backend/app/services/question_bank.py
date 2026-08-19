@@ -129,7 +129,7 @@ def schedule_refill(
 ) -> None:
     """Queue one refill per category without blocking the student's request."""
     if not any(os.getenv(key, "").strip() not in {"", "test-placeholder"}
-               for key in ("GEMINI_API_KEY", "GROQ_API_KEY", "OLLAMA_API_URL")):
+               for key in ("GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "OLLAMA_API_URL")):
         return
     key = (exam_type, subject, difficulty, format_version, topic or "")
     with _pending_guard:
