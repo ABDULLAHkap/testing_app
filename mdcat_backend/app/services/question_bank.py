@@ -36,7 +36,7 @@ def store_questions(
     candidate_map = {
         question_fingerprint(question): question
         for question in questions
-        if question.get("source_type") == "gemini_generated"
+        if str(question.get("source_type", "")).endswith("_generated")
     }
     candidates = list(candidate_map.values())
     if not candidates:
@@ -58,7 +58,7 @@ def store_questions(
                 format_version=format_version,
                 fingerprint=question_fingerprint(question),
                 question=question,
-                source_type="gemini_generated",
+                source_type=str(question.get("source_type") or "ai_generated"),
             ) for question in candidates
             if question_fingerprint(question) not in existing]
         try:
@@ -128,7 +128,8 @@ def schedule_refill(
     format_version: str, topic: str | None = None, target: int = 60,
 ) -> None:
     """Queue one refill per category without blocking the student's request."""
-    if os.getenv("GEMINI_API_KEY", "").strip() in {"", "test-placeholder"}:
+    if not any(os.getenv(key, "").strip() not in {"", "test-placeholder"}
+               for key in ("GEMINI_API_KEY", "GROQ_API_KEY", "OLLAMA_API_URL")):
         return
     key = (exam_type, subject, difficulty, format_version, topic or "")
     with _pending_guard:
@@ -185,7 +186,7 @@ def backfill_from_recent_quizzes(limit_sets: int = 200) -> int:
     for quiz_set in quiz_sets:
         version = str(quiz_set.format_version or "legacy")
         for question in quiz_set.questions or []:
-            if question.get("source_type") != "gemini_generated":
+            if not str(question.get("source_type", "")).endswith("_generated"):
                 continue
             subject = str(question.get("subject") or quiz_set.subject)
             topic = str(question.get("topic") or "")
