@@ -35,7 +35,7 @@ def _provider_is_configured(source: str) -> bool:
     variable = {
         "gemini_generated": "GEMINI_API_KEY",
         "groq_generated": "GROQ_API_KEY",
-        "cerebras_generated": "CEREBRAS_API_KEY",
+        "cohere_generated": "COHERE_API_KEY",
         "ollama_generated": "OLLAMA_API_URL",
     }[source]
     return bool(os.getenv(variable, "").strip())
@@ -86,19 +86,19 @@ def _generate_content(
     max_output_tokens: int,
     json_mode: bool = False,
     response_schema: dict | None = None,
-    allow_cerebras: bool = False,
+    allow_cohere: bool = False,
     allow_ollama: bool = True,
 ) -> str:
-    """Try configured providers; Cerebras is allowed only for MCQ generation."""
+    """Try configured providers; Cohere is allowed only for MCQ generation."""
     errors: list[Exception] = []
     providers = [
         (_generate_with_gemini, "gemini_generated"),
         (_generate_with_groq, "groq_generated"),
     ]
-    if allow_cerebras:
-        # Tutor conversations can contain personal student content. Cerebras is
+    if allow_cohere:
+        # Tutor conversations can contain personal student content. Cohere is
         # intentionally restricted to the explicitly requested MCQ fallback.
-        providers.append((_generate_with_cerebras, "cerebras_generated"))
+        providers.append((_generate_with_cohere, "cohere_generated"))
     if allow_ollama:
         providers.append((_generate_with_ollama, "ollama_generated"))
     for generator, source in providers:
@@ -273,16 +273,16 @@ def _generate_with_groq(
         raise RuntimeError("Groq question provider failed") from exc
 
 
-def _generate_with_cerebras(
+def _generate_with_cohere(
     *, system_prompt: str, contents: list[dict], temperature: float,
     max_output_tokens: int, json_mode: bool = False,
     response_schema: dict | None = None,
 ) -> str:
-    """Generate through Cerebras' OpenAI-compatible chat-completions API."""
-    api_key = os.getenv("CEREBRAS_API_KEY", "").strip()
+    """Generate through Cohere's v2 Chat API."""
+    api_key = os.getenv("COHERE_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("CEREBRAS_API_KEY is not configured")
-    model = os.getenv("CEREBRAS_MODEL", "gpt-oss-120b").strip()
+        raise RuntimeError("COHERE_API_KEY is not configured")
+    model = os.getenv("COHERE_MODEL", "command-a-plus-05-2026").strip()
     request: dict = {
         "model": model,
         "messages": [
@@ -293,9 +293,11 @@ def _generate_with_cerebras(
         "max_tokens": max_output_tokens,
     }
     if json_mode:
-        # Cerebras supports OpenAI-compatible JSON-object responses. The app
-        # still validates every returned question before it is stored or shown.
+        # Cohere v2 supports JSON-object output, including an optional schema.
+        # The app still validates every returned question before storage.
         request["response_format"] = {"type": "json_object"}
+        if response_schema:
+            request["response_format"]["schema"] = response_schema
     request_variants = [request]
     if json_mode:
         relaxed = dict(request)
@@ -306,7 +308,7 @@ def _generate_with_cerebras(
             response = None
             for request_variant in request_variants:
                 response = httpx.post(
-                    "https://api.cerebras.ai/v1/chat/completions",
+                    "https://api.cohere.com/v2/chat",
                     headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                     json=request_variant, timeout=httpx.Timeout(30, connect=5),
                 )
@@ -314,14 +316,18 @@ def _generate_with_cerebras(
                     break
             assert response is not None
             response.raise_for_status()
-            text = str(response.json()["choices"][0]["message"]["content"] or "").strip()
+            content = response.json()["message"]["content"]
+            text = "".join(
+                str(part.get("text", ""))
+                for part in content if isinstance(part, dict)
+            ).strip()
             if not text:
-                raise RuntimeError("Cerebras returned an empty response")
+                raise RuntimeError("Cohere returned an empty response")
             return text
     except httpx.HTTPStatusError as exc:
-        raise RuntimeError(f"Cerebras question provider HTTP {exc.response.status_code}") from exc
+        raise RuntimeError(f"Cohere question provider HTTP {exc.response.status_code}") from exc
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
-        raise RuntimeError("Cerebras question provider failed") from exc
+        raise RuntimeError("Cohere question provider failed") from exc
 
 
 def _generate_with_ollama(
@@ -444,7 +450,7 @@ Return only this JSON shape:
         max_output_tokens=max(4096, number * 700),
         json_mode=True,
         response_schema=response_schema,
-        allow_cerebras=True,
+        allow_cohere=True,
         allow_ollama=False,
     )
     raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.I)
