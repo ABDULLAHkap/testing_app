@@ -111,7 +111,10 @@ def _generate_content(
                 json_mode=json_mode, response_schema=response_schema,
             )
             _generation_source.set(source)
-            logger.info("MCQ provider succeeded: %s", source)
+            # Render's default app logger can hide INFO records. This message
+            # is deliberately visible so deployments can prove which provider
+            # supplied each newly generated MCQ batch.
+            logger.warning("MCQ provider succeeded: %s", source)
             return result
         except (RuntimeError, httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
             errors.append(exc)
