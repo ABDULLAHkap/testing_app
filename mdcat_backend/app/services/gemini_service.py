@@ -20,6 +20,8 @@ _provider_slots = BoundedSemaphore(
 )
 _generation_source: ContextVar[str] = ContextVar("generation_source", default="gemini_generated")
 logger = logging.getLogger(__name__)
+_gemini_discovered_models: tuple[str, ...] = ()
+_gemini_discovery_at = 0.0
 
 
 def current_generation_source() -> str:
@@ -36,6 +38,43 @@ def _provider_is_configured(source: str) -> bool:
         "ollama_generated": "OLLAMA_API_URL",
     }[source]
     return bool(os.getenv(variable, "").strip())
+
+
+def _discover_gemini_models(api_key: str) -> tuple[str, ...]:
+    """Find text Flash models enabled for this API key/project.
+
+    Different Google projects can have different model access. Discovery lets
+    the fallback use a supported Flash model rather than failing only because a
+    hard-coded model name is unavailable.
+    """
+    global _gemini_discovered_models, _gemini_discovery_at
+    if _gemini_discovered_models and time.time() - _gemini_discovery_at < 900:
+        return _gemini_discovered_models
+    try:
+        response = httpx.get(
+            f"{_BASE_URL}/models",
+            headers={"x-goog-api-key": api_key},
+            timeout=httpx.Timeout(10, connect=5),
+        )
+        response.raise_for_status()
+        names: list[str] = []
+        for item in response.json().get("models", []):
+            methods = item.get("supportedGenerationMethods", [])
+            name = str(item.get("name", "")).rsplit("/", 1)[-1]
+            normalized = name.casefold()
+            if (
+                "generateContent" in methods
+                and "flash" in normalized
+                and not any(blocked in normalized for blocked in ("image", "tts", "audio", "live"))
+            ):
+                names.append(name)
+        names.sort(key=lambda name: ("flash-lite" not in name.casefold(), name))
+        _gemini_discovered_models = tuple(dict.fromkeys(names))
+        _gemini_discovery_at = time.time()
+        return _gemini_discovered_models
+    except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
+        logger.warning("Gemini model discovery failed: %s", exc)
+        return ()
 
 
 def _generate_content(
@@ -113,7 +152,10 @@ def _generate_with_gemini(
         relaxed["generationConfig"] = relaxed_config
         request_variants.append(relaxed)
     with _provider_slots:
-        model_names = tuple(dict.fromkeys((MODEL_NAME, *FALLBACK_MODEL_NAMES)))
+        discovered = _discover_gemini_models(api_key)
+        model_names = tuple(dict.fromkeys((
+            MODEL_NAME, *FALLBACK_MODEL_NAMES, *discovered,
+        )))
         last_error: Exception | None = None
         for model_name in model_names:
             url = f"{_BASE_URL}/models/{model_name}:generateContent"
