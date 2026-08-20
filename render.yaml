@@ -46,7 +46,9 @@ services:
       - key: OLLAMA_API_TOKEN
         sync: false
       - key: QUESTION_PROVIDER_CONCURRENCY
-        value: "4"
+        # One generation at a time avoids exhausting free-tier provider
+        # rate limits when background question-bank refills are running.
+        value: "1"
       - key: CORS_ORIGINS
         value: "*"
       - key: ADMIN_EMAIL
