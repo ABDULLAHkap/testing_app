@@ -20,6 +20,7 @@ _provider_slots = BoundedSemaphore(
 )
 _generation_source: ContextVar[str] = ContextVar("generation_source", default="gemini_generated")
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 _gemini_discovered_models: tuple[str, ...] = ()
 _gemini_discovery_at = 0.0
 
