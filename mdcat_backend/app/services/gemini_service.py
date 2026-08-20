@@ -103,6 +103,15 @@ def _generate_with_gemini(
         "contents": contents,
         "generationConfig": generation_config,
     }
+    request_variants = [request]
+    if json_mode and response_schema:
+        # Some Gemini projects/models reject responseJsonSchema even though
+        # they support JSON output. Retry with JSON MIME mode only.
+        relaxed = dict(request)
+        relaxed_config = dict(generation_config)
+        relaxed_config.pop("responseJsonSchema", None)
+        relaxed["generationConfig"] = relaxed_config
+        request_variants.append(relaxed)
     with _provider_slots:
         model_names = tuple(dict.fromkeys((MODEL_NAME, *FALLBACK_MODEL_NAMES)))
         last_error: Exception | None = None
@@ -110,15 +119,23 @@ def _generate_with_gemini(
             url = f"{_BASE_URL}/models/{model_name}:generateContent"
             for attempt in range(3):
                 try:
-                    response = httpx.post(
-                        url,
-                        headers={
-                            "Content-Type": "application/json",
-                            "x-goog-api-key": api_key,
-                        },
-                        json=request,
-                        timeout=httpx.Timeout(25, connect=5),
-                    )
+                    response = None
+                    for request_variant in request_variants:
+                        response = httpx.post(
+                            url,
+                            headers={
+                                "Content-Type": "application/json",
+                                "x-goog-api-key": api_key,
+                            },
+                            json=request_variant,
+                            timeout=httpx.Timeout(25, connect=5),
+                        )
+                        # Only a strict-schema validation error gets the
+                        # relaxed JSON retry; other statuses follow normal
+                        # provider fallback behavior.
+                        if response.status_code != 400 or request_variant is request_variants[-1]:
+                            break
+                    assert response is not None
                     # A configured model can be unavailable to a particular
                     # API key/project. Try the supported fallback models rather
                     # than silently replacing the requested quiz with offline
@@ -180,18 +197,30 @@ def _generate_with_groq(
     }
     if json_mode:
         request["response_format"] = {"type": "json_object"}
+    request_variants = [request]
+    if json_mode:
+        relaxed = dict(request)
+        relaxed.pop("response_format", None)
+        request_variants.append(relaxed)
     try:
         with _provider_slots:
-            response = httpx.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json=request, timeout=httpx.Timeout(30, connect=5),
-            )
+            response = None
+            for request_variant in request_variants:
+                response = httpx.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json=request_variant, timeout=httpx.Timeout(30, connect=5),
+                )
+                if response.status_code != 400 or request_variant is request_variants[-1]:
+                    break
+            assert response is not None
             response.raise_for_status()
             text = str(response.json()["choices"][0]["message"]["content"] or "").strip()
             if not text:
                 raise RuntimeError("Groq returned an empty response")
             return text
+    except httpx.HTTPStatusError as exc:
+        raise RuntimeError(f"Groq question provider HTTP {exc.response.status_code}") from exc
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
         raise RuntimeError("Groq question provider failed") from exc
 
@@ -219,18 +248,30 @@ def _generate_with_cerebras(
         # Cerebras supports OpenAI-compatible JSON-object responses. The app
         # still validates every returned question before it is stored or shown.
         request["response_format"] = {"type": "json_object"}
+    request_variants = [request]
+    if json_mode:
+        relaxed = dict(request)
+        relaxed.pop("response_format", None)
+        request_variants.append(relaxed)
     try:
         with _provider_slots:
-            response = httpx.post(
-                "https://api.cerebras.ai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json=request, timeout=httpx.Timeout(30, connect=5),
-            )
+            response = None
+            for request_variant in request_variants:
+                response = httpx.post(
+                    "https://api.cerebras.ai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json=request_variant, timeout=httpx.Timeout(30, connect=5),
+                )
+                if response.status_code != 400 or request_variant is request_variants[-1]:
+                    break
+            assert response is not None
             response.raise_for_status()
             text = str(response.json()["choices"][0]["message"]["content"] or "").strip()
             if not text:
                 raise RuntimeError("Cerebras returned an empty response")
             return text
+    except httpx.HTTPStatusError as exc:
+        raise RuntimeError(f"Cerebras question provider HTTP {exc.response.status_code}") from exc
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
         raise RuntimeError("Cerebras question provider failed") from exc
 
