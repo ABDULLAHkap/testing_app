@@ -387,8 +387,8 @@ def _generate_resilient_questions(
                         exam_type=exam_type,
                     )
                     if generated:
-                        logger.info(
-                            "Question set sourced from AI provider for %s / %s",
+                        logger.warning(
+                            "MCQ source: AI provider for %s / %s",
                             exam_type, subject,
                         )
                 except Exception as exc:
@@ -433,8 +433,8 @@ def _generate_resilient_questions(
                 exclude_fingerprints=selected_seen,
             )
             if bank_questions:
-                logger.info(
-                    "Question set supplemented from database for %s / %s",
+                logger.warning(
+                    "MCQ source: database fallback for %s / %s",
                     exam_type, subject,
                 )
                 selected.extend(bank_questions)
