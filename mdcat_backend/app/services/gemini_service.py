@@ -310,24 +310,37 @@ def _generate_with_cohere(
                 response = httpx.post(
                     "https://api.cohere.com/v2/chat",
                     headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json=request_variant, timeout=httpx.Timeout(30, connect=5),
+                    # Free Cohere requests can queue briefly, especially for
+                    # structured MCQ batches; allow enough time to complete.
+                    json=request_variant, timeout=httpx.Timeout(60, connect=8),
                 )
                 if response.status_code != 400 or request_variant is request_variants[-1]:
                     break
             assert response is not None
             response.raise_for_status()
-            content = response.json()["message"]["content"]
-            text = "".join(
-                str(part.get("text", ""))
-                for part in content if isinstance(part, dict)
-            ).strip()
+            payload = response.json()
+            message = payload.get("message", {}) if isinstance(payload, dict) else {}
+            content = message.get("content", []) if isinstance(message, dict) else []
+            if isinstance(content, str):
+                text = content.strip()
+            elif isinstance(content, dict):
+                text = str(content.get("text", "")).strip()
+            elif isinstance(content, list):
+                text = "".join(
+                    str(part.get("text", ""))
+                    for part in content if isinstance(part, dict)
+                ).strip()
+            else:
+                text = ""
             if not text:
                 raise RuntimeError("Cohere returned an empty response")
             return text
     except httpx.HTTPStatusError as exc:
         raise RuntimeError(f"Cohere question provider HTTP {exc.response.status_code}") from exc
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
-        raise RuntimeError("Cohere question provider failed") from exc
+        raise RuntimeError(
+            f"Cohere question provider failed ({type(exc).__name__})"
+        ) from exc
 
 
 def _generate_with_ollama(
