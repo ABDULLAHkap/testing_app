@@ -339,10 +339,10 @@ def _generate_resilient_questions(
 ) -> list[dict]:
     """Generate a complete test without exposing provider failures to users.
 
-    The first request for an exam/subject populates a shared pool. Concurrent
-    requests for the same key wait for that one generation instead of flooding
-    the provider, and then receive independently shuffled samples. Any missing
-    items are filled with unique syllabus-grounded checks.
+    Each request tries the configured AI-provider chain first. Provider results
+    are saved to the shared question bank; the database and then safe syllabus
+    questions are only fallback sources. Concurrent requests for one category
+    share a lock so they do not flood a provider.
     """
     excluded = set(exclude_fingerprints or ())
     selected: list[dict] = []
@@ -368,106 +368,87 @@ def _generate_resilient_questions(
         except Exception:
             logger.warning("Grounded question provider unavailable", exc_info=True)
     else:
-        # PostgreSQL is the fast primary source once a category has been
-        # warmed. Exact exam/subject/topic/difficulty/version filtering keeps
-        # every returned item aligned with the currently configured syllabus.
-        selected = select_bank_questions(
-            count=total_questions,
-            exam_type=exam_type,
-            subject=subject,
-            difficulty=difficulty,
-            format_version=version,
-            topic=topic,
-            exclude_fingerprints=excluded,
-        )
-        bank_seen = excluded | {
-            question_fingerprint(item) for item in selected
-        }
+        # Requested order: AI generation is always attempted first. Its own
+        # internal order is Gemini -> Groq -> Cerebras (then optional Ollama).
+        # Stored questions are used only if providers fail or return too few
+        # valid questions. Every successful AI result also warms the bank.
+        generated: list[dict] = []
+        key_lock = lock_for(key)
+        acquired = key_lock.acquire(timeout=20)
+        try:
+            if acquired:
+                try:
+                    generated = generate_large_mcqs(
+                        total_questions=total_questions,
+                        subject=subject,
+                        difficulty=difficulty,
+                        topic=topic,
+                        exam_type=exam_type,
+                    )
+                    if generated:
+                        logger.info(
+                            "Question set sourced from AI provider for %s / %s",
+                            exam_type, subject,
+                        )
+                except Exception as exc:
+                    logger.warning(
+                        "Question provider unavailable for %s / %s: %s",
+                        exam_type, subject, exc,
+                    )
+            else:
+                logger.warning(
+                    "Question provider lock timed out for %s / %s; using backup sources",
+                    exam_type, subject,
+                )
+        finally:
+            if acquired:
+                key_lock.release()
+
+        selected.extend(generated[:total_questions])
+        if generated:
+            store_bank_questions(
+                generated,
+                exam_type=exam_type,
+                subject=subject,
+                difficulty=difficulty,
+                format_version=version,
+                topic=topic,
+            )
+            add_to_pool(key, generated)
+
+        # Database is the first backup after every configured AI provider has
+        # failed (or returned an incomplete batch).
         if len(selected) < total_questions:
+            selected_seen = excluded | {
+                question_fingerprint(item) for item in selected
+            }
+            bank_questions = select_bank_questions(
+                count=total_questions - len(selected),
+                exam_type=exam_type,
+                subject=subject,
+                difficulty=difficulty,
+                format_version=version,
+                topic=topic,
+                exclude_fingerprints=selected_seen,
+            )
+            if bank_questions:
+                logger.info(
+                    "Question set supplemented from database for %s / %s",
+                    exam_type, subject,
+                )
+                selected.extend(bank_questions)
+
+        # The in-process pool is a final fast copy of previously stored or
+        # generated questions; it is considered only after the database.
+        if len(selected) < total_questions:
+            selected_seen = excluded | {
+                question_fingerprint(item) for item in selected
+            }
             selected.extend(cached_questions(
                 key,
-                exclude=bank_seen,
+                exclude=selected_seen,
                 limit=total_questions - len(selected),
             ))
-        if len(selected) < total_questions:
-            key_lock = lock_for(key)
-            acquired = key_lock.acquire(timeout=20)
-            try:
-                if acquired:
-                    # Another request may have populated the pool while this
-                    # request was waiting for the same key lock.
-                    current_seen = excluded | {
-                        question_fingerprint(item) for item in selected
-                    }
-                    selected.extend(cached_questions(
-                        key,
-                        exclude=current_seen,
-                        limit=total_questions - len(selected),
-                    ))
-                    if len(selected) < total_questions:
-                        # Generate the complete requested section through the
-                        # provider. generate_large_mcqs splits it into safe
-                        # ten-question calls. Previously this was capped at 20,
-                        # so most of a 180-question mock was always replaced by
-                        # syllabus fallback placeholders even when Gemini was
-                        # healthy.
-                        provider_count = total_questions - len(selected)
-                        generated: list[dict] = []
-                        try:
-                            generated = generate_large_mcqs(
-                                total_questions=provider_count,
-                                subject=subject,
-                                difficulty=difficulty,
-                                topic=topic,
-                                exam_type=exam_type,
-                            )
-                        except Exception as exc:
-                            logger.warning(
-                                "Question provider unavailable for %s / %s: %s",
-                                exam_type,
-                                subject,
-                                exc,
-                            )
-                        store_bank_questions(
-                            generated,
-                            exam_type=exam_type,
-                            subject=subject,
-                            difficulty=difficulty,
-                            format_version=version,
-                            topic=topic,
-                        )
-                        add_to_pool(key, generated)
-
-                        # Do not pad a successful Gemini result with fallback
-                        # placeholders. Fallback questions are added only when
-                        # the provider returned fewer items than this request
-                        # actually needs.
-                        pool_target = total_questions
-                        current_pool = cached_questions(key)
-                        if len(current_pool) < pool_target:
-                            fallback = _offline_download_questions(
-                                exam_type=exam_type,
-                                subject=subject,
-                                count=pool_target - len(current_pool),
-                                start_index=len(current_pool),
-                                topic_override=topic,
-                                avoid_fingerprints={
-                                    question_fingerprint(item)
-                                    for item in current_pool
-                                },
-                            )
-                            add_to_pool(key, fallback)
-                        selected_seen = excluded | {
-                            question_fingerprint(item) for item in selected
-                        }
-                        selected.extend(cached_questions(
-                            key,
-                            exclude=selected_seen,
-                            limit=total_questions - len(selected),
-                        ))
-            finally:
-                if acquired:
-                    key_lock.release()
 
     # A student who has exhausted every cached variation still receives a
     # complete unique quiz; old questions are never duplicated inside one set.
