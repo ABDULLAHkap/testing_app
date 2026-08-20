@@ -86,18 +86,20 @@ def _generate_content(
     json_mode: bool = False,
     response_schema: dict | None = None,
     allow_cerebras: bool = False,
+    allow_ollama: bool = True,
 ) -> str:
     """Try configured providers; Cerebras is allowed only for MCQ generation."""
     errors: list[Exception] = []
     providers = [
         (_generate_with_gemini, "gemini_generated"),
         (_generate_with_groq, "groq_generated"),
-        (_generate_with_ollama, "ollama_generated"),
     ]
     if allow_cerebras:
         # Tutor conversations can contain personal student content. Cerebras is
         # intentionally restricted to the explicitly requested MCQ fallback.
-        providers.insert(2, (_generate_with_cerebras, "cerebras_generated"))
+        providers.append((_generate_with_cerebras, "cerebras_generated"))
+    if allow_ollama:
+        providers.append((_generate_with_ollama, "ollama_generated"))
     for generator, source in providers:
         if not _provider_is_configured(source):
             continue
@@ -439,6 +441,7 @@ Return only this JSON shape:
         json_mode=True,
         response_schema=response_schema,
         allow_cerebras=True,
+        allow_ollama=False,
     )
     raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.I)
     try:
