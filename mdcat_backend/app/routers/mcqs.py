@@ -45,6 +45,7 @@ from app.services.question_bank import (
 
 router = APIRouter(prefix="/mcqs", tags=["mcqs"])
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 _download_jobs: dict[str, dict] = {}
