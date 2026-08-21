@@ -76,13 +76,13 @@ void main() {
     expect(find.text('STEP 1'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.byKey(const Key('onboarding-next')));
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Build Your Study Plan'), findsOneWidget);
     expect(find.text('STEP 2'), findsOneWidget);
 
-    await tester.tap(find.text('Skip'));
+    await tester.tap(find.byKey(const Key('onboarding-skip')));
     await tester.pump();
     expect(finished, isTrue);
   });
