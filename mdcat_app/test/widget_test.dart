@@ -10,6 +10,41 @@ import 'package:mdcat_app/services/auth_provider.dart';
 import 'package:mdcat_app/services/theme_provider.dart';
 
 void main() {
+  test('onboarding targets mobile web and Windows without changing desktop web', () {
+    expect(
+      shouldPresentBrainBoostOnboarding(
+        isWeb: true,
+        platform: TargetPlatform.android,
+        logicalWidth: 430,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldPresentBrainBoostOnboarding(
+        isWeb: true,
+        platform: TargetPlatform.windows,
+        logicalWidth: 430,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldPresentBrainBoostOnboarding(
+        isWeb: true,
+        platform: TargetPlatform.windows,
+        logicalWidth: 1440,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldPresentBrainBoostOnboarding(
+        isWeb: false,
+        platform: TargetPlatform.windows,
+        logicalWidth: 1440,
+      ),
+      isTrue,
+    );
+  });
+
   test('quiz cannot advance until the current question is answered', () {
     expect(canAdvanceQuizQuestion(<int, String>{}, 0), isFalse);
     expect(canAdvanceQuizQuestion(<int, String>{0: 'B'}, 0), isTrue);
