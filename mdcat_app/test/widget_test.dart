@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:mdcat_app/screens/auth/login_screen.dart';
 import 'package:mdcat_app/screens/auth/landing_screen.dart';
+import 'package:mdcat_app/screens/onboarding/mobile_onboarding_gate.dart';
 import 'package:mdcat_app/screens/quiz/quiz_screen.dart';
 import 'package:mdcat_app/services/auth_provider.dart';
 import 'package:mdcat_app/services/theme_provider.dart';
@@ -53,5 +54,44 @@ void main() {
 
     expect(find.text('Welcome Back'), findsOneWidget);
     expect(find.text('Sign In'), findsOneWidget);
+  });
+
+  testWidgets('mobile onboarding explains the journey and can be skipped', (
+    WidgetTester tester,
+  ) async {
+    var finished = false;
+    await tester.binding.setSurfaceSize(const Size(430, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: MobileOnboardingScreen(
+          onFinished: () async => finished = true,
+        ),
+      ),
+    );
+
+    expect(find.text('Choose Your Exam'), findsOneWidget);
+    expect(find.text('STEP 1'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+
+    final nextButton = tester.widget<TextButton>(
+      find.byKey(const Key('onboarding-next')),
+    );
+    nextButton.onPressed!();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+
+    expect(find.text('Build Your Study Plan'), findsOneWidget);
+    expect(find.text('STEP 2'), findsOneWidget);
+
+    final skipButton = tester.widget<TextButton>(
+      find.byKey(const Key('onboarding-skip')),
+    );
+    skipButton.onPressed!();
+    await tester.pump();
+    expect(finished, isTrue);
   });
 }
