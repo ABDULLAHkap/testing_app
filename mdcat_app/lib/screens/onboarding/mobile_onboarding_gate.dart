@@ -840,6 +840,7 @@ class _BottomNavigation extends StatelessWidget {
           SizedBox(
             width: 76,
             child: TextButton(
+              key: const Key('onboarding-skip'),
               onPressed: busy ? null : onSkip,
               child: Text('Skip', style: TextStyle(color: colors.muted, fontWeight: FontWeight.w700)),
             ),
@@ -872,6 +873,7 @@ class _BottomNavigation extends StatelessWidget {
                 boxShadow: [BoxShadow(color: colors.purple.withValues(alpha: .24), blurRadius: 18)],
               ),
               child: TextButton(
+                key: const Key('onboarding-next'),
                 onPressed: busy ? null : onNext,
                 child: busy
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
