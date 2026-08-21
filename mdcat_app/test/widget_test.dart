@@ -77,13 +77,13 @@ void main() {
     expect(find.text('Skip'), findsOneWidget);
 
     await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Build Your Study Plan'), findsOneWidget);
     expect(find.text('STEP 2'), findsOneWidget);
 
     await tester.tap(find.text('Skip'));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(finished, isTrue);
   });
 }
