@@ -5,6 +5,7 @@ import 'services/auth_provider.dart';
 import 'services/theme_provider.dart';
 import 'services/notification_service.dart';
 import 'screens/auth_gate.dart';
+import 'screens/onboarding/mobile_onboarding_gate.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -33,7 +34,7 @@ class MdcatApp extends StatelessWidget {
                 ? AppTheme.standardTheme
                 : AppTheme.darkTheme,
             themeMode: themeProvider.mode,
-            home: const AuthGate(),
+            home: const MobileOnboardingGate(child: AuthGate()),
           );
         },
       ),
