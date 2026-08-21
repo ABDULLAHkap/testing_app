@@ -2,8 +2,24 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Shows BrainBoost's six-step introduction once on Android and iOS.
-/// Web and desktop continue directly to the existing authentication gate.
+/// Whether the six-step introduction belongs on the current device.
+///
+/// Native Android, iOS and Windows apps show it. On the web it is limited to
+/// phone-sized viewports so the existing desktop browser landing page remains
+/// unchanged.
+bool shouldPresentBrainBoostOnboarding({
+  required bool isWeb,
+  required TargetPlatform platform,
+  required double logicalWidth,
+}) {
+  if (isWeb) return logicalWidth <= 768;
+
+  return platform == TargetPlatform.android ||
+      platform == TargetPlatform.iOS ||
+      platform == TargetPlatform.windows;
+}
+
+/// Shows BrainBoost's six-step introduction once on supported app surfaces.
 class MobileOnboardingGate extends StatefulWidget {
   const MobileOnboardingGate({required this.child, super.key});
 
@@ -18,18 +34,23 @@ class _MobileOnboardingGateState extends State<MobileOnboardingGate> {
   static const _completedKey = 'mobile_onboarding_completed_v1';
 
   bool? _shouldShow;
+  bool _loadStarted = false;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadStarted) return;
+    _loadStarted = true;
+    _load(MediaQuery.sizeOf(context).width);
   }
 
-  Future<void> _load() async {
-    final isMobile = !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS);
-    if (!isMobile) {
+  Future<void> _load(double logicalWidth) async {
+    final shouldPresent = shouldPresentBrainBoostOnboarding(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+      logicalWidth: logicalWidth,
+    );
+    if (!shouldPresent) {
       if (mounted) setState(() => _shouldShow = false);
       return;
     }
@@ -165,33 +186,38 @@ class _MobileOnboardingScreenState extends State<MobileOnboardingScreen> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              _BrandHeader(colors: colors),
-              const SizedBox(height: 4),
-              Expanded(
-                child: PageView.builder(
-                  controller: _controller,
-                  itemCount: _pages.length,
-                  onPageChanged: (value) => setState(() => _index = value),
-                  itemBuilder: (context, index) => _OnboardingPage(
-                    data: _pages[index],
-                    step: index + 1,
-                    colors: colors,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  _BrandHeader(colors: colors),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _controller,
+                      itemCount: _pages.length,
+                      onPageChanged: (value) => setState(() => _index = value),
+                      itemBuilder: (context, index) => _OnboardingPage(
+                        data: _pages[index],
+                        step: index + 1,
+                        colors: colors,
+                      ),
+                    ),
                   ),
-                ),
+                  _BottomNavigation(
+                    index: _index,
+                    pageCount: _pages.length,
+                    isLast: _isLast,
+                    busy: _finishing,
+                    colors: colors,
+                    onSkip: _finish,
+                    onNext: _next,
+                  ),
+                ],
               ),
-              _BottomNavigation(
-                index: _index,
-                pageCount: _pages.length,
-                isLast: _isLast,
-                busy: _finishing,
-                colors: colors,
-                onSkip: _finish,
-                onNext: _next,
-              ),
-            ],
+            ),
           ),
         ),
       ),
