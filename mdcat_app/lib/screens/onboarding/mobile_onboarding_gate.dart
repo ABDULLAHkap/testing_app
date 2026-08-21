@@ -469,10 +469,10 @@ class _PlanVisual extends StatelessWidget {
               padding: const EdgeInsets.all(14),
               child: Column(
                 children: [
-                  _ScheduleRow('08:00', 'Physics · Mechanics', colors),
-                  _ScheduleRow('10:00', 'Chemistry · Organic', colors),
-                  _ScheduleRow('14:00', 'Biology · Cell Biology', colors),
-                  _ScheduleRow('16:00', 'Mock Test', colors),
+                  _scheduleRow('08:00', 'Physics · Mechanics', colors),
+                  _scheduleRow('10:00', 'Chemistry · Organic', colors),
+                  _scheduleRow('14:00', 'Biology · Cell Biology', colors),
+                  _scheduleRow('16:00', 'Mock Test', colors),
                 ],
               ),
             ),
@@ -885,7 +885,7 @@ class _BottomNavigation extends StatelessWidget {
   }
 }
 
-Widget _ScheduleRow(String time, String subject, _OnboardingColors colors) {
+Widget _scheduleRow(String time, String subject, _OnboardingColors colors) {
   return Expanded(
     child: Row(
       children: [
