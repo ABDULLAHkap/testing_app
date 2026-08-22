@@ -10,19 +10,11 @@ import 'package:mdcat_app/services/auth_provider.dart';
 import 'package:mdcat_app/services/theme_provider.dart';
 
 void main() {
-  test('onboarding targets mobile web and Windows without changing desktop web', () {
+  test('onboarding targets mobile only without changing Windows or desktop web', () {
     expect(
       shouldPresentBrainBoostOnboarding(
         isWeb: true,
         platform: TargetPlatform.android,
-        logicalWidth: 430,
-      ),
-      isTrue,
-    );
-    expect(
-      shouldPresentBrainBoostOnboarding(
-        isWeb: true,
-        platform: TargetPlatform.windows,
         logicalWidth: 430,
       ),
       isTrue,
@@ -39,9 +31,9 @@ void main() {
       shouldPresentBrainBoostOnboarding(
         isWeb: false,
         platform: TargetPlatform.windows,
-        logicalWidth: 1440,
+        logicalWidth: 430,
       ),
-      isTrue,
+      isFalse,
     );
   });
 
