@@ -6,11 +6,11 @@ import '../../services/auth_provider.dart';
 import '../home/home_screen.dart';
 import 'forgot_password_screen.dart';
 
-const _purple = Color(0xFF7C4DFF);
-const _pink = Color(0xFFFF3D9A);
-const _navy = Color(0xFF111A3A);
-const _muted = Color(0xFF6E7890);
-const _soft = Color(0xFFF7F7FC);
+const _purple = Color(0xFF20D5C5);
+const _pink = Color(0xFF7C5CFF);
+const _navy = Color(0xFFF5FAFF);
+const _muted = Color(0xFFAABBD0);
+const _soft = Color(0xFF0D2034);
 
 class MobileAuthFlow extends StatefulWidget {
   const MobileAuthFlow({super.key});
@@ -80,7 +80,7 @@ class _MobileAuthFlowState extends State<MobileAuthFlow> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFF061320),
       body: SafeArea(
         child: Column(
           children: [
@@ -287,7 +287,7 @@ class MobileWelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFF061320),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 30),
@@ -313,7 +313,7 @@ class MobileWelcomeScreen extends StatelessWidget {
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFFF0EBFF), Color(0xFFFFEDF7)],
+                    colors: [Color(0xFF10253A), Color(0xFF0A1A2C)],
                   ),
                   borderRadius: BorderRadius.circular(28),
                 ),
@@ -480,7 +480,7 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
                 const Expanded(child: Divider()),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('NEW TO BRAINBOOST?', style: TextStyle(color: Colors.grey.shade600, fontSize: 11, fontWeight: FontWeight.w700)),
+                  child: const Text('NEW TO BRAINBOOST?', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w700)), 
                 ),
                 const Expanded(child: Divider()),
               ],
@@ -492,7 +492,7 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
               ),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(54),
-                side: const BorderSide(color: Color(0xFFD9DCE8)),
+                side: const BorderSide(color: Color(0xFF31516F)), 
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
               ),
               child: const Text('Create Account', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -761,10 +761,10 @@ class _AuthScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFF061320),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: const Color(0xFF061320),
+        surfaceTintColor: const Color(0xFF061320),
         elevation: 0,
         leading: Navigator.of(context).canPop()
             ? IconButton(
@@ -840,6 +840,8 @@ class _MobileField extends StatelessWidget {
   Widget build(BuildContext context) => TextFormField(
         controller: controller,
         obscureText: obscure,
+        cursorColor: _purple,
+        style: const TextStyle(color: _navy, fontWeight: FontWeight.w600),
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         maxLength: maxLength,
@@ -853,13 +855,15 @@ class _MobileField extends StatelessWidget {
 
 InputDecoration _inputDecoration(String label, IconData icon) => InputDecoration(
       labelText: label,
+      labelStyle: const TextStyle(color: _muted),
+      floatingLabelStyle: const TextStyle(color: _purple),
       prefixIcon: Icon(icon, color: _purple),
       filled: true,
       fillColor: _soft,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: Color(0xFFE2E4ED)),
+        borderSide: const BorderSide(color: Color(0xFF31516F)), 
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
@@ -929,9 +933,9 @@ class _ActionCard extends StatelessWidget {
           child: Ink(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: pink ? const Color(0xFFFFF0F7) : const Color(0xFFF1EEFF),
+              color: pink ? const Color(0xFF18213B) : const Color(0xFF10253A),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: pink ? const Color(0xFFFFD3E8) : const Color(0xFFDED5FF)),
+              border: Border.all(color: pink ? const Color(0xFF7C5CFF) : const Color(0xFF20D5C5)), 
             ),
             child: Row(
               children: [
