@@ -154,7 +154,7 @@ class _OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final featureCards = page == 1
+    final List<Widget> featureCards = page == 1
         ? const [
             _FeaturePill(Icons.description_outlined, 'Past Papers'),
             _FeaturePill(Icons.assignment_turned_in_outlined, 'Mock Tests'),
