@@ -39,7 +39,7 @@ class _AuthGateState extends State<AuthGate> {
             if (constraints.maxWidth >= 900) {
               return const LandingScreen();
             }
-            return const MobileAuthFlow();
+            return const MobileWelcomeScreen();
           },
         );
     }
