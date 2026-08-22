@@ -4,8 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Whether the six-step introduction belongs on the current device.
 ///
-/// Native Android and iOS apps show it. On the web it is limited to
-/// phone-sized viewports so desktop browser and Windows interfaces remain
+/// Native Android, iOS and Windows apps show it. On the web it is limited to
+/// phone-sized viewports so the existing desktop browser landing page remains
 /// unchanged.
 bool shouldPresentBrainBoostOnboarding({
   required bool isWeb,
@@ -14,7 +14,9 @@ bool shouldPresentBrainBoostOnboarding({
 }) {
   if (isWeb) return logicalWidth <= 768;
 
-  return platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+  return platform == TargetPlatform.android ||
+      platform == TargetPlatform.iOS ||
+      platform == TargetPlatform.windows;
 }
 
 /// Shows BrainBoost's six-step introduction once on supported app surfaces.
