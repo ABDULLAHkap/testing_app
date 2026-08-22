@@ -761,25 +761,44 @@ class _AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appearance = context.watch<ThemeProvider>().appearance;
+    final isLight = appearance == AppAppearance.light;
+    final background = isLight
+        ? const Color(0xFFF5FAFF)
+        : appearance == AppAppearance.dark
+            ? Colors.black
+            : const Color(0xFF061320);
+    final iconColor = isLight ? const Color(0xFF061320) : _navy;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF061320),
+      backgroundColor: background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF061320),
-        surfaceTintColor: const Color(0xFF061320),
+        backgroundColor: background,
+        surfaceTintColor: background,
         elevation: 0,
         leading: Navigator.of(context).canPop()
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: _navy),
+                icon: Icon(Icons.arrow_back_rounded, color: iconColor),
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,
         actions: const [_AuthAppearanceMenu()],
       ),
-      body: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 6, 24, 30),
-          child: child,
+      body: ColorFiltered(
+        colorFilter: isLight
+            ? const ColorFilter.matrix(<double>[
+                -1, 0, 0, 0, 255,
+                0, -1, 0, 0, 255,
+                0, 0, -1, 0, 255,
+                0, 0, 0, 1, 0,
+              ])
+            : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 6, 24, 30),
+            child: child,
+          ),
         ),
       ),
     );
@@ -794,8 +813,17 @@ class _AuthAppearanceMenu extends StatelessWidget {
     final appearance = context.watch<ThemeProvider>().appearance;
     return PopupMenuButton<AppAppearance>(
       tooltip: 'Change appearance',
-      icon: const Icon(Icons.palette_outlined, color: _navy),
-      color: const Color(0xFF10253A),
+      icon: Icon(
+        Icons.palette_outlined,
+        color: appearance == AppAppearance.light
+            ? const Color(0xFF061320)
+            : _navy,
+      ),
+      color: appearance == AppAppearance.light
+          ? Colors.white
+          : appearance == AppAppearance.dark
+              ? Colors.black
+              : const Color(0xFF10253A),
       onSelected: (value) => context.read<ThemeProvider>().setAppearance(value),
       itemBuilder: (context) => [
         _appearanceItem(
@@ -841,7 +869,14 @@ class _AuthAppearanceMenu extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(label, style: const TextStyle(color: _navy)),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected == AppAppearance.light
+                    ? const Color(0xFF061320)
+                    : _navy,
+              ),
+            ),
           ),
           if (value == selected)
             const Icon(Icons.check_rounded, color: _purple, size: 19),
