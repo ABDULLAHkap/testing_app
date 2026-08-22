@@ -453,58 +453,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            Container(
-              height: 54,
-              padding: const EdgeInsets.all(1),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_cyan, Color(0xFF9257F5)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Material(
-                color: _desktopPanel,
-                borderRadius: BorderRadius.circular(11),
-                child: InkWell(
-                  onTap: _adminMode
-                      ? () => setState(() => _adminMode = false)
-                      : _showAdminLogin,
-                  borderRadius: BorderRadius.circular(11),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        _adminMode
-                            ? Icons.school_outlined
-                            : Icons.admin_panel_settings_outlined,
-                        color: _desktopText,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        _adminMode ? 'Student Login' : 'Admin Login',
-                        style: TextStyle(
-                          color: _desktopText,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(child: Divider(color: context.subtleBorderColor)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: Text('or', style: TextStyle(color: _desktopMuted)),
-                ),
-                Expanded(child: Divider(color: context.subtleBorderColor)),
-              ],
-            ),
+            const SizedBox(height: 8),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
