@@ -7,7 +7,7 @@ import '../../models/models.dart';
 import '../../widgets/exam_countdown_card.dart';
 import '../../utils/exam_content.dart';
 import '../../theme/app_theme.dart';
-import '../auth/login_screen.dart';
+import '../auth_gate.dart';
 import '../admin/admin_screen.dart';
 import '../admin/communications_screen.dart';
 import '../communications/announcements_screen.dart';
@@ -674,7 +674,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 await context.read<AuthProvider>().logout();
                 if (!context.mounted) return;
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  MaterialPageRoute(builder: (_) => const AuthGate()),
                   (route) => false,
                 );
               },
