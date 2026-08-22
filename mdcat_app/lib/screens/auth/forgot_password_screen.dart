@@ -5,7 +5,7 @@ import '../../services/api_client.dart';
 
 const _bg = Color(0xFF061320);
 const _surface = Color(0xFF10253A);
-const _field = Color(0xFF0D2034);
+const _fieldColor = Color(0xFF0D2034);
 const _cyan = Color(0xFF20D5C5);
 const _purple = Color(0xFF7C5CFF);
 const _text = Color(0xFFF5FAFF);
@@ -253,7 +253,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         suffixIcon: suffix,
         counterText: maxLength == null ? null : '',
         filled: true,
-        fillColor: _field,
+        fillColor: _fieldColor,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
