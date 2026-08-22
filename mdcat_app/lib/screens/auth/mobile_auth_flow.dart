@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/auth_provider.dart';
+import '../../services/theme_provider.dart';
 import '../home/home_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -772,6 +773,7 @@ class _AuthScaffold extends StatelessWidget {
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,
+        actions: const [_AuthAppearanceMenu()],
       ),
       body: SafeArea(
         top: false,
@@ -779,6 +781,71 @@ class _AuthScaffold extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 6, 24, 30),
           child: child,
         ),
+      ),
+    );
+  }
+}
+
+class _AuthAppearanceMenu extends StatelessWidget {
+  const _AuthAppearanceMenu();
+
+  @override
+  Widget build(BuildContext context) {
+    final appearance = context.watch<ThemeProvider>().appearance;
+    return PopupMenuButton<AppAppearance>(
+      tooltip: 'Change appearance',
+      icon: const Icon(Icons.palette_outlined, color: _navy),
+      color: const Color(0xFF10253A),
+      onSelected: (value) => context.read<ThemeProvider>().setAppearance(value),
+      itemBuilder: (context) => [
+        _appearanceItem(
+          AppAppearance.standard,
+          appearance,
+          const Color(0xFF20D5C5),
+          'Navy blue',
+        ),
+        _appearanceItem(
+          AppAppearance.dark,
+          appearance,
+          Colors.black,
+          'Black',
+        ),
+        _appearanceItem(
+          AppAppearance.light,
+          appearance,
+          Colors.white,
+          'White',
+        ),
+      ],
+    );
+  }
+
+  PopupMenuEntry<AppAppearance> _appearanceItem(
+    AppAppearance value,
+    AppAppearance selected,
+    Color swatch,
+    String label,
+  ) {
+    return PopupMenuItem<AppAppearance>(
+      value: value,
+      child: Row(
+        children: [
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              color: swatch,
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFAABBD0)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label, style: const TextStyle(color: _navy)),
+          ),
+          if (value == selected)
+            const Icon(Icons.check_rounded, color: _purple, size: 19),
+        ],
       ),
     );
   }
